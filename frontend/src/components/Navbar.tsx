@@ -29,7 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen }) => {
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-800 bg-[#0B1120] px-6">
       {/* Brand: UOD Dental Logo + SIIA */}
       <div className="flex items-center gap-3">
-        <div className="relative h-10 w-24">
+        <div className="relative h-9 w-28">
           <Image
             src="/logo-uod.png"
             alt="UOD"
