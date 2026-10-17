@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Bell, Search, ShieldCheck } from 'lucide-react';
+import { Sparkles, Bell, Search, ShieldCheck, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface NavbarProps {
   onOpenAi: () => void;
@@ -9,6 +10,18 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen }) => {
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Admin UOD';
+  const email = user?.email || 'admin@sistemauod.edu.do';
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const initials = displayName
+    .split(' ')
+    .map((n: string) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'AD';
+
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-800 bg-[#0B1020]/90 px-6 backdrop-blur-md">
       {/* Brand & Sede */}
@@ -66,18 +79,37 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen }) => {
           </span>
         </button>
 
-        {/* Google OAuth Profile Badge */}
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 border border-slate-700 text-xs font-semibold text-white">
-            AD
-          </div>
+        {/* Google OAuth Profile Badge & Logout */}
+        <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="h-9 w-9 rounded-full border border-slate-700 object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-700 to-indigo-900 border border-indigo-600 text-xs font-semibold text-white">
+              {initials}
+            </div>
+          )}
+
           <div className="hidden lg:block text-left">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-slate-200">Administrador UOD</span>
+              <span className="text-xs font-medium text-slate-200">{displayName}</span>
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <span className="text-[11px] text-slate-400">admin@sistemauod.edu.do</span>
+            <span className="text-[11px] text-slate-400">{email}</span>
           </div>
+
+          {user && (
+            <button
+              onClick={() => signOut()}
+              title="Cerrar sesión"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

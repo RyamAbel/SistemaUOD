@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { LoginView } from '@/components/LoginView';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar, NavTab } from '@/components/Sidebar';
 import { DashboardView } from '@/components/DashboardView';
@@ -14,9 +16,11 @@ import {
   ArticuloItem,
   MovimientoItem
 } from '@/lib/initialData';
-import { Sparkles, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
+  const { user, loading } = useAuth();
+  const [demoMode, setDemoMode] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [aiOpen, setAiOpen] = useState(false);
   const [articulos, setArticulos] = useState<ArticuloItem[]>(initialArticulos);
@@ -58,10 +62,8 @@ export default function Home() {
       fecha: 'Hace unos momentos'
     };
 
-    // Update movements list
     setMovimientos((prev) => [newMov, ...prev]);
 
-    // Update stock quantity atomically in state
     setArticulos((prev) =>
       prev.map((item) => {
         if (item.nombre.toLowerCase().includes(mov.articuloNombre.toLowerCase())) {
@@ -83,6 +85,23 @@ export default function Home() {
 
     triggerToast(`Movimiento ${nextNum} registrado y auditado.`);
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0B1020] text-slate-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-cyan-400" />
+          <p className="text-xs text-slate-400">Verificando sesión segura...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated and not in demo mode -> Show Google Login screen
+  if (!user && !demoMode) {
+    return <LoginView onBypassDemo={() => setDemoMode(true)} />;
+  }
 
   const articulosBajos = articulos.filter((a) => a.stockActual <= a.stockMinimo);
 
