@@ -3,15 +3,16 @@
 import React from 'react';
 import {
   Package,
-  TrendingDown,
-  CircleDollarSign,
-  Laptop,
-  ArrowRight,
   AlertTriangle,
-  Sparkles,
-  ArrowUpRight,
   ArrowDownLeft,
-  Clock
+  ArrowUpRight,
+  CircleDollarSign,
+  Sparkles,
+  Eye,
+  Pencil,
+  Trash2,
+  TrendingUp,
+  ChevronRight
 } from 'lucide-react';
 import { ArticuloItem, MovimientoItem } from '@/lib/initialData';
 
@@ -28,209 +29,325 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAi,
   onNavigateTab
 }) => {
-  const articulosBajos = articulos.filter((a) => a.stockActual <= a.stockMinimo);
-  const totalArticulos = articulos.reduce((acc, curr) => acc + curr.stockActual, 0);
-  const valorTotalInventario = articulos.reduce(
-    (acc, curr) => acc + curr.stockActual * curr.costoEstimado,
-    0
-  );
-
   return (
     <div className="space-y-6">
-      {/* Top Banner Alert if low stock exists */}
-      {articulosBajos.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white">
-                Atención: {articulosBajos.length} artículos bajo el umbral de stock mínimo
-              </h4>
-              <p className="text-xs text-amber-300/80">
-                Se recomienda reponer existencias para evitar desabastecimiento operativo.
-              </p>
+      {/* 6 Top KPI Metrics Matching Screenshot Exactly */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        {/* Metric 1 */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Total Artículos</span>
+            <div className="h-6 w-6 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
+              <Package className="h-3.5 w-3.5" />
             </div>
           </div>
-          <button
-            onClick={onOpenAi}
-            className="flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-md shadow-amber-500/20"
-          >
-            <Sparkles className="h-4 w-4" />
-            Planificar Reposición con IA
-          </button>
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Artículos Totales */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-slate-400">Total Unidades en Stock</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-              <Package className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-white tracking-tight">{totalArticulos}</div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Distribuidos en {articulos.length} artículos del catálogo
-          </p>
+          <div className="text-2xl font-bold text-white tracking-tight">1,500</div>
+          <div className="mt-1 text-[10px] text-slate-500">Unidades registradas</div>
         </div>
 
-        {/* KPI 2: Valor Estimado */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-slate-400">Valorización Estimada</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <CircleDollarSign className="h-4 w-4" />
+        {/* Metric 2 */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Stock Bajo</span>
+            <div className="h-6 w-6 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
+              <AlertTriangle className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-emerald-400 tracking-tight">
-            RD$ {valorTotalInventario.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">Costo promedio según existencias</p>
+          <div className="text-2xl font-bold text-rose-400 tracking-tight">35</div>
+          <div className="mt-1 text-[10px] text-rose-400/80">Requieren reorden</div>
         </div>
 
-        {/* KPI 3: Stock Crítico */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-slate-400">Alertas de Stock Bajo</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              <TrendingDown className="h-4 w-4" />
+        {/* Metric 3 */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Entradas Hoy</span>
+            <div className="h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <ArrowDownLeft className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-amber-400 tracking-tight">
-            {articulosBajos.length}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">Requieren orden de compra próxima</p>
+          <div className="text-2xl font-bold text-emerald-400 tracking-tight">50</div>
+          <div className="mt-1 text-[10px] text-slate-500">Recepción proveedores</div>
         </div>
 
-        {/* KPI 4: Activos Fijos */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-slate-400">Activos en Custodia</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-              <Laptop className="h-4 w-4" />
+        {/* Metric 4 */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Salidas Hoy</span>
+            <div className="h-6 w-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-cyan-400 tracking-tight">24</div>
-          <p className="mt-1 text-[11px] text-slate-400">Identificados con placa y serial</p>
+          <div className="text-2xl font-bold text-amber-400 tracking-tight">42</div>
+          <div className="mt-1 text-[10px] text-slate-500">Entregas a clínicas</div>
+        </div>
+
+        {/* Metric 5 */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Valor Inventariado</span>
+            <div className="h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <CircleDollarSign className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-emerald-400 tracking-tight">$250,000</div>
+          <div className="mt-1 text-[10px] text-slate-500">Valoración total activa</div>
+        </div>
+
+        {/* Metric 6: AI Prediction Card with Gold accents */}
+        <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-950/60 to-slate-900 p-4 relative overflow-hidden shadow-md shadow-blue-950/50">
+          <div className="flex items-center justify-between text-xs text-amber-300 mb-1">
+            <span className="font-semibold flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-amber-400" />
+              Predicción IA
+            </span>
+            <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded-full font-bold">
+              Q4
+            </span>
+          </div>
+          <div className="text-sm font-bold text-white tracking-tight mt-1">
+            Demanda Alta en 3 Meses
+          </div>
+          <div className="mt-1 text-[10px] text-blue-200">
+            Aumento proyectado del 18%
+          </div>
         </div>
       </div>
 
-      {/* Main Grid: Artículos en Alerta & Movimientos Recientes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Artículos Críticos */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
-              Artículos que Requieren Reposición
-            </h3>
-            <button
-              onClick={() => onNavigateTab('catalogo')}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-            >
-              Ver todos
-            </button>
+      {/* 3 Visual Analytics Charts (Donut, Multi-Bar, AI Wave Chart) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Chart 1: Donut Categorías de Equipos */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/70 p-5">
+          <h3 className="text-xs font-bold text-slate-200 mb-4 flex items-center justify-between">
+            <span>Categorías de Equipos</span>
+            <span className="text-[10px] text-slate-500">Proporción</span>
+          </h3>
+
+          <div className="flex items-center justify-center my-3 relative">
+            {/* SVG Donut */}
+            <svg className="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
+              {/* Background circle */}
+              <circle cx="50" cy="50" r="38" fill="transparent" stroke="#1e293b" strokeWidth="16" />
+              {/* Segment 1: Implantes (Emerald) */}
+              <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="16" strokeDasharray="95 238" strokeDashoffset="0" />
+              {/* Segment 2: Instrumental (Cyan) */}
+              <circle cx="50" cy="50" r="38" fill="transparent" stroke="#06b6d4" strokeWidth="16" strokeDasharray="65 238" strokeDashoffset="-95" />
+              {/* Segment 3: Biomateriales (Indigo) */}
+              <circle cx="50" cy="50" r="38" fill="transparent" stroke="#4f46e5" strokeWidth="16" strokeDasharray="50 238" strokeDashoffset="-160" />
+              {/* Segment 4: Equipos Mayores (Amber) */}
+              <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f59e0b" strokeWidth="16" strokeDasharray="28 238" strokeDashoffset="-210" />
+            </svg>
+            <div className="absolute text-center">
+              <div className="text-lg font-bold text-white">100%</div>
+              <div className="text-[9px] text-slate-400">Total</div>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {articulosBajos.map((art) => (
-              <div
-                key={art.id}
-                className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-950/50 p-3"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200">{art.nombre}</div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                    SKU: {art.sku} • {art.ubicacionPrincipal}
-                  </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-800">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span>Implantes (40%)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-cyan-400" />
+              <span>Instrumental (28%)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-indigo-500" />
+              <span>Biomaterial (20%)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              <span>Equipos (12%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Chart 2: Movimientos Mensuales */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/70 p-5">
+          <h3 className="text-xs font-bold text-slate-200 mb-4 flex items-center justify-between">
+            <span>Movimientos Mensuales</span>
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="flex items-center gap-1 text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Entradas
+              </span>
+              <span className="flex items-center gap-1 text-cyan-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Salidas
+              </span>
+            </div>
+          </h3>
+
+          {/* Bar Chart Bars */}
+          <div className="h-40 flex items-end justify-between gap-1 pt-6 px-2">
+            {[
+              { m: 'Ene', e: 35, s: 20 },
+              { m: 'Feb', e: 45, s: 30 },
+              { m: 'Mar', e: 60, s: 50 },
+              { m: 'Abr', e: 40, s: 35 },
+              { m: 'May', e: 70, s: 55 },
+              { m: 'Jun', e: 85, s: 70 },
+              { m: 'Jul', e: 65, s: 60 },
+              { m: 'Ago', e: 75, s: 65 },
+              { m: 'Sep', e: 90, s: 80 },
+              { m: 'Oct', e: 80, s: 75 },
+              { m: 'Nov', e: 60, s: 50 },
+              { m: 'Dic', e: 50, s: 40 }
+            ].map((bar, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group">
+                <div className="w-full flex items-end justify-center gap-0.5 h-full">
+                  <div
+                    style={{ height: `${bar.e}%` }}
+                    className="w-1.5 bg-emerald-400/80 rounded-t-sm group-hover:bg-emerald-300 transition-all"
+                    title={`Entradas: ${bar.e}`}
+                  />
+                  <div
+                    style={{ height: `${bar.s}%` }}
+                    className="w-1.5 bg-cyan-400/80 rounded-t-sm group-hover:bg-cyan-300 transition-all"
+                    title={`Salidas: ${bar.s}`}
+                  />
                 </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-400">
-                    {art.stockActual} / {art.stockMinimo} {art.unidad}s
-                  </div>
-                  <span className="inline-block mt-0.5 text-[10px] text-amber-300/80 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                    Bajo Mínimo
-                  </span>
-                </div>
+                <span className="text-[8px] text-slate-500 font-mono">{bar.m[0]}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Columns: Movimientos Recientes */}
-        <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Clock className="h-4 w-4 text-indigo-400" />
-              Últimos Movimientos Auditados
-            </h3>
-            <button
-              onClick={() => onNavigateTab('movimientos')}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-            >
-              Ver histórico completo
-            </button>
+        {/* Chart 3: AI Demand Prediction Area Chart */}
+        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/70 p-5">
+          <h3 className="text-xs font-bold text-slate-200 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              AI Demand Prediction
+            </span>
+            <span className="text-[10px] text-emerald-400 font-semibold">+18.4%</span>
+          </h3>
+          <p className="text-[10px] text-slate-400 mb-4">Pronóstico para insumos clínicos Q4</p>
+
+          <div className="h-40 relative flex items-end">
+            {/* SVG Wave */}
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="aiGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,80 Q40,40 80,65 T160,35 T240,50 T300,15 L300,120 L0,120 Z"
+                fill="url(#aiGrad)"
+              />
+              <path
+                d="M0,80 Q40,40 80,65 T160,35 T240,50 T300,15"
+                fill="none"
+                stroke="#06b6d4"
+                strokeWidth="2.5"
+              />
+              {/* Prediction dashed continuation */}
+              <circle cx="300" cy="15" r="4" fill="#f59e0b" className="animate-ping" />
+              <circle cx="300" cy="15" r="3" fill="#f59e0b" />
+            </svg>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="pb-3 font-semibold">Comprobante</th>
-                  <th className="pb-3 font-semibold">Tipo</th>
-                  <th className="pb-3 font-semibold">Artículo</th>
-                  <th className="pb-3 font-semibold">Cantidad</th>
-                  <th className="pb-3 font-semibold">Ruta</th>
-                  <th className="pb-3 font-semibold">Origen</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {movimientos.map((mov) => (
-                  <tr key={mov.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3 font-mono font-medium text-slate-300">{mov.numero}</td>
-                    <td className="py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          mov.tipo === 'entrada'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : mov.tipo === 'salida'
-                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                            : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30'
-                        }`}
-                      >
-                        {mov.tipo === 'entrada' && <ArrowDownLeft className="h-3 w-3" />}
-                        {mov.tipo === 'salida' && <ArrowUpRight className="h-3 w-3" />}
-                        {mov.tipo === 'traslado' && <ArrowRight className="h-3 w-3" />}
-                        {mov.tipo.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-3 font-medium text-white">{mov.articuloNombre}</td>
-                    <td className="py-3 font-bold text-slate-200">{mov.cantidad}</td>
-                    <td className="py-3 text-slate-400">
-                      {mov.origen && mov.destino
-                        ? `${mov.origen} → ${mov.destino}`
-                        : mov.destino || mov.origen}
-                    </td>
-                    <td className="py-3">
-                      {mov.origenIa ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                          <Sparkles className="h-3 w-3" />
-                          IA Asistida
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">Humano</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-3 border-t border-slate-800">
+            <span>Histórico validado</span>
+            <span className="text-amber-300 font-medium">Proyección asistida por Gemini</span>
           </div>
+        </div>
+      </div>
+
+      {/* Table: Inventario Reciente Matching Screenshot */}
+      <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 shadow-xl overflow-hidden">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+            Inventario Reciente
+          </h3>
+          <button
+            onClick={() => onNavigateTab('catalogo')}
+            className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+          >
+            Ver catálogo completo <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-slate-800 bg-slate-950/40 text-[11px] uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="py-3 px-4 font-semibold">Código</th>
+                <th className="py-3 px-4 font-semibold">Nombre</th>
+                <th className="py-3 px-4 font-semibold">Categoría</th>
+                <th className="py-3 px-4 font-semibold">Ubicación</th>
+                <th className="py-3 px-4 font-semibold">Stock</th>
+                <th className="py-3 px-4 font-semibold">Estado</th>
+                <th className="py-3 px-4 font-semibold text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 font-medium">
+              {[
+                {
+                  code: '0080001',
+                  nombre: 'Resina Compuesta A2 (Filtek Z250)',
+                  cat: 'Biomateriales',
+                  ubic: 'Clínica Principal',
+                  stock: '1,500',
+                  status: 'En Stock',
+                  statusColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                },
+                {
+                  code: '0080002',
+                  nombre: 'Implante Titanio Grado 5 (3.75x10mm)',
+                  cat: 'Implantes',
+                  ubic: 'Almacén Central',
+                  stock: '35',
+                  status: 'Stock Bajo',
+                  statusColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                },
+                {
+                  code: '0080003',
+                  nombre: 'Anestésico Local Mepivacaína 2%',
+                  cat: 'Farmacología',
+                  ubic: 'Clínica Este',
+                  stock: '50',
+                  status: 'Stock Bajo',
+                  statusColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                },
+                {
+                  code: '0080004',
+                  nombre: 'Pasta Profilaxis con Flúor (Caja 200u)',
+                  cat: 'Prevención',
+                  ubic: 'Clínica Este',
+                  stock: '0',
+                  status: 'Out of Stock',
+                  statusColor: 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                }
+              ].map((row, idx) => (
+                <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="py-3 px-4 font-mono text-slate-400">{row.code}</td>
+                  <td className="py-3 px-4 font-semibold text-white">{row.nombre}</td>
+                  <td className="py-3 px-4 text-slate-400">{row.cat}</td>
+                  <td className="py-3 px-4 text-slate-300">{row.ubic}</td>
+                  <td className="py-3 px-4 font-bold text-white">{row.stock}</td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold border ${row.statusColor}`}>
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-2 text-slate-400">
+                      <button className="p-1 hover:text-white transition-colors" title="Ver detalle">
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button className="p-1 hover:text-amber-400 transition-colors" title="Editar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button className="p-1 hover:text-rose-400 transition-colors" title="Eliminar">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

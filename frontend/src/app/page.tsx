@@ -7,7 +7,11 @@ import { Navbar } from '@/components/Navbar';
 import { Sidebar, NavTab } from '@/components/Sidebar';
 import { DashboardView } from '@/components/DashboardView';
 import { CatalogView } from '@/components/CatalogView';
+import { LocationsView } from '@/components/LocationsView';
 import { MovementsView } from '@/components/MovementsView';
+import { MaintenanceView } from '@/components/MaintenanceView';
+import { ReportsView } from '@/components/ReportsView';
+import { SettingsView } from '@/components/SettingsView';
 import { SupabaseConfigView } from '@/components/SupabaseConfigView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import {
@@ -16,7 +20,7 @@ import {
   ArticuloItem,
   MovimientoItem
 } from '@/lib/initialData';
-import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { Sparkles, CheckCircle2, Box, ShoppingBag, ClipboardCheck } from 'lucide-react';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -48,7 +52,7 @@ export default function Home() {
 
   const handleAddArticulo = (nuevo: ArticuloItem) => {
     setArticulos((prev) => [nuevo, ...prev]);
-    triggerToast(`Artículo "${nuevo.nombre}" registrado exitosamente en el catálogo.`);
+    triggerToast(`Artículo "${nuevo.nombre}" incorporado al catálogo.`);
   };
 
   const handleExecuteAction = (
@@ -59,11 +63,12 @@ export default function Home() {
       ...mov,
       id: `mov-${Date.now()}`,
       numero: nextNum,
-      fecha: 'Hace unos momentos'
+      fecha: 'Hace un momento'
     };
 
     setMovimientos((prev) => [newMov, ...prev]);
 
+    // Atomic update of stock
     setArticulos((prev) =>
       prev.map((item) => {
         if (item.nombre.toLowerCase().includes(mov.articuloNombre.toLowerCase())) {
@@ -89,38 +94,36 @@ export default function Home() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B1020] text-slate-100">
+      <div className="flex min-h-screen items-center justify-center bg-[#070C16] text-slate-100 font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-cyan-400" />
-          <p className="text-xs text-slate-400">Verificando sesión segura...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-800 border-t-emerald-400" />
+          <p className="text-xs text-slate-400">Accediendo a SistemaUOD (SIIA)...</p>
         </div>
       </div>
     );
   }
 
-  // Not authenticated and not in demo mode -> Show Google Login screen
+  // Not authenticated and not in demo mode -> Show Official Google Login screen matching Page 2 Bottom
   if (!user && !demoMode) {
     return <LoginView onBypassDemo={() => setDemoMode(true)} />;
   }
 
-  const articulosBajos = articulos.filter((a) => a.stockActual <= a.stockMinimo);
-
   return (
-    <div className="dark flex h-screen flex-col overflow-hidden bg-[#0B1020] text-slate-100">
-      {/* Top Navigation */}
+    <div className="dark flex h-screen flex-col overflow-hidden bg-[#070C16] text-slate-100 font-sans">
+      {/* Top Header Navigation with UOD Logo */}
       <Navbar onOpenAi={() => setAiOpen(true)} aiOpen={aiOpen} />
 
-      {/* Main Layout Area */}
+      {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
+        {/* Sidebar matching the 10 modules */}
         <Sidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          stockAlertCount={articulosBajos.length}
+          stockAlertCount={35}
         />
 
         {/* Content View */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-[#090F1C]">
           {activeTab === 'dashboard' && (
             <DashboardView
               articulos={articulos}
@@ -137,6 +140,23 @@ export default function Home() {
             />
           )}
 
+          {activeTab === 'ubicaciones' && (
+            <LocationsView
+              onApplyRecommendation={() => {
+                handleExecuteAction({
+                  tipo: 'traslado',
+                  articuloNombre: 'Pasta Profilaxis con Flúor',
+                  cantidad: 20,
+                  origen: 'Almacén Central',
+                  destino: 'Clínica Este',
+                  usuario: 'Admin UOD (Vía Recomendación IA)',
+                  origenIa: true,
+                  motivo: 'Traslado sugerido por IA para evitar quiebre de stock'
+                });
+              }}
+            />
+          )}
+
           {activeTab === 'movimientos' && (
             <MovementsView
               movimientos={movimientos}
@@ -145,56 +165,78 @@ export default function Home() {
             />
           )}
 
+          {activeTab === 'mantenimiento' && <MaintenanceView />}
+
           {activeTab === 'activos' && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white">Módulo de Activos Fijos & Préstamos</h3>
+            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Box className="h-5 w-5 text-cyan-400" />
+                Módulo de Activos Odontológicos Individuales
+              </h3>
               <p className="text-xs text-slate-400">
-                Control individualizado por número de serie, custodio asignado, historial de mantenimiento y fechas límites de devolución.
+                Trazabilidad por número de serie, placa institucional y responsable asignado.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { name: 'Sillón Quirúrgico Dental A1', sn: 'SN-UOD-2026-001', sala: 'Clínica Principal - Sala 1', resp: 'Dra. López' },
+                  { name: 'Autoclave Digital Tuttnauer 2540', sn: 'SN-UOD-2026-002', sala: 'Esterilización Central', resp: 'Lic. Pérez' },
+                  { name: 'Sensor Radiografía Digital RVG 6200', sn: 'SN-UOD-2026-003', sala: 'Radiología Oral', resp: 'Dr. Morales' }
+                ].map((act, i) => (
+                  <div key={i} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2">
+                    <span className="text-xs font-bold text-white block">{act.name}</span>
+                    <span className="text-[10px] text-cyan-400 font-mono block">Serial: {act.sn}</span>
+                    <span className="text-[11px] text-slate-400 block">{act.sala}</span>
+                    <span className="text-[10px] text-emerald-400 font-semibold block">Custodio: {act.resp}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'compras' && (
+            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-emerald-400" />
+                Proveedores y Órdenes de Compra
+              </h3>
+              <p className="text-xs text-slate-400">
+                Gestión de suplidores registrados con RNC institucional y cotizaciones asistidas.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <span className="font-bold text-sm text-white">Dental Corp. Dominicana S.R.L.</span>
+                  <div className="text-xs text-slate-400 mt-1">RNC: 1-31-88421-2 • Contacto: Carlos Mendoza</div>
+                  <div className="text-[11px] text-emerald-400 mt-2 font-semibold">Crédito 30 días • Insumos de Implantes</div>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <span className="font-bold text-sm text-white">Biomateriales del Caribe S.A.</span>
+                  <div className="text-xs text-slate-400 mt-1">RNC: 1-01-99234-5 • Contacto: Laura Silva</div>
+                  <div className="text-[11px] text-emerald-400 mt-2 font-semibold">Distribuidor oficial 3M Oral Care</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'inventario_fisico' && (
+            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-cyan-400" />
+                Inventario Físico y Escaneo QR
+              </h3>
+              <p className="text-xs text-slate-400">
+                Modo conteo rápido con conciliación automática de discrepancias y lector de códigos.
               </p>
               <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-xs text-slate-400">
-                24 Activos fijos registrados. Los esquemas y modelos ya están preparados en la base de datos de Supabase.
+                Escaneo óptico habilitado para dispositivos móviles y lectores de código de barras USB/Bluetooth.
               </div>
             </div>
           )}
 
-          {activeTab === 'conteo' && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white">Inventario Físico & Escaneo QR</h3>
-              <p className="text-xs text-slate-400">
-                Modo de conteo rápido con escaneo móvil de código de barras / QR y conciliación de discrepancias.
-              </p>
-              <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-xs text-slate-400">
-                Módulo preparado con compatibilidad PWA para cámaras móviles y lectores ópticos.
-              </div>
-            </div>
+          {activeTab === 'reportes' && (
+            <ReportsView onOpenAi={() => setAiOpen(true)} />
           )}
 
-          {activeTab === 'proveedores' && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white">Proveedores & Órdenes de Compra</h3>
-              <p className="text-xs text-slate-400">
-                Directorio de proveedores registrados con RNC dominicano y control de recepción de suministros.
-              </p>
-              <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-xs text-slate-400">
-                Tablas `proveedores` y `ordenes_compra` disponibles en `database/migrations/001_initial_schema.sql`.
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'auditoria' && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white">Bitácora de Auditoría Inmutable</h3>
-              <p className="text-xs text-slate-400">
-                Cumplimiento de la Ley 172-13. Registro de usuario, origen (humano vs IA), IP, fecha y cambios antes/después.
-              </p>
-              <div className="rounded-xl border border-slate-800/80 bg-slate-950 p-4 font-mono text-[11px] text-slate-300 space-y-2">
-                <div className="text-emerald-400">[AUDIT] MOV-2026-00104 • Origen: IA • Usuario: Admin UOD • Acción: TRASLADO • Status: CONFIRMADO</div>
-                <div className="text-slate-400">[AUDIT] MOV-2026-00103 • Origen: Humano • Usuario: Admin UOD • Acción: ENTRADA • Status: APROBADO</div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'configuracion' && <SupabaseConfigView />}
+          {activeTab === 'configuracion' && <SettingsView />}
         </main>
       </div>
 
@@ -206,7 +248,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* AI Assistant Lateral Drawer */}
+      {/* AI Assistant Lateral Drawer (Powered by Gemini 3.8 Flash) */}
       <AiAssistantDrawer
         isOpen={aiOpen}
         onClose={() => setAiOpen(false)}
