@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SistemaUOD.Api/SistemaUOD.Api.csproj" />
+    <Project Path="src/SistemaUOD.Application/SistemaUOD.Application.csproj" />
+    <Project Path="src/SistemaUOD.Domain/SistemaUOD.Domain.csproj" />
+    <Project Path="src/SistemaUOD.Infrastructure/SistemaUOD.Infrastructure.csproj" />
+  </Folder>
+</Solution>

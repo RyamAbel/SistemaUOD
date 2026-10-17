@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --primary-indigo: #4F46E5;
+  --primary-dark: #1E1B4B;
+  --ai-cyan: #06B6D4;
+  --stock-healthy: #10B981;
+  --stock-low: #F59E0B;
+  --stock-empty: #EF4444;
+}
+
+.dark {
+  --background: #0B1020;
+  --foreground: #F1F5F9;
+  --card-bg: #111827;
+  --card-border: #1F2937;
+}
+
+@theme {
+  --color-primary: #4F46E5;
+  --color-primary-dark: #1E1B4B;
+  --color-ai-cyan: #06B6D4;
+  --color-stock-healthy: #10B981;
+  --color-stock-low: #F59E0B;
+  --color-stock-empty: #EF4444;
+  --color-night: #0B1020;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Glow effects for AI Assistant */
+.ai-glow {
+  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.35);
+}
+
+.pulse-glow {
+  animation: pulse-glow-anim 2.5s infinite;
+}
+
+@keyframes pulse-glow-anim {
+  0%, 100% {
+    box-shadow: 0 0 15px 0 rgba(6, 182, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 28px 6px rgba(6, 182, 212, 0.55);
+  }
+}
