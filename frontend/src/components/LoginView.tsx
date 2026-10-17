@@ -32,15 +32,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
         {/* Brand Header: UOD Logo + SIIA */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="relative mb-3 flex items-center justify-center">
-            <div className="relative h-20 w-44">
-              <Image
-                src="/logo-uod.png"
-                alt="Universidad Odontológica Dominicana"
-                fill
-                className="object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                priority
-              />
-            </div>
+            <img
+              src="/uod-logo.png?v=2"
+              alt="Universidad Odontológica Dominicana"
+              className="h-20 w-auto max-w-[240px] object-contain drop-shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+            />
           </div>
           <h1 className="text-3xl font-extrabold tracking-wider text-white">SIIA</h1>
           <p className="mt-1 text-xs text-slate-300 font-medium">
