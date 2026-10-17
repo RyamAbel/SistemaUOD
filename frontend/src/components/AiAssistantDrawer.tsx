@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  RotateCcw,
   BookOpen,
   Bot
 } from 'lucide-react';
@@ -42,6 +41,55 @@ interface ChatMessage {
   proposal?: ActionProposal;
 }
 
+// Formateador limpio de texto para evitar asteriscos sin formato (**texto**)
+const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
+  const lines = text.split('\n');
+
+  return (
+    <div className="space-y-1.5 leading-relaxed text-xs">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Detectar si es una viñeta (*, -, • o número tipo 1., 2.)
+        const isBullet = /^(\*|\-|\•|\d+\.)\s*/.test(trimmed);
+        const bulletMatch = trimmed.match(/^(\*|\-|\•|\d+\.)\s*/);
+        const bulletPrefix = bulletMatch ? bulletMatch[0] : '';
+        const cleanContent = isBullet ? trimmed.slice(bulletPrefix.length) : trimmed;
+
+        // Parsear **negrita**
+        const parts = cleanContent.split(/(\*\*.*?\*\*)/g);
+
+        const renderedLine = parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            const boldText = part.slice(2, -2);
+            return (
+              <strong key={pIdx} className="font-semibold text-white">
+                {boldText}
+              </strong>
+            );
+          }
+          return <span key={pIdx}>{part}</span>;
+        });
+
+        if (isBullet) {
+          const isNumbered = /^\d+\./.test(bulletPrefix);
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1 my-0.5">
+              <span className="text-cyan-400 font-semibold select-none shrink-0 mt-0.5">
+                {isNumbered ? bulletPrefix.trim() : '•'}
+              </span>
+              <div className="flex-1">{renderedLine}</div>
+            </div>
+          );
+        }
+
+        return <div key={idx}>{renderedLine}</div>;
+      })}
+    </div>
+  );
+};
+
 export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
   isOpen,
   onClose,
@@ -52,7 +100,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     {
       id: 'msg-1',
       sender: 'ai',
-      text: '¡Hola! Soy tu Asistente Inteligente de Inventario (SIIA). Puedo responder preguntas sobre existencias, sugerir reposiciones o realizar movimientos bajo tu confirmación previa. ¿En qué te ayudo hoy?',
+      text: '¡Hola! Soy tu Asistente Inteligente de Inventario (SIIA). Puedo responder consultas de existencias, detectar artículos por reponer o coordinar traslados con tu confirmación previa. ¿En qué puedo colaborar?',
       time: 'Ahora'
     }
   ]);
@@ -73,7 +121,8 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
       time: 'Ahora'
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const newHistory = [...messages, userMsg];
+    setMessages(newHistory);
     if (!textToSend) setInput('');
     setIsThinking(true);
 
@@ -83,6 +132,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: query,
+          history: newHistory.map((m) => ({ sender: m.sender, text: m.text })),
           articulos,
           ubicaciones: ['Almacén Central', 'Secretaría General', 'Laboratorio de Cómputo 1', 'Rectoría / Dirección'],
           mode
@@ -137,7 +187,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
       {
         id: `conf-${Date.now()}`,
         sender: 'ai',
-        text: `✅ **Operación ejecutada con éxito**. Se trasladaron ${proposal.cantidad} unidades a ${proposal.destino}. Se ha registrado en la bitácora de auditoría con origen "IA a solicitud de usuario".`,
+        text: `✅ **Operación ejecutada con éxito**. Se trasladaron ${proposal.cantidad} unidades hacia ${proposal.destino}. Se ha registrado en la bitácora de auditoría con origen "IA a solicitud de usuario".`,
         time: 'Ahora'
       }
     ]);
@@ -155,10 +205,10 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-white">Asistente IA • SIIA</h2>
               <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
-                Contexto Activo
+                Gemini 3.8 Flash
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Validación y acciones con confirmación</p>
+            <p className="text-[11px] text-slate-400">Control transaccional y memoria de contexto</p>
           </div>
         </div>
         <button
@@ -228,53 +278,57 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
             className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`max-w-[88%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+              className={`max-w-[88%] rounded-2xl p-3.5 shadow-md ${
                 msg.sender === 'user'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : 'bg-slate-900/90 text-slate-200 border border-slate-800 shadow-md'
+                  ? 'bg-indigo-600 text-white shadow-indigo-600/20'
+                  : 'bg-slate-900/90 text-slate-200 border border-slate-800'
               }`}
             >
-              <div className="whitespace-pre-line">{msg.text}</div>
+              {/* Formatted Markdown without raw asterisks */}
+              <FormattedMessage text={msg.text} />
 
               {/* Action Confirmation Card (Required by Section 18.7 f) */}
               {msg.proposal && (
-                <div className="mt-3 rounded-xl border border-cyan-500/30 bg-cyan-950/30 p-3.5 text-slate-200">
+                <div className="mt-3.5 rounded-xl border border-cyan-500/40 bg-cyan-950/40 p-3.5 text-slate-200 shadow-lg shadow-cyan-950/50">
                   <div className="flex items-center gap-2 mb-2 text-cyan-300 font-semibold text-xs">
                     <AlertTriangle className="h-4 w-4" />
-                    <span>Confirmación de Acción Requerida</span>
+                    <span>Confirmación Requerida para Impactar Inventario</span>
                   </div>
 
                   <div className="space-y-1.5 text-[11px] mb-3 text-slate-300">
-                    <p><span className="text-slate-400">Artículo:</span> {msg.proposal.articuloNombre}</p>
-                    <p><span className="text-slate-400">Cantidad:</span> <span className="font-bold text-white">{msg.proposal.cantidad} unidades</span></p>
-                    <div className="flex items-center gap-2 text-slate-300 my-1">
+                    <p><span className="text-slate-400">Artículo:</span> <strong className="text-white">{msg.proposal.articuloNombre}</strong></p>
+                    <p><span className="text-slate-400">Cantidad:</span> <span className="font-bold text-cyan-300">{msg.proposal.cantidad} unidades</span></p>
+                    <div className="flex items-center gap-2 text-slate-300 my-1 font-medium">
                       <span className="text-slate-400">{msg.proposal.origen}</span>
-                      <ArrowRight className="h-3 w-3 text-cyan-400" />
+                      <ArrowRight className="h-3.5 w-3.5 text-cyan-400" />
                       <span className="font-semibold text-cyan-200">{msg.proposal.destino}</span>
                     </div>
-                    <p className="text-[10px] text-amber-300/90">
-                      Impacto: Origen {msg.proposal.stockActualOrigen} → {msg.proposal.stockNuevoOrigen} existencias.
-                    </p>
+                    <div className="mt-1 rounded-lg bg-slate-900/70 p-2 text-[10px] text-amber-300 border border-amber-500/20">
+                      Balance proyectado en origen: {msg.proposal.stockActualOrigen} → <strong className="text-white">{msg.proposal.stockNuevoOrigen} existencias</strong>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1 border-t border-cyan-900/50">
+                  <div className="flex items-center gap-2 pt-2 border-t border-cyan-900/50">
                     <button
                       onClick={() => handleConfirmProposal(msg.proposal!)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow-md shadow-cyan-500/20"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow-md shadow-cyan-500/25"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      Confirmar Traslado
+                      Confirmar Operación
                     </button>
                     <button
                       onClick={() => {
-                        setMessages(prev => [...prev, {
-                          id: `canc-${Date.now()}`,
-                          sender: 'ai',
-                          text: 'Operación cancelada. No se modificaron las existencias.',
-                          time: 'Ahora'
-                        }]);
+                        setMessages((prev) => [
+                          ...prev,
+                          {
+                            id: `canc-${Date.now()}`,
+                            sender: 'ai',
+                            text: 'Operación cancelada. Las existencias permanecen sin modificaciones.',
+                            time: 'Ahora'
+                          }
+                        ]);
                       }}
-                      className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
+                      className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -289,7 +343,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
         {isThinking && (
           <div className="flex items-center gap-2 rounded-xl bg-slate-900/60 p-3 text-xs text-cyan-300 border border-slate-800 w-fit">
             <Sparkles className="h-4 w-4 animate-spin text-cyan-400" />
-            <span>Consultando datos y evaluando reglas de negocio...</span>
+            <span>Consultando Gemini 3.8 Flash y evaluando reglas de negocio...</span>
           </div>
         )}
       </div>

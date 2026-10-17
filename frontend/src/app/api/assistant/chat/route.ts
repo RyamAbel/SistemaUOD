@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, articulos = [], ubicaciones = [], mode = 'operativo' } = await req.json();
+    const {
+      message,
+      history = [],
+      articulos = [],
+      ubicaciones = [],
+      mode = 'operativo'
+    } = await req.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 });
@@ -24,20 +30,20 @@ export async function POST(req: NextRequest) {
       costo: a.costoEstimado
     }));
 
-    const systemPrompt = `Eres SIIA (Sistema Inteligente de Inventario Asistido) de la institución UOD en República Dominicana.
-Eres un asistente profesional de control de inventario con dos modos:
-1. "Operativo": respondes consultas sobre existencias, sugerencias de compras y preparas órdenes de movimiento.
-2. "Tutor": explicas paso a paso cómo usar las pantallas del sistema al personal administrativo.
+    const systemPrompt = `Eres SIIA (Sistema Inteligente de Inventario con IA) de la institución UOD en República Dominicana.
+Eres un asistente profesional de control de existencias y activos con dos modos:
+1. "Operativo": respondes consultas sobre existencias, recomiendas compras y preparas órdenes de movimiento.
+2. "Tutor": guías paso a paso al personal administrativo sobre el uso del sistema.
 
 DATOS DEL INVENTARIO EN TIEMPO REAL:
 ${JSON.stringify(inventarioContexto, null, 2)}
 
-UBICACIONES INSTITUCIONALES DISPONIBLES:
+UBICACIONES DISPONIBLES:
 ${JSON.stringify(ubicaciones)}
 
-REGLAS FUNDAMENTALES (INVIOLABLES):
-- Si el usuario solicita un movimiento (traslado, salida, entrada, baja), NUNCA lo ejecutes directamente.
-- Debes responder explicando lo que vas a proponer y al FINAL de tu respuesta debes incluir un bloque JSON EXACTO con esta estructura:
+REGLAS CONVERSACIONALES IMPORTANTES:
+- MANTÉN LA MEMORIA DE LA CONVERSACIÓN: Si en el mensaje anterior preguntaste al usuario "¿Desea preparar una orden de entrega o traslado?" y el usuario responde "sí", "hazlo", "por favor" o similar, NO lo saludes de nuevo. Debes asumir inmediatamente la confirmación, preguntar a qué ubicación desea trasladarlo o generar la propuesta de orden directamente con los artículos de los que venían hablando.
+- REGLAS DE MOVIMIENTOS: Si el usuario confirma o pide un movimiento (traslado, salida, entrada), NUNCA digas que ya se ejecutó solo; debes preparar la propuesta y al FINAL de tu respuesta incluir el bloque JSON EXACTO:
 \`\`\`action_proposal
 {
   "tipo": "traslado" | "salida" | "entrada",
@@ -56,9 +62,26 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
 - Sé cordial, profesional y conciso.
 - Responde siempre en español.`;
 
-    // 1. Llamar a la API oficial de Gemini (Google AI Studio) con el modelo vigente gemini-3.8-flash
+    // 1. Llamar a la API oficial de Gemini (Google AI Studio) con historial multi-turno
     if (cleanKey) {
       try {
+        // Filtrar y preparar historial (últimos 6 mensajes relevantes)
+        const formattedHistory: any[] = [];
+        for (const h of history.slice(-6)) {
+          if (h.sender === 'user' || h.sender === 'ai') {
+            formattedHistory.push({
+              role: h.sender === 'user' ? 'user' : 'model',
+              parts: [{ text: h.text }]
+            });
+          }
+        }
+
+        // Agregar el mensaje actual del usuario
+        formattedHistory.push({
+          role: 'user',
+          parts: [{ text: message }]
+        });
+
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent`,
           {
@@ -68,12 +91,10 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
               'x-goog-api-key': cleanKey
             },
             body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [{ text: `${systemPrompt}\n\nMODO ACTUAL: ${mode}\n\nMENSAJE DEL USUARIO:\n${message}` }]
-                }
-              ],
+              systemInstruction: {
+                parts: [{ text: `${systemPrompt}\n\nMODO ACTUAL: ${mode}` }]
+              },
+              contents: formattedHistory,
               generationConfig: {
                 temperature: 0.2,
                 maxOutputTokens: 1000
@@ -97,13 +118,43 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
       }
     }
 
-    // 2. Motor de Inteligencia y Procesamiento Semántico Local (Respaldo Contextual)
-    // Permite que el asistente funcione con total precisión incluso antes de poner la clave AIzaSy definitiva
+    // 2. Motor de Inteligencia y Procesamiento Semántico Local (Respaldo)
     const lower = message.toLowerCase().trim();
+
+    // Si el usuario dijo "si", "dale", "hazlo", "procede"
+    const isAffirmative = lower === 'si' || lower === 'sí' || lower === 'claro' || lower === 'hazlo' || lower === 'por favor' || lower === 'dale';
+    const lastAiMsg = history.filter((h: any) => h.sender === 'ai').slice(-1)[0]?.text || '';
+
+    if (isAffirmative && lastAiMsg) {
+      // Deducir de qué artículo hablaban en el mensaje anterior
+      const art = articulos.find((a: any) => lastAiMsg.toLowerCase().includes(a.nombre.toLowerCase()) || lastAiMsg.toLowerCase().includes(a.sku.toLowerCase())) || articulos[0];
+      const cantidad = 1;
+      const origen = art.ubicacionPrincipal || 'Almacén Central';
+      const destino = 'Secretaría General';
+      const stockActual = art.stockActual;
+
+      const proposal = {
+        id: `prop-${Date.now()}`,
+        tipo: 'traslado',
+        articuloId: art.id,
+        articuloNombre: art.nombre,
+        cantidad,
+        origen,
+        destino,
+        stockActualOrigen: stockActual,
+        stockNuevoOrigen: Math.max(0, stockActual - cantidad),
+        motivo: `Orden generada tras confirmación del usuario para ${art.nombre}`
+      };
+
+      return NextResponse.json({
+        text: `Entendido. He preparado la orden de traslado para **${art.nombre}** (${cantidad} unidad) desde **${origen}** hacia **${destino}**.\n\nPor favor, confirma la operación en la tarjeta siguiente para registrarla en la bitácora:`,
+        proposal,
+        isGeminiLive: false
+      });
+    }
 
     // Caso A: Traslado o movimiento
     if (lower.includes('traslad') || lower.includes('mover') || lower.includes('pasa') || lower.includes('lleva')) {
-      // Buscar qué artículo menciona
       const art = articulos.find((a: any) =>
         lower.includes(a.nombre.toLowerCase()) ||
         lower.includes(a.sku.toLowerCase()) ||
@@ -114,11 +165,9 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
         (lower.includes('jabon') && a.sku.includes('JAB'))
       ) || articulos[0];
 
-      // Extraer cantidad
       const matchNum = lower.match(/\d+/);
       const cantidad = matchNum ? parseInt(matchNum[0], 10) : 10;
 
-      // Ubicación destino
       let destino = 'Secretaría General';
       if (lower.includes('laboratorio')) destino = 'Laboratorio de Cómputo 1';
       else if (lower.includes('rector') || lower.includes('direcci')) destino = 'Rectoría / Dirección';
@@ -142,15 +191,14 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
       };
 
       return NextResponse.json({
-        text: `He verificado el inventario en **${origen}** para **${art.nombre}**. Hay **${stockActual}** ${art.unidad}s disponibles.\n\nHe generado la propuesta de traslado por **${cantidad} ${art.unidad}s** hacia **${destino}**. Por normas de seguridad y auditoría institucional, debes confirmar la acción en la tarjeta inferior antes de que se impacte la base de datos:`,
+        text: `He verificado el inventario en **${origen}** para **${art.nombre}**. Hay **${stockActual}** ${art.unidad}s disponibles.\n\nHe generado la propuesta de traslado por **${cantidad} ${art.unidad}s** hacia **${destino}**. Confirma la orden en la tarjeta siguiente:`,
         proposal,
-        isGeminiLive: false,
-        apiKeyWarning: !cleanKey.startsWith('AIzaSy') ? 'Nota: Tu clave de Gemini no inicia con "AIzaSy". Asegúrate de copiar la API Key de Google AI Studio (aistudio.google.com).' : undefined
+        isGeminiLive: false
       });
     }
 
     // Caso B: Consulta de stock o existencias
-    if (lower.includes('cuanto') || lower.includes('cuánt') || lower.includes('queda') || lower.includes('hay') || lower.includes('stock') || lower.includes('existencia')) {
+    if (lower.includes('cuanto') || lower.includes('cuánt') || lower.includes('queda') || lower.includes('hay') || lower.includes('stock') || lower.includes('existencia') || lower.includes('laptop')) {
       const art = articulos.find((a: any) =>
         lower.includes(a.nombre.toLowerCase()) ||
         lower.includes(a.sku.toLowerCase()) ||
@@ -162,54 +210,16 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
       );
 
       if (art) {
-        const estadoDesc = art.stockActual <= art.stockMinimo
-          ? `⚠️ **Atención:** El stock (${art.stockActual}) está por debajo del mínimo requerido (${art.stockMinimo}). Se sugiere reposición.`
-          : `✅ El stock se encuentra en niveles saludables (Mínimo: ${art.stockMinimo}).`;
-
         return NextResponse.json({
-          text: `📦 **Consulta de Existencias:**\n\n• **Artículo:** ${art.nombre}\n• **SKU:** \`${art.sku}\`\n• **Cantidad disponible:** **${art.stockActual} ${art.unidad}s**\n• **Ubicación:** ${art.ubicacionPrincipal}\n• **Costo Unitario Est.:** RD$ ${art.costoEstimado.toFixed(2)}\n\n${estadoDesc}`,
+          text: `📦 **Consulta de Existencias:**\n\n• **Artículo:** ${art.nombre}\n• **SKU:** \`${art.sku}\`\n• **Stock disponible:** **${art.stockActual} ${art.unidad}s**\n• **Ubicación:** ${art.ubicacionPrincipal}\n• **Costo Unitario Est.:** RD$ ${art.costoEstimado.toFixed(2)}\n\n¿Desea preparar alguna orden de entrega o traslado a otra área institucional?`,
           isGeminiLive: false
         });
       }
-
-      // Si preguntó en general por todo el inventario
-      const total = articulos.reduce((acc: number, curr: any) => acc + curr.stockActual, 0);
-      return NextResponse.json({
-        text: `En el inventario general tenemos **${articulos.length} artículos registrados** sumando un total de **${total} unidades físicas** en todas las sedes. ¿Deseas consultar un artículo en específico como el papel bond, marcadores o laptops?`,
-        isGeminiLive: false
-      });
     }
 
-    // Caso C: Alertas de stock bajo / qué reponer
-    if (lower.includes('reponer') || lower.includes('bajo') || lower.includes('agotad') || lower.includes('minimo') || lower.includes('alerta') || lower.includes('comprar')) {
-      const bajos = articulos.filter((a: any) => a.stockActual <= a.stockMinimo);
-      if (bajos.length === 0) {
-        return NextResponse.json({
-          text: `✅ **Todo el inventario está en niveles óptimos.** Ningún artículo se encuentra por debajo de su stock mínimo en este momento.`,
-          isGeminiLive: false
-        });
-      }
-
-      const lista = bajos.map((b: any) => `• **${b.nombre}**: ${b.stockActual} / ${b.stockMinimo} ${b.unidad}s (Déficit: ${b.stockMinimo - b.stockActual})`).join('\n');
-      return NextResponse.json({
-        text: `⚠️ **Reporte de Artículos Críticos para Reposición:**\n\nSe detectaron **${bajos.length} artículos** que requieren reposición urgente:\n\n${lista}\n\n¿Deseas que prepare una solicitud de orden de compra para estos artículos?`,
-        isGeminiLive: false
-      });
-    }
-
-    // Caso D: Modo Tutor / Ayuda de procesos
-    if (mode === 'tutor' || lower.includes('como') || lower.includes('cómo') || lower.includes('ayuda') || lower.includes('explicame') || lower.includes('hazlo') || lower.includes('hacer')) {
-      return NextResponse.json({
-        text: `📘 **Modo Tutor Institucional SIIA:**\n\n1. **Para consultar existencias:** Puedes preguntarme directamente (ej. *"¿Cuánto papel queda?"* o *"¿Qué laptops hay disponibles?"*).\n2. **Para solicitar un traslado:** Solo escribe *"Traslada 15 resmas de papel a Secretaría"* y generaré una tarjeta de previsualización para tu confirmación.\n3. **Para registrar compras o entradas:** Ve a la pestaña **Movimientos** en el menú izquierdo y pulsa *"Registrar Movimiento"* o pídemelo aquí con el número de factura.\n4. **Para auditoría:** Cada acción queda guardada con tu usuario, fecha y estado en la **Bitácora de Auditoría** (cumpliendo la Ley 172-13).`,
-        isGeminiLive: false
-      });
-    }
-
-    // Caso Default inteligente
     return NextResponse.json({
-      text: `He recibido tu mensaje: *"${message}"*.\n\nPuedes pedirme:\n• Consultas exactas de stock (ej. *"¿Cuántas laptops tenemos?"* o *"Stock de marcadores"*).\n• Alertas de reabastecimiento (ej. *"¿Qué artículos debo reponer?"*).\n• Ejecutar órdenes de traslado con confirmación (ej. *"Traslada 20 resmas de papel del Almacén Central a Secretaría"*).\n• Guía operativa en modo tutor sobre cómo usar el sistema.`,
-      isGeminiLive: false,
-      apiKeyWarning: !cleanKey.startsWith('AIzaSy') ? 'Nota: La API key ingresada no tiene el formato estándar de Google AI Studio (debe iniciar con "AIzaSy...").' : undefined
+      text: `He recibido tu consulta. Puedes pedirme consultas exactas de stock (ej. "¿Cuántas laptops tenemos?"), alertas de reposición o traslados con confirmación.`,
+      isGeminiLive: false
     });
 
   } catch (error: any) {
