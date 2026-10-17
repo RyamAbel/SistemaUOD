@@ -56,38 +56,48 @@ REGLAS FUNDAMENTALES (INVIOLABLES):
 - Sé cordial, profesional y conciso.
 - Responde siempre en español.`;
 
-    // 1. Intentar llamar a la API oficial de Gemini si la clave tiene formato válido de Google (empieza con AIzaSy)
-    if (cleanKey && cleanKey.startsWith('AIzaSy')) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${systemPrompt}\n\nMODO ACTUAL: ${mode}\n\nMENSAJE DEL USUARIO:\n${message}` }]
+    // 1. Llamar a la API oficial de Gemini (Google AI Studio) con el modelo vigente gemini-3.8-flash
+    if (cleanKey) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': cleanKey
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ text: `${systemPrompt}\n\nMODO ACTUAL: ${mode}\n\nMENSAJE DEL USUARIO:\n${message}` }]
+                }
+              ],
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 1000
               }
-            ],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 800
-            }
-          })
-        }
-      );
+            })
+          }
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidate) {
-          return parseAssistantResponse(candidate, inventarioContexto);
+        if (response.ok) {
+          const data = await response.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate) {
+            return parseAssistantResponse(candidate, inventarioContexto);
+          }
+        } else {
+          const errData = await response.text();
+          console.warn('Advertencia API Gemini:', response.status, errData);
         }
+      } catch (geminiErr) {
+        console.warn('Error llamando a Gemini API:', geminiErr);
       }
     }
 
-    // 2. Motor de Inteligencia y Procesamiento Semántico Local (Contextual con los datos reales)
+    // 2. Motor de Inteligencia y Procesamiento Semántico Local (Respaldo Contextual)
     // Permite que el asistente funcione con total precisión incluso antes de poner la clave AIzaSy definitiva
     const lower = message.toLowerCase().trim();
 
