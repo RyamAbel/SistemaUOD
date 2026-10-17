@@ -62,7 +62,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const query = textToSend || input;
     if (!query.trim()) return;
 
@@ -77,60 +77,47 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     if (!textToSend) setInput('');
     setIsThinking(true);
 
-    // AI Intent processing logic matching Annex B of SIIA spec
-    setTimeout(() => {
-      const lower = query.toLowerCase();
-      let responseText = '';
-      let proposal: ActionProposal | undefined = undefined;
+    try {
+      const res = await fetch('/api/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: query,
+          articulos,
+          ubicaciones: ['Almacén Central', 'Secretaría General', 'Laboratorio de Cómputo 1', 'Rectoría / Dirección'],
+          mode
+        })
+      });
 
-      if (lower.includes('resmas') && (lower.includes('cuánt') || lower.includes('quedan') || lower.includes('stock'))) {
-        const papel = articulos.find(a => a.sku.includes('PAP'));
-        responseText = `En el Almacén Central quedan actualmente **${papel?.stockActual || 85} resmas** de Papel Bond 8.5x11 (Stock mínimo configurado: ${papel?.stockMinimo || 15}). El stock está en estado saludable.`;
-      } 
-      else if (lower.includes('bajo') || lower.includes('agot') || lower.includes('mínimo') || lower.includes('reponer')) {
-        const bajos = articulos.filter(a => a.stockActual <= a.stockMinimo);
-        responseText = `He analizado el inventario y detecté **${bajos.length} artículos críticos bajo stock mínimo**:\n\n` +
-          bajos.map(b => `• **${b.nombre}**: ${b.stockActual} ${b.unidad}s (Mínimo: ${b.stockMinimo})`).join('\n') +
-          `\n\n¿Deseas que prepare un borrador de Orden de Compra para estos suministros?`;
-      }
-      else if (lower.includes('traslad') || (lower.includes('papel') && lower.includes('secretaría'))) {
-        const papel = articulos.find(a => a.sku.includes('PAP'));
-        const stockActual = papel?.stockActual || 85;
-        const qty = 20;
+      const data = await res.json();
 
-        proposal = {
-          id: `prop-${Date.now()}`,
-          tipo: 'traslado',
-          articuloId: papel?.id || 'art-001',
-          articuloNombre: papel?.nombre || 'Resmas de Papel Bond 8.5 x 11',
-          cantidad: qty,
-          origen: 'Almacén Central',
-          destino: 'Secretaría General',
-          stockActualOrigen: stockActual,
-          stockNuevoOrigen: stockActual - qty,
-          motivo: 'Traslado solicitado mediante asistente conversacional IA'
-        };
-
-        responseText = `He verificado la disponibilidad en el **Almacén Central** (${stockActual} disponibles) y tus permisos de usuario. Para proceder, por favor confirma la siguiente orden de traslado:`;
-      }
-      else if (mode === 'tutor' || lower.includes('cómo') || lower.includes('tutor') || lower.includes('ayuda')) {
-        responseText = `📘 **Modo Tutor**: Para registrar un nuevo movimiento de inventario, puedes hacerlo directamente escribiéndomelo aquí (ej: "Traslada 10 resmas a Dirección") o yendo a la pestaña de **Movimientos** en el menú izquierdo y pulsando "Nuevo Movimiento". Cada transacción genera un comprobante inmutable con fecha, responsable y clave de auditoría.`;
-      }
-      else {
-        responseText = `Comprendo tu solicitud: "${query}". Tengo acceso a las existencias, categorías, activos y bitácora de la institución. Puedes pedirme consultas de stock, detección de artículos por vencer o traslados entre sedes.`;
+      let finalText = data.text || 'Sin respuesta del asistente.';
+      if (data.apiKeyWarning) {
+        finalText += `\n\n_${data.apiKeyWarning}_`;
       }
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: responseText,
+        text: finalText,
         time: 'Ahora',
-        proposal
+        proposal: data.proposal
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: 'ai',
+          text: 'Disculpa, ocurrió un error de comunicación con el motor del asistente.',
+          time: 'Ahora'
+        }
+      ]);
+    } finally {
       setIsThinking(false);
-    }, 700);
+    }
   };
 
   const handleConfirmProposal = (proposal: ActionProposal) => {
