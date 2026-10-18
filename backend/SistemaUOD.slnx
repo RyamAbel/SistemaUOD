@@ -5,4 +5,7 @@
     <Project Path="src/SistemaUOD.Domain/SistemaUOD.Domain.csproj" />
     <Project Path="src/SistemaUOD.Infrastructure/SistemaUOD.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SistemaUOD.Tests/SistemaUOD.Tests.csproj" />
+  </Folder>
 </Solution>

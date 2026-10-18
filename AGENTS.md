@@ -82,9 +82,14 @@ SistemaUOD/
   - ✅ Migración 4: `20261018000004_auth_invitation_trigger.sql` aplicada con éxito (control estricto de invitaciones).
   - ✅ Datos semilla: `supabase/seed.sql` sembrados con éxito.
   - ✅ Batería de pruebas: `supabase/tests/database_test.sql` superada con todas las restricciones validadas.
-- **Etapa 3 (Acceso con Google & Credenciales):** 🔄 En curso / Lista para verificar en vivo:
-  - Supabase Database & Auth (URL y claves en `.env.local`).
-  - Google OAuth 2.0 (Client ID y Client Secret configurados).
+- **Etapa 3 (Acceso con Google & Credenciales):** ✅ Completada:
+  - Supabase Database & Auth (URL y claves configuradas).
+  - Google OAuth 2.0 (Client ID y Client Secret configurados en Supabase).
   - Gemini API (Google AI Studio API Key configurada para el Asistente de IA).
+- **Etapa 4 (API base en .NET 10 LTS):** ✅ Completada y verificada:
+  - ✅ Prompt 4.1: Solución .NET 10 LTS con Clean Architecture (`SistemaUOD.Domain`, `SistemaUOD.Application`, `SistemaUOD.Infrastructure`, `SistemaUOD.Api`, `SistemaUOD.Tests`).
+  - ✅ Prompt 4.2: Conexión PostgreSQL (Supabase pooler) con EF Core sin migraciones EF (Database-first). Validación de tokens asimétricos ES256 (OIDC/JWKS). Endpoint `GET /api/v1/me` que valida perfil, rol y estado activo.
+  - ✅ Prompt 4.3: Políticas de autorización por roles (`ExigirSuperAdmin`, `ExigirGestionInventario`, `ExigirOperacionAlmacen`, `ExigirAuditoria`). Mecanismo centralizado de auditoría automática en `ApplicationDbContext.SaveChangesAsync()` (Ley 172-13). Estandarización de errores con `ProblemDetails` (RFC 7807) y modelos de paginación (`PagedRequest`, `PagedResult<T>`).
+  - ✅ Prompt 4.4: Documentación OpenAPI, CORS para `http://localhost:3000`, Rate Limiting por IP/usuario, y batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests` (7/7 pruebas superadas).
 - **Próximo paso:**
-  - Verificación del flujo de Google OAuth y avance a la Etapa 4 (API base en .NET).
+  - **Etapa 5 – Interfaz base:** Conectar el Frontend Next.js con Supabase Auth y la API de .NET (`GET /api/v1/me`), protegiendo rutas y sincronizando la sesión real.
