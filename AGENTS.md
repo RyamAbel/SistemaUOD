@@ -53,26 +53,38 @@ SistemaUOD/
 3. **Evolución del Esquema:** Todo cambio en la base de datos se realiza mediante un archivo de migración SQL versionado en `database/migrations/`.
 4. **Gobierno de la IA:** Las acciones de escritura propuestas por la IA **nunca** se ejecutan automáticamente; requieren tarjeta interactiva con previsualización de impacto y confirmación explícita del usuario.
 5. **Aislamiento de la IA:** El Asistente de IA interactúa únicamente con la API de SIIA vía herramientas definidas, jamás tiene conexión directa ni acceso SQL libre a la base de datos.
-6. **Sistema de Diseño:** Se respeta la paleta institucional:
-   - Primario Índigo: `#4F46E5`
-   - Primario Oscuro: `#1E1B4B`
+6. **Sistema de Diseño:** Se respeta la paleta institucional de la Universidad Odontológica Dominicana (UOD). Antes de construir cualquier pantalla, leer `.agents/skills/ui-ux-pro-max/SKILL.md` y `design-system/MASTER.md`:
+   - Azul Marino Primario (logo UOD): `#1C3177`
+   - Azul Medio / Hover: `#2B4BA0`
+   - Verde UOD (círculo diente + DOMINICANA): `#3DAA5C`
+   - Verde Oscuro / Hover: `#2D8246`
    - Acento IA Turquesa: `#06B6D4`
-   - Éxito / Stock Saludable: `#10B981`
    - Advertencia / Stock Bajo: `#F59E0B`
    - Error / Agotado: `#EF4444`
-   - Fondo Noche: `#0B1020`
+   - Fondo claro (default): `#F7F9FC` (blanco clínico-institucional)
+   - Fondo oscuro (toggle): `#0D1B2A` (azul naval profundo)
 
 ---
 
 ## 5. Estado Actual del Proyecto
-- **Etapa 0 (Preparación y repositorio):** ✅ Completada (Repositorio inicializado, herramientas .NET/Node verificadas, AGENTS.md creado).
-- **Etapa 1 (Sistema de diseño):** ✅ Paleta de colores institucional, temas oscuro/claro y componentes base integrados en Next.js.
-- **Etapa 2 (Base de datos en Supabase):** ✅ Migraciones `001_initial_schema.sql` y `002_auth_trigger.sql`, datos seed `001_seed_data.sql` redactados.
-- **Etapa 3 (Conexión de APIs y Servicios):** ✅ Completada:
-  - Supabase Database & Auth (URL y claves pública/secreta conectadas).
+- **Etapa 0 (Preparación y repositorio):** ✅ Completada.
+- **Etapa 1 (Sistema de diseño):** ✅ Completada (Aprobada):
+  - ✅ Prompt 1.1: Skill UI/UX Pro Max instalada en `.agents/skills/ui-ux-pro-max/`.
+  - ✅ Prompt 1.2: Propuesta base de diseño aprobada — estilo `enterprise + minimal-light`, paleta UOD institucional (blanco clínico `#F7F9FC` + azul marino `#1C3177` + verde `#3DAA5C`), Inter + JetBrains Mono.
+  - ✅ Prompt 1.3: Excepción aprobada por el usuario (sin referencias externas adicionales).
+  - ✅ Prompt 1.4: Sistema de diseño unificado en `design-system/MASTER.md` con archivos de excepciones por página (`login.md`, `dashboard.md`, `catalogo.md`, `ficha-recurso.md`, `panel-ia.md`).
+  - ✅ Prompt 1.5: Vista previa navegable interactiva de pantallas implementada en `frontend/` y validada en vivo vía navegador.
+  - ✅ Prompt 1.6: Lista de verificación WCAG 2.1 AA (contrastes accesibles > 4.5:1, foco visible, reduced-motion, diseño adaptativo).
+- **Etapa 2 (Base de datos en Supabase):** ✅ Completada y verificada en vivo:
+  - ✅ Migración 1: `20261018000001_base_schema.sql` aplicada con éxito.
+  - ✅ Migración 2: `20261018000002_operation_schema.sql` aplicada con éxito.
+  - ✅ Migración 3: `20261018000003_security_transversal.sql` aplicada con éxito (RLS y Storage activos).
+  - ✅ Migración 4: `20261018000004_auth_invitation_trigger.sql` aplicada con éxito (control estricto de invitaciones).
+  - ✅ Datos semilla: `supabase/seed.sql` sembrados con éxito.
+  - ✅ Batería de pruebas: `supabase/tests/database_test.sql` superada con todas las restricciones validadas.
+- **Etapa 3 (Acceso con Google & Credenciales):** 🔄 En curso / Lista para verificar en vivo:
+  - Supabase Database & Auth (URL y claves en `.env.local`).
   - Google OAuth 2.0 (Client ID y Client Secret configurados).
   - Gemini API (Google AI Studio API Key configurada para el Asistente de IA).
-- **Etapa en curso:** **Validación del Login con Google y sincronización de sesiones**.
-- **Próximas etapas:**
-  - Configuración de cadena de conexión en Backend .NET y Swagger.
-  - Orquestación de Gemini API en Backend con Tool Calling.
+- **Próximo paso:**
+  - Verificación del flujo de Google OAuth y avance a la Etapa 4 (API base en .NET).

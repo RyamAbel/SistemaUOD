@@ -27,34 +27,35 @@ export const SettingsView: React.FC = () => {
   const [confidence, setConfidence] = useState(70);
 
   const usersList = [
-    { name: 'Adan Aumin', email: 'admin-pxio@gmail.com', role: 'Super Administrador', lastAccess: '23 Apr 2026 07:36', status: 'Activo', active: true },
-    { name: 'Marthen Wasiliez', email: 'admin-rm@gmail.com', role: 'Administrador', lastAccess: '27 Apr 2026 03:38', status: 'Inactivo', active: false },
-    { name: 'Bava Brofenn', email: 'admin@gmail.com', role: 'Auditor', lastAccess: '27 Apr 2026 08:49', status: 'Inactivo', active: false },
+    { name: 'Dr. Alejandro Peña', email: 'apena@uod.edu.do', role: 'Super Administrador', lastAccess: '18 Oct 2026 14:15', status: 'Activo', active: true },
+    { name: 'Dra. Carmen Morales', email: 'cmorales@uod.edu.do', role: 'Administrador de Clínica', lastAccess: '18 Oct 2026 12:40', status: 'Activo', active: true },
+    { name: 'Lic. Roberto Gómez', email: 'rgomez@uod.edu.do', role: 'Encargado de Almacén', lastAccess: '18 Oct 2026 09:20', status: 'Activo', active: true },
+    { name: 'Lic. Laura Silva', email: 'lsilva@uod.edu.do', role: 'Auditor Externo', lastAccess: '15 Oct 2026 17:30', status: 'Inactivo', active: false },
   ];
 
   const rolesList = [
-    { title: 'Super Administrador', perms: 'Todo el sistema sin restricciones', color: 'border-emerald-500/40 text-emerald-300' },
-    { title: 'Administrador de Inventario', perms: 'Gestionar, Ver catálogo y compras', color: 'border-cyan-500/40 text-cyan-300' },
-    { title: 'Encargado de Almacén', perms: 'Ver, Mover existencias y conteos', color: 'border-indigo-500/40 text-indigo-300' },
-    { title: 'Solicitante', perms: 'Solicitar consumibles y ver asignados', color: 'border-blue-500/40 text-blue-300' },
-    { title: 'Auditor', perms: 'Ver Reportes y Bitácora de Auditoría', color: 'border-amber-500/40 text-amber-300' },
-    { title: 'Invitado', perms: 'Ver Limitado sin permisos de edición', color: 'border-slate-600 text-slate-300' }
+    { title: 'Super Administrador', perms: 'Acceso total y configuración del sistema', color: 'border-emerald-200 bg-emerald-50/50 text-[#2D8246]' },
+    { title: 'Admin de Clínica', perms: 'Gestión de insumos y aprobaciones', color: 'border-blue-200 bg-blue-50/50 text-[#1C3177]' },
+    { title: 'Encargado de Almacén', perms: 'Movimientos, ingresos y conteo físico', color: 'border-cyan-200 bg-cyan-50/50 text-[#0891B2]' },
+    { title: 'Docente / Odontólogo', perms: 'Solicitud de materiales clínicos', color: 'border-blue-200 bg-blue-50/50 text-[#2B4BA0]' },
+    { title: 'Auditor Institucional', perms: 'Inspección de bitácora Ley 172-13', color: 'border-amber-200 bg-amber-50/50 text-amber-800' },
+    { title: 'Estudiante / Pasante', perms: 'Consulta de disponibilidad sin edición', color: 'border-slate-200 bg-slate-50 text-slate-700' }
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Settings className="h-5 w-5 text-emerald-400" />
-          Configuración del Sistema
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Settings className="h-5 w-5 text-[#1C3177]" />
+          Configuración del Sistema SIIA
         </h2>
-        <p className="text-xs text-slate-400">
-          Administración de accesos institucionales, políticas de seguridad 2FA y parámetros de IA.
+        <p className="text-xs text-slate-500">
+          Administración de accesos institucionales UOD, políticas de seguridad y parámetros de IA.
         </p>
       </div>
 
-      {/* Subtabs Matching Page 1 Top Screenshot */}
-      <div className="flex items-center gap-1 border-b border-slate-800 text-xs font-semibold overflow-x-auto no-scrollbar">
+      {/* Subtabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 text-xs font-semibold overflow-x-auto no-scrollbar">
         {[
           { id: 'general', label: 'General' },
           { id: 'usuarios', label: 'Usuarios' },
@@ -69,8 +70,8 @@ export const SettingsView: React.FC = () => {
             onClick={() => setActiveTab(tab.id as any)}
             className={`pb-2.5 px-3.5 capitalize transition-colors ${
               activeTab === tab.id
-                ? 'border-b-2 border-emerald-400 text-emerald-400 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'border-b-2 border-[#1C3177] text-[#1C3177] font-bold'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             {tab.label}
@@ -78,52 +79,52 @@ export const SettingsView: React.FC = () => {
         ))}
       </div>
 
-      {/* Section: Usuarios Table Matching Screenshot Exactly */}
-      <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 shadow-xl overflow-hidden">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-            Usuarios
+      {/* Section: Usuarios Table */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            Usuarios Institucionales
           </h3>
-          <button className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500">
+          <button className="rounded-xl bg-[#3DAA5C] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs">
             + Invitar Usuario
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/60 text-[10px] uppercase tracking-wider text-slate-400">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
               <tr>
-                <th className="py-3 px-4 font-semibold">Nombre</th>
-                <th className="py-3 px-4 font-semibold">Correo</th>
-                <th className="py-3 px-4 font-semibold">Rol</th>
-                <th className="py-3 px-4 font-semibold">Último Acceso</th>
-                <th className="py-3 px-4 font-semibold text-center">Estado</th>
-                <th className="py-3 px-4 font-semibold text-right">Acciones</th>
+                <th className="py-3 px-4">Nombre</th>
+                <th className="py-3 px-4">Correo Institucional</th>
+                <th className="py-3 px-4">Rol</th>
+                <th className="py-3 px-4">Último Acceso</th>
+                <th className="py-3 px-4 text-center">Estado</th>
+                <th className="py-3 px-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-[11px] font-medium">
+            <tbody className="divide-y divide-slate-100 text-[11px] font-medium">
               {usersList.map((u, i) => (
-                <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 px-4 font-bold text-white">{u.name}</td>
-                  <td className="py-3 px-4 text-slate-400">{u.email}</td>
-                  <td className="py-3 px-4 text-slate-200">{u.role}</td>
-                  <td className="py-3 px-4 font-mono text-slate-400 text-[10px]">{u.lastAccess}</td>
+                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                  <td className="py-3 px-4 font-bold text-slate-900">{u.name}</td>
+                  <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">{u.email}</td>
+                  <td className="py-3 px-4 text-slate-800 font-medium">{u.role}</td>
+                  <td className="py-3 px-4 font-mono text-slate-500 text-[10px]">{u.lastAccess}</td>
                   <td className="py-3 px-4 text-center">
                     {u.active ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[9px] font-bold text-emerald-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Activo
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-bold text-[#2D8246]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#3DAA5C]" /> Activo
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-[9px] font-bold text-slate-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-500" /> Inactivo
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-[9px] font-bold text-slate-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Inactivo
                       </span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2 text-slate-400">
-                      <button className="p-1 hover:text-white" title="Ver"><Eye className="h-3.5 w-3.5" /></button>
-                      <button className="p-1 hover:text-amber-400" title="Editar"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button className="p-1 hover:text-rose-400" title="Eliminar"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button className="p-1 hover:text-[#1C3177] transition-colors" title="Ver" aria-label="Ver"><Eye className="h-3.5 w-3.5" /></button>
+                      <button className="p-1 hover:text-amber-600 transition-colors" title="Editar" aria-label="Editar"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button className="p-1 hover:text-rose-600 transition-colors" title="Eliminar" aria-label="Eliminar"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -133,84 +134,85 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Section: Roles 6 Cards Matching Screenshot Exactly */}
+      {/* Section: Roles 6 Cards */}
       <div className="space-y-3">
-        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
           Roles y Privilegios
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {rolesList.map((r, i) => (
             <div
               key={i}
-              className={`rounded-xl border p-3.5 flex flex-col justify-between bg-[#0F172A]/70 ${r.color}`}
+              className={`rounded-xl border p-3.5 flex flex-col justify-between shadow-xs ${r.color}`}
             >
               <div>
-                <h4 className="font-bold text-xs text-white mb-1">{r.title}</h4>
-                <p className="text-[10px] text-slate-400">{r.perms}</p>
+                <h4 className="font-bold text-xs text-slate-900 mb-1">{r.title}</h4>
+                <p className="text-[10px] text-slate-600">{r.perms}</p>
               </div>
-              <span className="mt-3 text-[9px] uppercase font-bold text-emerald-400">Configurado</span>
+              <span className="mt-3 text-[9px] uppercase font-bold text-[#2D8246]">Configurado</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Bottom Row: Seguridad (Left) + IA Controls (Right) Matching Screenshot */}
+      {/* Bottom Row: Seguridad (Left) + IA Controls (Right) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Seguridad */}
-        <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-5 shadow-xl space-y-4">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Shield className="h-4 w-4 text-emerald-400" />
-            Seguridad & Sesiones
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Shield className="h-4 w-4 text-[#1C3177]" />
+            Seguridad & Sesiones Institucionales
           </h3>
 
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <div className="text-xs font-semibold text-white">2FA Autenticación en Dos Pasos</div>
-              <div className="text-[10px] text-slate-400">Exigir verificación Google Workspace</div>
+              <div className="text-xs font-bold text-slate-900">Google OAuth 2.0 + 2FA Obligatorio</div>
+              <div className="text-[11px] text-slate-500">Exigir inicio de sesión exclusivo @uod.edu.do</div>
             </div>
             <button
               onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-              className="text-emerald-400"
+              className="text-[#3DAA5C]"
+              aria-label="Alternar doble factor"
             >
-              {twoFactorEnabled ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6 text-slate-600" />}
+              {twoFactorEnabled ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6 text-slate-400" />}
             </button>
           </div>
 
           <div className="space-y-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Registro de Auditoría Reciente
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Registro de Auditoría Reciente (Ley 172-13)
             </span>
             {[
-              { text: 'Registro de Auditoría - Encargados de Almacén', time: '3 horas ago' },
-              { text: 'Registro de Auditoría - Acciones de personal', time: '4 horas ago' },
-              { text: 'Auditoría mensual cerrada', time: '1 día ago' }
+              { text: 'Bitácora: Traslado MOV-2026-00105 auditado', time: '5 min ago' },
+              { text: 'Bitácora: Sesión iniciada por Admin UOD', time: '1 hora ago' },
+              { text: 'Auditoría: Verificación automática de stock completada', time: '4 horas ago' }
             ].map((log, idx) => (
-              <div key={idx} className="flex justify-between items-center text-[10px] text-slate-300 p-2 rounded-lg bg-slate-950/40 border border-slate-800">
-                <span>{log.text}</span>
-                <span className="text-slate-500 font-mono">{log.time}</span>
+              <div key={idx} className="flex justify-between items-center text-[11px] text-slate-700 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="font-medium">{log.text}</span>
+                <span className="text-slate-400 font-mono text-[10px]">{log.time}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* IA Assistant Parameters Matching Screenshot */}
-        <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-950/40 to-slate-900 p-5 shadow-xl space-y-4">
-          <h3 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
-            <Bot className="h-4 w-4 text-cyan-400" />
-            Parámetros del Asistente IA (Gemini)
+        {/* IA Assistant Parameters */}
+        <div className="rounded-2xl border border-cyan-200 bg-cyan-50/30 p-5 shadow-xs space-y-4">
+          <h3 className="text-xs font-bold text-[#0891B2] uppercase tracking-wider flex items-center gap-2">
+            <Bot className="h-4 w-4 text-[#06B6D4]" />
+            Parámetros del Asistente IA (Gemini 3.8 Flash)
           </h3>
 
           <div>
-            <label className="text-[11px] text-slate-300 block mb-1 font-medium">Tone Selector</label>
+            <label className="text-[11px] text-slate-700 block mb-1 font-semibold">Tono de Interacción</label>
             <div className="grid grid-cols-3 gap-2">
               {(['Formal', 'Casual', 'Neutral'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setAiTone(t)}
-                  className={`rounded-xl py-1.5 text-xs font-semibold transition-all ${
+                  className={`rounded-xl py-1.5 text-xs font-bold transition-all ${
                     aiTone === t
-                      ? 'bg-cyan-500 text-slate-950 font-bold'
-                      : 'border border-slate-700 bg-slate-900 text-slate-400 hover:text-white'
+                      ? 'bg-[#1C3177] text-white shadow-xs'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {t}
@@ -220,9 +222,9 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div>
-            <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-              <span>Confidence Threshold</span>
-              <span className="font-mono text-cyan-400 font-bold">{confidence}%</span>
+            <div className="flex justify-between text-[11px] text-slate-700 mb-1 font-medium">
+              <span>Umbral de Confianza para Sugerencias</span>
+              <span className="font-mono text-[#1C3177] font-bold">{confidence}%</span>
             </div>
             <input
               type="range"
@@ -230,20 +232,21 @@ export const SettingsView: React.FC = () => {
               max="95"
               value={confidence}
               onChange={(e) => setConfidence(Number(e.target.value))}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-[#1C3177] cursor-pointer"
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
             <div>
-              <div className="text-xs font-semibold text-white">Automatic Recommendations Toggle</div>
-              <div className="text-[10px] text-slate-400">Sugerir traslados preventivos de stock</div>
+              <div className="text-xs font-bold text-slate-900">Recomendaciones Preventivas Activas</div>
+              <div className="text-[11px] text-slate-500">Proponer traslados para evitar quiebre de stock</div>
             </div>
             <button
               onClick={() => setAutoRecommendations(!autoRecommendations)}
-              className="text-cyan-400"
+              className="text-[#3DAA5C]"
+              aria-label="Alternar recomendaciones automáticas"
             >
-              {autoRecommendations ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6 text-slate-600" />}
+              {autoRecommendations ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6 text-slate-400" />}
             </button>
           </div>
         </div>

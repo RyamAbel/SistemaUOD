@@ -12,7 +12,6 @@ import { MovementsView } from '@/components/MovementsView';
 import { MaintenanceView } from '@/components/MaintenanceView';
 import { ReportsView } from '@/components/ReportsView';
 import { SettingsView } from '@/components/SettingsView';
-import { SupabaseConfigView } from '@/components/SupabaseConfigView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import {
   initialArticulos,
@@ -30,6 +29,9 @@ export default function Home() {
   const [articulos, setArticulos] = useState<ArticuloItem[]>(initialArticulos);
   const [movimientos, setMovimientos] = useState<MovimientoItem[]>(initialMovimientos);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Real-time stock alert count based on actual articles
+  const stockAlertCount = articulos.filter(a => a.stockActual <= a.stockMinimo).length;
 
   // Global shortcut handler (Ctrl+K or Cmd+K) to open AI Drawer
   useEffect(() => {
@@ -94,24 +96,30 @@ export default function Home() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#070C16] text-slate-100 font-sans">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-800 border-t-emerald-400" />
-          <p className="text-xs text-slate-400">Accediendo a SistemaUOD (SIIA)...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F9FC] text-slate-800">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-2 border-[#1C3177]/20" />
+            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#1C3177]" />
+            <div className="absolute inset-2 rounded-full bg-blue-50 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-[#1C3177]" />
+            </div>
+          </div>
+          <p className="text-xs text-slate-600 font-semibold">Cargando SIIA UOD...</p>
         </div>
       </div>
     );
   }
 
-  // Not authenticated and not in demo mode -> Show Official Google Login screen matching Page 2 Bottom
+  // Not authenticated and not in demo mode -> Show Official Google Login screen
   if (!user && !demoMode) {
     return <LoginView onBypassDemo={() => setDemoMode(true)} />;
   }
 
   return (
-    <div className="dark flex h-screen flex-col overflow-hidden bg-[#070C16] text-slate-100 font-sans">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#F7F9FC] text-slate-900">
       {/* Top Header Navigation with UOD Logo */}
-      <Navbar onOpenAi={() => setAiOpen(true)} aiOpen={aiOpen} />
+      <Navbar onOpenAi={() => setAiOpen(true)} aiOpen={aiOpen} alertCount={stockAlertCount} />
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
@@ -119,11 +127,11 @@ export default function Home() {
         <Sidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          stockAlertCount={35}
+          stockAlertCount={stockAlertCount}
         />
 
         {/* Content View */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-[#090F1C]">
+        <main className="flex-1 overflow-y-auto p-5 md:p-7 bg-[#F7F9FC]">
           {activeTab === 'dashboard' && (
             <DashboardView
               articulos={articulos}
@@ -168,12 +176,12 @@ export default function Home() {
           {activeTab === 'mantenimiento' && <MaintenanceView />}
 
           {activeTab === 'activos' && (
-            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Box className="h-5 w-5 text-cyan-400" />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Box className="h-5 w-5 text-[#1C3177]" />
                 Módulo de Activos Odontológicos Individuales
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Trazabilidad por número de serie, placa institucional y responsable asignado.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -182,11 +190,11 @@ export default function Home() {
                   { name: 'Autoclave Digital Tuttnauer 2540', sn: 'SN-UOD-2026-002', sala: 'Esterilización Central', resp: 'Lic. Pérez' },
                   { name: 'Sensor Radiografía Digital RVG 6200', sn: 'SN-UOD-2026-003', sala: 'Radiología Oral', resp: 'Dr. Morales' }
                 ].map((act, i) => (
-                  <div key={i} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2">
-                    <span className="text-xs font-bold text-white block">{act.name}</span>
-                    <span className="text-[10px] text-cyan-400 font-mono block">Serial: {act.sn}</span>
-                    <span className="text-[11px] text-slate-400 block">{act.sala}</span>
-                    <span className="text-[10px] text-emerald-400 font-semibold block">Custodio: {act.resp}</span>
+                  <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-2">
+                    <span className="text-xs font-bold text-slate-900 block">{act.name}</span>
+                    <span className="text-[11px] text-[#1C3177] font-mono block font-semibold">Serial: {act.sn}</span>
+                    <span className="text-[11px] text-slate-600 block">{act.sala}</span>
+                    <span className="text-[11px] text-[#2D8246] font-bold block">Custodio: {act.resp}</span>
                   </div>
                 ))}
               </div>
@@ -194,39 +202,39 @@ export default function Home() {
           )}
 
           {activeTab === 'compras' && (
-            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-emerald-400" />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-[#3DAA5C]" />
                 Proveedores y Órdenes de Compra
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Gestión de suplidores registrados con RNC institucional y cotizaciones asistidas.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <span className="font-bold text-sm text-white">Dental Corp. Dominicana S.R.L.</span>
-                  <div className="text-xs text-slate-400 mt-1">RNC: 1-31-88421-2 • Contacto: Carlos Mendoza</div>
-                  <div className="text-[11px] text-emerald-400 mt-2 font-semibold">Crédito 30 días • Insumos de Implantes</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                  <span className="font-bold text-sm text-slate-900">Dental Corp. Dominicana S.R.L.</span>
+                  <div className="text-xs text-slate-500 mt-1">RNC: 1-31-88421-2 • Contacto: Carlos Mendoza</div>
+                  <div className="text-[11px] text-[#2D8246] mt-2 font-bold">Crédito 30 días • Insumos de Implantes</div>
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <span className="font-bold text-sm text-white">Biomateriales del Caribe S.A.</span>
-                  <div className="text-xs text-slate-400 mt-1">RNC: 1-01-99234-5 • Contacto: Laura Silva</div>
-                  <div className="text-[11px] text-emerald-400 mt-2 font-semibold">Distribuidor oficial 3M Oral Care</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                  <span className="font-bold text-sm text-slate-900">Biomateriales del Caribe S.A.</span>
+                  <div className="text-xs text-slate-500 mt-1">RNC: 1-01-99234-5 • Contacto: Laura Silva</div>
+                  <div className="text-[11px] text-[#2D8246] mt-2 font-bold">Distribuidor oficial 3M Oral Care</div>
                 </div>
               </div>
             </div>
           )}
 
           {activeTab === 'inventario_fisico' && (
-            <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-cyan-400" />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-[#1C3177]" />
                 Inventario Físico y Escaneo QR
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Modo conteo rápido con conciliación automática de discrepancias y lector de códigos.
               </p>
-              <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-xs text-slate-400">
+              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500 bg-slate-50/50">
                 Escaneo óptico habilitado para dispositivos móviles y lectores de código de barras USB/Bluetooth.
               </div>
             </div>
@@ -242,13 +250,13 @@ export default function Home() {
 
       {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-slate-900/95 px-5 py-3 text-xs text-emerald-300 shadow-2xl backdrop-blur-md">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-emerald-300 bg-white px-5 py-3 text-xs text-emerald-800 shadow-xl">
+          <CheckCircle2 className="h-4 w-4 text-[#3DAA5C] shrink-0" />
+          <span className="font-semibold">{toastMessage}</span>
         </div>
       )}
 
-      {/* AI Assistant Lateral Drawer (Powered by Gemini 3.8 Flash) */}
+      {/* AI Assistant Lateral Drawer */}
       <AiAssistantDrawer
         isOpen={aiOpen}
         onClose={() => setAiOpen(false)}

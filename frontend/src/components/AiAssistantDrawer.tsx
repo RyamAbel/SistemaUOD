@@ -42,11 +42,11 @@ interface ChatMessage {
 }
 
 // Formateador limpio de texto para evitar asteriscos sin formato (**texto**)
-const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
+const FormattedMessage: React.FC<{ text: string; isUser: boolean }> = ({ text, isUser }) => {
   const lines = text.split('\n');
 
   return (
-    <div className="space-y-1.5 leading-relaxed text-xs">
+    <div className={`space-y-1.5 leading-relaxed text-xs ${isUser ? 'text-white' : 'text-slate-800'}`}>
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;
@@ -64,7 +64,7 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
           if (part.startsWith('**') && part.endsWith('**')) {
             const boldText = part.slice(2, -2);
             return (
-              <strong key={pIdx} className="font-semibold text-white">
+              <strong key={pIdx} className={`font-bold ${isUser ? 'text-white' : 'text-slate-900'}`}>
                 {boldText}
               </strong>
             );
@@ -76,7 +76,7 @@ const FormattedMessage: React.FC<{ text: string }> = ({ text }) => {
           const isNumbered = /^\d+\./.test(bulletPrefix);
           return (
             <div key={idx} className="flex items-start gap-2 pl-1 my-0.5">
-              <span className="text-cyan-400 font-semibold select-none shrink-0 mt-0.5">
+              <span className={`font-bold select-none shrink-0 mt-0.5 ${isUser ? 'text-cyan-200' : 'text-[#1C3177]'}`}>
                 {isNumbered ? bulletPrefix.trim() : '•'}
               </span>
               <div className="flex-1">{renderedLine}</div>
@@ -100,7 +100,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     {
       id: 'msg-1',
       sender: 'ai',
-      text: '¡Hola! Soy tu Asistente Inteligente de Inventario (SIIA). Puedo responder consultas de existencias, detectar artículos por reponer o coordinar traslados con tu confirmación previa. ¿En qué puedo colaborar?',
+      text: '¡Hola! Soy tu Asistente Inteligente de Inventario (SIIA). Puedo responder consultas de existencias, detectar insumos clínicos por reponer o coordinar traslados entre sedes con tu confirmación explícita. ¿En qué te colaboro hoy?',
       time: 'Ahora'
     }
   ]);
@@ -134,7 +134,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           message: query,
           history: newHistory.map((m) => ({ sender: m.sender, text: m.text })),
           articulos,
-          ubicaciones: ['Almacén Central', 'Secretaría General', 'Laboratorio de Cómputo 1', 'Rectoría / Dirección'],
+          ubicaciones: ['Almacén Central', 'Clínica Principal', 'Clínica Este', 'Laboratorio de Prótesis'],
           mode
         })
       });
@@ -194,41 +194,42 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-slate-800 bg-[#0B1020]/95 shadow-2xl backdrop-blur-2xl transition-all">
+    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-2xl transition-all">
       {/* Drawer Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-50/50">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white shadow-md shadow-cyan-500/20">
-            <Bot className="h-5 w-5 text-cyan-200" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1C3177] text-white shadow-sm">
+            <Bot className="h-5 w-5 text-cyan-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-white">Asistente IA • SIIA</h2>
-              <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
+              <h2 className="text-sm font-bold text-slate-900">Asistente IA • SIIA</h2>
+              <span className="rounded-full bg-cyan-50 border border-cyan-200 px-2 py-0.5 text-[10px] font-bold text-[#0891B2]">
                 Gemini 3.8 Flash
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Control transaccional y memoria de contexto</p>
+            <p className="text-[11px] text-slate-500">Control transaccional y memoria de contexto</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          aria-label="Cerrar panel de asistente"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Mode Toggle (Operativo vs Tutor) */}
-      <div className="flex items-center justify-between border-b border-slate-800/60 bg-slate-900/50 px-5 py-2">
-        <span className="text-[11px] text-slate-400">Modo de asistencia:</span>
-        <div className="flex items-center gap-1 rounded-lg bg-slate-950 p-1 border border-slate-800">
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-2">
+        <span className="text-[11px] text-slate-600 font-medium">Modo de asistencia:</span>
+        <div className="flex items-center gap-1 rounded-lg bg-white p-1 border border-slate-200 shadow-2xs">
           <button
             onClick={() => setMode('operativo')}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
               mode === 'operativo'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-cyan-50 text-[#0891B2] border border-cyan-200'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <Sparkles className="h-3 w-3" />
@@ -236,10 +237,10 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           </button>
           <button
             onClick={() => setMode('tutor')}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
               mode === 'tutor'
-                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-blue-50 text-[#1C3177] border border-blue-200'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <BookOpen className="h-3 w-3" />
@@ -249,69 +250,68 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
       </div>
 
       {/* Quick Prompts Suggestions */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-800/40 bg-slate-900/30 px-4 py-2 text-xs no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 bg-white px-4 py-2 text-xs no-scrollbar">
         <button
-          onClick={() => handleSend('¿Cuántas resmas de papel quedan en el Almacén Central?')}
-          className="shrink-0 rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-[11px] text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors"
+          onClick={() => handleSend('¿Cuántas unidades de Resina Compuesta A2 quedan en stock?')}
+          className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 hover:border-[#1C3177] hover:text-[#1C3177] font-medium transition-colors"
         >
-          📦 Stock de papel
+          📦 Stock de resinas
         </button>
         <button
           onClick={() => handleSend('¿Qué artículos tienen stock por debajo del mínimo?')}
-          className="shrink-0 rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-[11px] text-slate-300 hover:border-amber-500/40 hover:text-amber-300 transition-colors"
+          className="shrink-0 rounded-full border border-amber-200 bg-amber-50/60 px-3 py-1 text-[11px] text-amber-800 hover:border-amber-400 font-medium transition-colors"
         >
           ⚠️ Alertas de reposición
         </button>
         <button
-          onClick={() => handleSend('Traslada 20 resmas de papel del Almacén Central a Secretaría')}
-          className="shrink-0 rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-[11px] text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors"
+          onClick={() => handleSend('Traslada 20 unidades de Pasta Profilaxis del Almacén Central a Clínica Este')}
+          className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 hover:border-[#3DAA5C] hover:text-[#2D8246] font-medium transition-colors"
         >
-          🔄 Trasladar papel a Secretaría
+          🔄 Trasladar pasta a Clínica Este
         </button>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F8FAFC]">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`max-w-[88%] rounded-2xl p-3.5 shadow-md ${
+              className={`max-w-[88%] rounded-2xl p-3.5 shadow-2xs ${
                 msg.sender === 'user'
-                  ? 'bg-indigo-600 text-white shadow-indigo-600/20'
-                  : 'bg-slate-900/90 text-slate-200 border border-slate-800'
+                  ? 'bg-[#1C3177] text-white'
+                  : 'bg-white text-slate-800 border border-slate-200/80 shadow-xs'
               }`}
             >
-              {/* Formatted Markdown without raw asterisks */}
-              <FormattedMessage text={msg.text} />
+              <FormattedMessage text={msg.text} isUser={msg.sender === 'user'} />
 
-              {/* Action Confirmation Card (Required by Section 18.7 f) */}
+              {/* Action Confirmation Card (Required by Rule #4) */}
               {msg.proposal && (
-                <div className="mt-3.5 rounded-xl border border-cyan-500/40 bg-cyan-950/40 p-3.5 text-slate-200 shadow-lg shadow-cyan-950/50">
-                  <div className="flex items-center gap-2 mb-2 text-cyan-300 font-semibold text-xs">
-                    <AlertTriangle className="h-4 w-4" />
+                <div className="mt-3.5 rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-slate-800 shadow-xs">
+                  <div className="flex items-center gap-2 mb-2 text-amber-800 font-bold text-xs">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
                     <span>Confirmación Requerida para Impactar Inventario</span>
                   </div>
 
-                  <div className="space-y-1.5 text-[11px] mb-3 text-slate-300">
-                    <p><span className="text-slate-400">Artículo:</span> <strong className="text-white">{msg.proposal.articuloNombre}</strong></p>
-                    <p><span className="text-slate-400">Cantidad:</span> <span className="font-bold text-cyan-300">{msg.proposal.cantidad} unidades</span></p>
-                    <div className="flex items-center gap-2 text-slate-300 my-1 font-medium">
-                      <span className="text-slate-400">{msg.proposal.origen}</span>
-                      <ArrowRight className="h-3.5 w-3.5 text-cyan-400" />
-                      <span className="font-semibold text-cyan-200">{msg.proposal.destino}</span>
+                  <div className="space-y-1.5 text-[11px] mb-3 text-slate-700">
+                    <p><span className="text-slate-500 font-medium">Artículo:</span> <strong className="text-slate-900">{msg.proposal.articuloNombre}</strong></p>
+                    <p><span className="text-slate-500 font-medium">Cantidad:</span> <span className="font-bold text-[#1C3177]">{msg.proposal.cantidad} unidades</span></p>
+                    <div className="flex items-center gap-2 text-slate-700 my-1 font-medium">
+                      <span className="text-slate-500">{msg.proposal.origen}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="font-bold text-[#2D8246]">{msg.proposal.destino}</span>
                     </div>
-                    <div className="mt-1 rounded-lg bg-slate-900/70 p-2 text-[10px] text-amber-300 border border-amber-500/20">
-                      Balance proyectado en origen: {msg.proposal.stockActualOrigen} → <strong className="text-white">{msg.proposal.stockNuevoOrigen} existencias</strong>
+                    <div className="mt-1 rounded-lg bg-white p-2 text-[11px] text-slate-700 border border-slate-200 font-medium">
+                      Balance proyectado en origen: {msg.proposal.stockActualOrigen} → <strong className="text-slate-900">{msg.proposal.stockNuevoOrigen} existencias</strong>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-cyan-900/50">
+                  <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
                     <button
                       onClick={() => handleConfirmProposal(msg.proposal!)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow-md shadow-cyan-500/25"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#3DAA5C] py-2 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Confirmar Operación
@@ -328,7 +328,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
                           }
                         ]);
                       }}
-                      className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium"
                     >
                       Cancelar
                     </button>
@@ -336,20 +336,20 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
                 </div>
               )}
             </div>
-            <span className="mt-1 text-[10px] text-slate-500 px-1">{msg.time}</span>
+            <span className="mt-1 text-[10px] text-slate-400 px-1">{msg.time}</span>
           </div>
         ))}
 
         {isThinking && (
-          <div className="flex items-center gap-2 rounded-xl bg-slate-900/60 p-3 text-xs text-cyan-300 border border-slate-800 w-fit">
-            <Sparkles className="h-4 w-4 animate-spin text-cyan-400" />
-            <span>Consultando Gemini 3.8 Flash y evaluando reglas de negocio...</span>
+          <div className="flex items-center gap-2 rounded-xl bg-white p-3 text-xs text-[#0891B2] border border-cyan-200 shadow-xs w-fit">
+            <Sparkles className="h-4 w-4 animate-spin text-[#06B6D4]" />
+            <span className="font-medium">Consultando Gemini y evaluando reglas de negocio...</span>
           </div>
         )}
       </div>
 
       {/* Input Field */}
-      <div className="border-t border-slate-800/80 bg-[#0B1020] p-4">
+      <div className="border-t border-slate-100 bg-white p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -362,18 +362,19 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Pregunta o instruye al Asistente..."
-            className="flex-1 rounded-xl border border-slate-700/70 bg-slate-900/80 px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+            className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1C3177] focus:outline-none focus:ring-1 focus:ring-[#1C3177]"
           />
           <button
             type="submit"
             disabled={!input.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-slate-950 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md shadow-cyan-500/20"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1C3177] text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#2B4BA0] transition-colors shadow-xs"
+            aria-label="Enviar mensaje al asistente"
           >
-            <Send className="h-4 w-4 text-white" />
+            <Send className="h-4 w-4" />
           </button>
         </form>
-        <p className="mt-2 text-center text-[10px] text-slate-500">
-          SIIA v1.0 • Acciones de escritura protegidas con auditoría y confirmación.
+        <p className="mt-2 text-center text-[10px] text-slate-400">
+          SIIA v1.0 • Acciones de inventario protegidas con auditoría y confirmación.
         </p>
       </div>
     </div>

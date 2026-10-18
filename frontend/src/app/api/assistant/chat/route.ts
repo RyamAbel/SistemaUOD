@@ -96,8 +96,8 @@ REGLAS CONVERSACIONALES IMPORTANTES:
               },
               contents: formattedHistory,
               generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 1000
+                temperature: 0.3,
+                maxOutputTokens: 2000
               }
             })
           }

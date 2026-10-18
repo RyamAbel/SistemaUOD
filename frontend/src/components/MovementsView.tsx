@@ -37,14 +37,14 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
   const [destino, setDestino] = useState('Clínica Este');
   const [motivo, setMotivo] = useState('Reabastecimiento para jornada quirúrgica');
   const [responsable, setResponsable] = useState('Dr. Morales (Cirugía)');
-  const [fecha, setFecha] = useState('2026-10-16');
+  const [fecha, setFecha] = useState('2026-10-18');
 
   const recentRows = [
-    { id: '101', tipo: 'Entrada', art: 'Implante de Titanio', cant: 300, ruta: 'Origen → Titanio', resp: 'Alumínio', fecha: '05/03/2024', status: 'Completado', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
-    { id: '102', tipo: 'Salida', art: 'Implante de Titanio', cant: 400, ruta: 'Origen → Titanio', resp: 'Alumínio', fecha: '05/03/2024', status: 'Completado', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30' },
-    { id: '103', tipo: 'Traslado', art: 'Traslado', cant: 20, ruta: 'Origen → Traslado', resp: 'Mactranonas', fecha: '05/03/2024', status: 'Pendiente', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-    { id: '104', tipo: 'Baja', art: 'Baja', cant: 1, ruta: 'Origen → Destino', resp: 'Alutárnao', fecha: '05/03/2024', status: 'Pendiente', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-    { id: '105', tipo: 'Ajuste', art: 'Ajuste', cant: 20, ruta: 'Implante de Titanio', resp: 'Responsable', fecha: '05/03/2024', status: 'Completado', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+    { id: '101', tipo: 'Entrada', art: 'Implante de Titanio', cant: 300, ruta: 'Almacén Central → Quirófano 1', resp: 'Dr. Morales', fecha: '18/10/2026', status: 'Completado', color: 'bg-emerald-50 text-[#2D8246] border-emerald-200' },
+    { id: '102', tipo: 'Salida', art: 'Resina Compuesta A2', cant: 40, ruta: 'Clínica Principal → Consumo', resp: 'Dra. López', fecha: '18/10/2026', status: 'Completado', color: 'bg-blue-50 text-[#1C3177] border-blue-200' },
+    { id: '103', tipo: 'Traslado', art: 'Pasta Profilaxis', cant: 20, ruta: 'Almacén Central → Clínica Este', resp: 'Lic. Pérez', fecha: '18/10/2026', status: 'En Tránsito', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { id: '104', tipo: 'Baja', art: 'Anestésico Vencido', cant: 2, ruta: 'Clínica Este → Descarte', resp: 'Dra. Gómez', fecha: '17/10/2026', status: 'Auditado', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    { id: '105', tipo: 'Ajuste', art: 'Guantes Nitrilo', cant: 15, ruta: 'Inventario Físico → Ajuste', resp: 'Admin UOD', fecha: '17/10/2026', status: 'Completado', color: 'bg-emerald-50 text-[#2D8246] border-emerald-200' },
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,55 +63,55 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Header with Action Buttons */}
+      {/* Header and 4 Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5 text-[#1C3177]" />
             Movimientos de Inventario
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Control transaccional de transferencias clínicas, ingresos y bajas con trazabilidad.
           </p>
         </div>
 
-        {/* 4 Colored Action Buttons Matching Screenshot Exactly */}
+        {/* 4 Colored Action Buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setTipo('entrada')}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-md shadow-emerald-600/25"
+            className="rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
           >
             Nueva Entrada
           </button>
           <button
             onClick={() => setTipo('salida')}
-            className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-md shadow-rose-600/25"
+            className="rounded-xl bg-[#1C3177] hover:bg-[#2B4BA0] text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
           >
             Nueva Salida
           </button>
           <button
             onClick={() => setTipo('traslado')}
-            className="rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-md shadow-amber-600/25"
+            className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
           >
             Traslado
           </button>
           <button
             onClick={() => setTipo('ajuste')}
-            className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-md shadow-blue-600/25"
+            className="rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
           >
             Ajuste
           </button>
         </div>
       </div>
 
-      {/* 5 Big Category Filter Pills Matching Screenshot */}
+      {/* 5 Big Category Filter Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { id: 'entrada', label: 'Entrada', icon: ArrowDownLeft, color: 'text-emerald-400' },
-          { id: 'salida', label: 'Salida', icon: ArrowUpRight, color: 'text-rose-400' },
-          { id: 'traslado', label: 'Traslado', icon: ArrowRight, color: 'text-amber-400' },
-          { id: 'devolucion', label: 'Devolución', icon: RotateCcw, color: 'text-cyan-400' },
-          { id: 'baja', label: 'Baja', icon: XCircle, color: 'text-rose-500' }
+          { id: 'entrada', label: 'Entrada', icon: ArrowDownLeft, color: 'text-[#2D8246]' },
+          { id: 'salida', label: 'Salida', icon: ArrowUpRight, color: 'text-[#1C3177]' },
+          { id: 'traslado', label: 'Traslado', icon: ArrowRight, color: 'text-amber-600' },
+          { id: 'devolucion', label: 'Devolución', icon: RotateCcw, color: 'text-[#0891B2]' },
+          { id: 'baja', label: 'Baja', icon: XCircle, color: 'text-rose-600' }
         ].map((pill) => {
           const Icon = pill.icon;
           const isSelected = activeFilter === pill.id;
@@ -119,10 +119,10 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
             <button
               key={pill.id}
               onClick={() => setActiveFilter(isSelected ? 'todos' : pill.id)}
-              className={`flex items-center justify-center gap-2 rounded-2xl border p-3.5 text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-2xl border p-3.5 text-xs font-bold transition-all shadow-xs ${
                 isSelected
-                  ? 'border-emerald-500 bg-emerald-950/40 text-white shadow-lg shadow-emerald-500/20'
-                  : 'border-slate-800 bg-[#0F172A]/70 text-slate-300 hover:bg-slate-850 hover:text-white'
+                  ? 'border-[#1C3177] bg-blue-50 text-[#1C3177]'
+                  : 'border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Icon className={`h-4 w-4 ${pill.color}`} />
@@ -134,19 +134,19 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
       {/* Main Two-Column Layout: Form (Left) + Table (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Form: Nuevo Movimiento Matching Screenshot Exactly */}
-        <div className="lg:col-span-4 rounded-2xl border border-slate-800 bg-[#0F172A]/90 p-5 shadow-xl">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">
+        {/* Left Form: Nuevo Movimiento */}
+        <div className="lg:col-span-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
             Nuevo Movimiento
           </h3>
 
           <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Tipo de Movimiento</label>
+              <label className="text-[11px] text-slate-600 font-medium block mb-1">Tipo de Movimiento</label>
               <select
                 value={tipo}
                 onChange={(e) => setTipo(e.target.value as any)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white capitalize focus:outline-none focus:border-emerald-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
               >
                 <option value="traslado">Traslado entre Clínicas</option>
                 <option value="entrada">Entrada / Compra</option>
@@ -157,83 +157,83 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Artículo</label>
+              <label className="text-[11px] text-slate-600 font-medium block mb-1">Artículo</label>
               <input
                 type="text"
                 value={selectedArticulo}
                 onChange={(e) => setSelectedArticulo(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
               />
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Cantidad</label>
+              <label className="text-[11px] text-slate-600 font-medium block mb-1">Cantidad</label>
               <input
                 type="number"
                 min="1"
                 value={cantidad}
                 onChange={(e) => setCantidad(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Ubicación Origen</label>
+                <label className="text-[11px] text-slate-600 font-medium block mb-1">Ubicación Origen</label>
                 <input
                   type="text"
                   value={origen}
                   onChange={(e) => setOrigen(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
                 />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Ubicación Destino</label>
+                <label className="text-[11px] text-slate-600 font-medium block mb-1">Ubicación Destino</label>
                 <input
                   type="text"
                   value={destino}
                   onChange={(e) => setDestino(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Motivo</label>
+              <label className="text-[11px] text-slate-600 font-medium block mb-1">Motivo</label>
               <input
                 type="text"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Responsable</label>
+                <label className="text-[11px] text-slate-600 font-medium block mb-1">Responsable</label>
                 <input
                   type="text"
                   value={responsable}
                   onChange={(e) => setResponsable(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
                 />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Fecha</label>
+                <label className="text-[11px] text-slate-600 font-medium block mb-1">Fecha</label>
                 <input
                   type="date"
                   value={fecha}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-2 py-2 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Adjuntos (Conduce / Factura)</label>
+              <label className="text-[11px] text-slate-600 font-medium block mb-1">Adjuntos (Conduce / Factura)</label>
               <button
                 type="button"
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 p-2.5 text-[11px] text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 p-2.5 text-[11px] text-slate-500 hover:text-[#1C3177] hover:border-[#1C3177] transition-colors bg-slate-50/50"
               >
                 <Paperclip className="h-3.5 w-3.5" />
                 <span>Adjuntar comprobante</span>
@@ -242,25 +242,25 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 transition-colors shadow-md shadow-emerald-600/30"
+              className="w-full rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] text-white font-bold py-2.5 transition-colors shadow-xs"
             >
               Registrar Movimiento
             </button>
           </form>
         </div>
 
-        {/* Right Table: Movimientos Recientes Matching Screenshot Exactly */}
+        {/* Right Table: Movimientos Recientes */}
         <div className="lg:col-span-8 flex flex-col justify-between space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-[#0F172A]/80 shadow-xl overflow-hidden flex-1">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden flex-1">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 Movimientos Recientes
               </h3>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="border-b border-slate-800 bg-slate-950/60 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
                   <tr>
                     <th className="py-3 px-3">ID</th>
                     <th className="py-3 px-3">Tipo</th>
@@ -272,18 +272,18 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                     <th className="py-3 px-3 text-center">Estado</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-[11px] font-medium">
+                <tbody className="divide-y divide-slate-100 text-[11px] font-medium">
                   {recentRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-3 font-mono text-slate-400 font-bold">{r.id}</td>
+                    <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 font-mono text-slate-500 font-bold">{r.id}</td>
                       <td className="py-3 px-3">
-                        <span className="font-semibold text-white">{r.tipo}</span>
+                        <span className="font-bold text-slate-900">{r.tipo}</span>
                       </td>
-                      <td className="py-3 px-3 text-slate-200">{r.art}</td>
-                      <td className="py-3 px-3 text-right font-bold text-white font-mono">{r.cant}</td>
-                      <td className="py-3 px-3 text-slate-400">{r.ruta}</td>
-                      <td className="py-3 px-3 text-slate-300">{r.resp}</td>
-                      <td className="py-3 px-3 text-slate-400 font-mono text-[10px]">{r.fecha}</td>
+                      <td className="py-3 px-3 text-slate-800">{r.art}</td>
+                      <td className="py-3 px-3 text-right font-bold text-slate-900 font-mono">{r.cant}</td>
+                      <td className="py-3 px-3 text-slate-600">{r.ruta}</td>
+                      <td className="py-3 px-3 text-slate-700">{r.resp}</td>
+                      <td className="py-3 px-3 text-slate-500 font-mono text-[10px]">{r.fecha}</td>
                       <td className="py-3 px-3 text-center">
                         <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold border ${r.color}`}>
                           {r.status}
@@ -296,20 +296,20 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
             </div>
           </div>
 
-          {/* Bottom AI Recommendation Banner Matching Screenshot */}
-          <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-950/80 to-slate-900 p-4 shadow-xl flex items-center justify-between gap-4">
+          {/* Bottom AI Recommendation Banner */}
+          <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/70 via-cyan-50/40 to-white p-4 shadow-xs flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                <Sparkles className="h-4 w-4" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#1C3177] border border-blue-200 shadow-2xs">
+                <Sparkles className="h-4 w-4 text-[#06B6D4]" />
               </div>
               <div className="text-xs">
-                <span className="font-bold text-cyan-300 block mb-0.5">Recomendación IA Automatizada:</span>
-                <span className="text-slate-200">
+                <span className="font-bold text-[#1C3177] block mb-0.5">Recomendación IA Automatizada:</span>
+                <span className="text-slate-600">
                   Basado en el historial, se recomienda programar reabastecimiento de <strong>[Implante de Titanio]</strong> para evitar demoras en la jornada quirúrgica.
                 </span>
               </div>
             </div>
-            <button className="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors">
+            <button className="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors" aria-label="Ver recomendación completa">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
