@@ -39,10 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems: { id: NavTab; label: string; icon: React.FC<any>; badge?: number }[] = [
     { id: 'dashboard', label: 'Panel Principal', icon: LayoutDashboard },
-    { id: 'catalogo', label: 'Catálogo de Artículos', icon: Package },
-    { id: 'ubicaciones', label: 'Ubicaciones', icon: MapPin },
+    { id: 'catalogo', label: 'Catálogo de Activos', icon: Package },
+    { id: 'ubicaciones', label: 'Ubicaciones UOD', icon: MapPin },
     { id: 'movimientos', label: 'Movimientos', icon: ArrowLeftRight },
-    { id: 'activos', label: 'Activos Odontológicos', icon: Box },
+    { id: 'activos', label: 'Activos Fijos TI', icon: Box },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
     { id: 'compras', label: 'Proveedores & Compras', icon: ShoppingBag },
     { id: 'inventario_fisico', label: 'Inventario Físico', icon: ClipboardCheck },
@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Module Group Title */}
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3">
-            Gestión Odontológica
+            Inventario Institucional UOD
           </span>
           <nav className="mt-2 space-y-1">
             {menuItems.map((item) => {

@@ -17,7 +17,12 @@ import {
   ChevronRight,
   ExternalLink,
   Building2,
-  Truck
+  Cpu,
+  Monitor,
+  Printer,
+  ShieldCheck,
+  PhoneCall,
+  HardDrive
 } from 'lucide-react';
 import { ArticuloItem } from '@/lib/initialData';
 
@@ -28,72 +33,38 @@ interface CatalogViewProps {
 
 export const CatalogView: React.FC<CatalogViewProps> = ({ articulos, onAddArticulo }) => {
   const [selectedItem, setSelectedItem] = useState<ArticuloItem>(articulos[0]);
-  const [activeDetailTab, setActiveDetailTab] = useState<'general' | 'existencias' | 'movimientos' | 'proveedores' | 'historial'>('general');
+  const [activeDetailTab, setActiveDetailTab] = useState<'general' | 'existencias' | 'especificaciones' | 'historial'>('general');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Dental Products with Rich Imagery
-  const dentalProducts = [
-    {
-      id: 'dent-1',
-      code: 'RC001',
-      name: 'Cepillos de Dientes Profilácticos',
-      category: 'Higiene & Cepillos',
-      stock: '500 un.',
-      image: '🪥',
-      tag: 'Cepillos',
-      desc: 'Cepillos dentales con cerdas suaves para limpieza clínica y entrega a pacientes.'
-    },
-    {
-      id: 'dent-2',
-      code: 'RC002',
-      name: 'Resina Compuesta A2 (Filtek)',
-      category: 'Biomateriales',
-      stock: '500 un.',
-      image: '💉',
-      tag: 'Resina Comp.',
-      desc: 'Resina microhíbrida para restauración estética dental con alta resistencia al desgaste.'
-    },
-    {
-      id: 'dent-3',
-      code: 'RC003',
-      name: 'Guantes de Nitrilo Quirúrgicos',
-      category: 'Protección',
-      stock: '500 un.',
-      image: '🧤',
-      tag: 'Nitrilo',
-      desc: 'Cajas de 100 unidades guantes azules libres de polvo para cirugía odontológica.'
-    },
-    {
-      id: 'dent-4',
-      code: 'RC004',
-      name: 'Anestésico Local Lidocaína 2%',
-      category: 'Farmacología',
-      stock: '250 un.',
-      image: '🧪',
-      tag: 'Anestesia',
-      desc: 'Cartuchos dentales con epinefrina 1:100,000 para procedimientos quirúrgicos.'
-    },
-    {
-      id: 'dent-5',
-      code: 'RC005',
-      name: 'Implante Titanio Grado 5',
-      category: 'Implantología',
-      stock: '35 un.',
-      image: '🔩',
-      tag: 'Implante',
-      desc: 'Tornillo de fijación cónico autoperforante estéril de titanio grado quirúrgico.'
-    },
-    {
-      id: 'dent-6',
-      code: 'RC006',
-      name: 'Pasta Profilaxis con Flúor',
-      category: 'Profilaxis',
-      stock: '80 un.',
-      image: '🧴',
-      tag: 'Pasta',
-      desc: 'Pasta abrasiva de grano medio con flúor para eliminación de placa y pulido coronal.'
-    }
-  ];
+  // Categorías presentes
+  const categories = ['Todos', 'Computación y Equipos', 'Pantallas y Monitores', 'Periféricos y Accesorios', 'Impresión y Digitalización', 'Energía y Respaldo (UPS)', 'Redes y Telecomunicaciones', 'Audiovisual y Multimedia'];
+
+  const filteredArticulos = articulos.filter((art) => {
+    const matchCat = selectedCategory === 'Todos' || art.categoria === selectedCategory;
+    const matchSearch =
+      art.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      art.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      art.codigoBarras.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      art.ubicacionPrincipal.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const getIconForType = (nombre: string, categoria: string) => {
+    const n = nombre.toLowerCase();
+    if (n.includes('cpu') || n.includes('laptop')) return '💻';
+    if (n.includes('monitor')) return '🖥️';
+    if (n.includes('impresora')) return '🖨️';
+    if (n.includes('ups')) return '⚡';
+    if (n.includes('teléfono') || n.includes('telefono')) return '📱';
+    if (n.includes('cámara') || n.includes('camara')) return '📷';
+    if (n.includes('teclado')) return '⌨️';
+    if (n.includes('mouse')) return '🖱️';
+    if (n.includes('bocina') || n.includes('headset') || n.includes('micrófono')) return '🎧';
+    if (n.includes('switch')) return '🔀';
+    return '📦';
+  };
 
   return (
     <div className="space-y-6">
@@ -102,114 +73,94 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ articulos, onAddArticu
         <div>
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Package className="h-5 w-5 text-[#1C3177]" />
-            Catálogo de Artículos Odontológicos
+            Catálogo de Activos Tecnológicos UOD
           </h2>
           <p className="text-xs text-slate-500">
-            Insumos consumibles, instrumental quirúrgico y biomateriales de las clínicas UOD.
+            Inventario detallado de cómputo, pantallas, periféricos, telecomunicaciones y energía de la UOD.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por equipo, ID o ubicación..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#1C3177] w-64 shadow-xs"
+            />
+          </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-[#3DAA5C] px-4 py-2 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-sm"
+            className="flex items-center gap-2 rounded-xl bg-[#3DAA5C] px-4 py-2 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs"
           >
             <Plus className="h-4 w-4" />
-            Nuevo Artículo
+            Nuevo Activo
           </button>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-xs shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500 font-medium">Categoría:</span>
-          <select className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 focus:outline-none focus:border-[#1C3177]">
-            <option>Todos</option>
-            <option>Biomateriales</option>
-            <option>Implantes</option>
-            <option>Protección</option>
-            <option>Farmacología</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500 font-medium">Ubicación:</span>
-          <select className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 focus:outline-none focus:border-[#1C3177]">
-            <option>Todas</option>
-            <option>Clínica Principal</option>
-            <option>Almacén Central</option>
-            <option>Clínica Este</option>
-            <option>Laboratorio</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500 font-medium">Estado:</span>
-          <select className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 focus:outline-none focus:border-[#1C3177]">
-            <option>Activo</option>
-            <option>Inactivo</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500 font-medium">Fecha:</span>
-          <select className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 focus:outline-none focus:border-[#1C3177]">
-            <option>Últimos 30 Días</option>
-            <option>Últimos 90 Días</option>
-            <option>Este Año</option>
-          </select>
-        </div>
-
-        <button className="text-slate-400 hover:text-slate-700 ml-auto text-[11px] font-medium underline">
-          Limpiar Filtros
-        </button>
+      <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-3 py-1.5 rounded-xl border transition-all text-xs font-medium shrink-0 ${
+              selectedCategory === cat
+                ? 'bg-[#1C3177] text-white border-[#1C3177] shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       {/* Main Grid: Products Cards (Left) and Detail Drawer (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Visual Grid of Product Cards */}
-        <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {dentalProducts.map((prod) => (
-            <div
-              key={prod.id}
-              onClick={() => setSelectedItem({
-                id: prod.id,
-                sku: prod.code,
-                codigoBarras: '7461234567890',
-                nombre: prod.name,
-                categoria: prod.category,
-                tipo: 'consumible',
-                unidad: 'unidad',
-                stockActual: parseInt(prod.stock),
-                stockMinimo: 20,
-                ubicacionPrincipal: 'Almacén Central',
-                costoEstimado: 850,
-                estado: 'saludable'
-              })}
-              className="rounded-2xl border border-slate-200/80 bg-white p-3.5 flex flex-col justify-between hover:border-[#3DAA5C] hover:shadow-md transition-all cursor-pointer group shadow-xs"
-            >
-              {/* Product Visual Box */}
-              <div className="relative aspect-square w-full rounded-xl bg-slate-50 flex items-center justify-center text-5xl mb-3 border border-slate-100 group-hover:scale-105 transition-transform">
-                <span>{prod.image}</span>
-                <span className="absolute top-2 right-2 rounded-md bg-white border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-[#1C3177] shadow-xs">
-                  {prod.code}
-                </span>
-              </div>
+        <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[700px] overflow-y-auto pr-1">
+          {filteredArticulos.map((prod) => {
+            const isSelected = selectedItem?.id === prod.id;
+            const emoji = getIconForType(prod.nombre, prod.categoria);
 
-              <div>
-                <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{prod.name}</h4>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Cat: <span className="text-slate-700 font-medium">{prod.tag}</span>
+            return (
+              <div
+                key={prod.id}
+                onClick={() => setSelectedItem(prod)}
+                className={`rounded-2xl border p-3.5 flex flex-col justify-between transition-all cursor-pointer group shadow-xs ${
+                  isSelected
+                    ? 'border-[#1C3177] ring-2 ring-[#1C3177]/20 bg-blue-50/20'
+                    : 'border-slate-200/80 bg-white hover:border-[#3DAA5C] hover:shadow-md'
+                }`}
+              >
+                {/* Visual Box */}
+                <div className="relative aspect-square w-full rounded-xl bg-slate-50 flex items-center justify-center text-4xl mb-3 border border-slate-100 group-hover:scale-105 transition-transform">
+                  <span>{emoji}</span>
+                  <span className="absolute top-2 right-2 rounded-md bg-white/95 border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-[#1C3177] shadow-xs font-mono">
+                    {prod.codigoBarras}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900 line-clamp-2 leading-snug">{prod.nombre}</h4>
+                  <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between">
+                    <span className="truncate max-w-[100px]">{prod.ubicacionPrincipal}</span>
+                    <span className="font-semibold text-slate-700">{prod.categoria.split(' ')[0]}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-black text-[#2D8246]">
+                    {prod.stockActual} {prod.stockActual === 1 ? 'equipo' : 'equipos'}
+                  </span>
+                  <ChevronRight className={`h-3.5 w-3.5 transition-colors ${isSelected ? 'text-[#1C3177]' : 'text-slate-400 group-hover:text-[#3DAA5C]'}`} />
                 </div>
               </div>
-
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-black text-[#2D8246]">{prod.stock}</span>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-[#3DAA5C] transition-colors" />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Right Column: Detailed Product Drawer */}
@@ -217,30 +168,29 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ articulos, onAddArticu
           <div className="flex items-start justify-between border-b border-slate-100 pb-3">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-slate-900">{selectedItem?.nombre || 'Resina Compuesta A2'}</h3>
-                <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-mono text-[#1C3177] font-bold border border-blue-100">
-                  {selectedItem?.sku || 'RC002'}
-                </span>
+                <h3 className="font-bold text-sm text-slate-900">{selectedItem?.nombre}</h3>
               </div>
-              <p className="text-[11px] text-slate-500">Marca: Dental Corp • Fabricación Suiza</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Placa Institucional: <span className="font-mono font-bold text-[#1C3177]">{selectedItem?.codigoBarras}</span> • SKU: {selectedItem?.sku}
+              </p>
             </div>
             <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-[#2D8246]">
-              En Stock
+              {selectedItem?.stockActual} en existencia
             </span>
           </div>
 
-          {/* Product Picture Box */}
-          <div className="h-32 rounded-xl bg-slate-50 flex items-center justify-center text-6xl border border-slate-100">
-            💉
+          {/* Picture Box */}
+          <div className="h-32 rounded-xl bg-gradient-to-br from-slate-50 to-blue-50/30 flex items-center justify-center text-6xl border border-slate-100">
+            {getIconForType(selectedItem?.nombre || '', selectedItem?.categoria || '')}
           </div>
 
-          {/* Tabs: General, Existencias, Movimientos, Proveedores, Historial */}
+          {/* Tabs */}
           <div className="flex items-center gap-1 border-b border-slate-200 text-[11px] font-medium overflow-x-auto no-scrollbar">
-            {(['general', 'existencias', 'movimientos', 'proveedores', 'historial'] as const).map((tab) => (
+            {(['general', 'existencias', 'especificaciones', 'historial'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveDetailTab(tab)}
-                className={`px-2.5 py-1.5 capitalize transition-colors ${
+                className={`px-3 py-1.5 capitalize transition-colors ${
                   activeDetailTab === tab
                     ? 'border-b-2 border-[#1C3177] text-[#1C3177] font-bold'
                     : 'text-slate-500 hover:text-slate-800'
@@ -251,56 +201,82 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ articulos, onAddArticu
             ))}
           </div>
 
-          {/* Tab Content: Existencias por clínica */}
-          <div className="space-y-3 text-xs">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-[#1C3177]" />
-                Distribución en Sedes UOD
-              </span>
-              <div className="flex items-center justify-between text-slate-700 pt-1">
-                <span>Clínica Odontológica Principal</span>
-                <strong className="text-slate-900 font-mono font-bold">15 un.</strong>
+          {/* Tab Content: General */}
+          {activeDetailTab === 'general' && (
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Categoría TI</span>
+                  <span className="font-semibold text-slate-800">{selectedItem?.categoria}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Ubicación Registrada</span>
+                  <span className="font-semibold text-slate-800">{selectedItem?.ubicacionPrincipal}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Costo Estimado</span>
+                  <span className="font-bold text-[#2D8246]">RD$ {selectedItem?.costoEstimado.toLocaleString()}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Estado Operativo</span>
+                  <span className="font-semibold text-emerald-700">En uso / Activo</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-slate-700">
-                <span>Almacén Central Institucional</span>
-                <strong className="text-slate-900 font-mono font-bold">35 un.</strong>
-              </div>
-            </div>
 
-            {/* QR Code Card */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
-                  Código QR & Trazabilidad
-                </span>
-                <span className="text-[11px] text-slate-500 font-mono mt-0.5 block">ID: RC002-UOD-2026</span>
-                <button className="flex items-center gap-1 text-[11px] text-[#1C3177] hover:underline mt-1.5 font-bold">
-                  <Download className="h-3 w-3" /> Descargar etiqueta QR
-                </button>
-              </div>
-              <div className="h-16 w-16 rounded-xl bg-white p-1 border border-slate-200 shadow-xs flex items-center justify-center">
-                <QrCode className="h-14 w-14 text-slate-800" />
+              <div className="p-3 rounded-xl border border-cyan-100 bg-cyan-50/50 flex items-start gap-2.5">
+                <Sparkles className="h-4 w-4 text-[#06B6D4] shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-[11px] font-bold text-slate-900">Asistente IA SIIA</div>
+                  <div className="text-[11px] text-slate-600">
+                    Activo tecnológico verificado en el levantamiento 2026. Cumple con la normativa de auditoría institucional.
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Provider and AI Recommendation Box */}
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600">Proveedor: <strong className="text-slate-900">Dental Corp. Dominicana</strong></span>
-                <span className="text-[#2D8246] font-mono text-[10px] font-bold">#0093888000333</span>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-emerald-100">
-                <span className="text-[11px] text-[#2D8246] font-bold flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5 text-[#3DAA5C]" />
-                  Recomendación IA:
-                </span>
-                <button className="rounded-lg bg-[#3DAA5C] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs">
-                  Reordenar 15 un.
-                </button>
+          {/* Tab Content: Existencias */}
+          {activeDetailTab === 'existencias' && (
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-[#1C3177]" />
+                  <span className="font-medium text-slate-800">{selectedItem?.ubicacionPrincipal}</span>
+                </div>
+                <span className="font-bold text-[#1C3177]">{selectedItem?.stockActual} un.</span>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Tab Content: Especificaciones */}
+          {activeDetailTab === 'especificaciones' && (
+            <div className="space-y-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
+                <div className="flex justify-between text-slate-600">
+                  <span>Placa / Identificador:</span>
+                  <span className="font-bold font-mono text-slate-900">{selectedItem?.codigoBarras}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Tipo de Bien:</span>
+                  <span className="font-medium text-slate-900">Activo Fijo Tecnológico</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Institución:</span>
+                  <span className="font-medium text-slate-900">Universidad Odontológica Dominicana</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: Historial */}
+          {activeDetailTab === 'historial' && (
+            <div className="space-y-2 text-xs text-slate-500">
+              <div className="p-2.5 border-l-2 border-[#3DAA5C] bg-slate-50 rounded-r-lg">
+                <div className="font-semibold text-slate-800">Levantamiento TI 2026</div>
+                <div className="text-[10px]">Verificado e inventariado físicamente en {selectedItem?.ubicacionPrincipal}.</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
