@@ -91,5 +91,12 @@ SistemaUOD/
   - ✅ Prompt 4.2: Conexión PostgreSQL (Supabase pooler) con EF Core sin migraciones EF (Database-first). Validación de tokens asimétricos ES256 (OIDC/JWKS). Endpoint `GET /api/v1/me` que valida perfil, rol y estado activo.
   - ✅ Prompt 4.3: Políticas de autorización por roles (`ExigirSuperAdmin`, `ExigirGestionInventario`, `ExigirOperacionAlmacen`, `ExigirAuditoria`). Mecanismo centralizado de auditoría automática en `ApplicationDbContext.SaveChangesAsync()` (Ley 172-13). Estandarización de errores con `ProblemDetails` (RFC 7807) y modelos de paginación (`PagedRequest`, `PagedResult<T>`).
   - ✅ Prompt 4.4: Documentación OpenAPI, CORS para `http://localhost:3000`, Rate Limiting por IP/usuario, y batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests` (7/7 pruebas superadas).
+- **Datos Reales de Inventario (Levantamiento TI UOD 2026):** ✅ Procesados e integrados:
+  - Archivo fuente: `Datos/ACTIVOS 2026 TECNOLOGIA.xlsx`.
+  - 341 equipos físicos con ID/placa institucional (`EQ-01` a `EQ-341`), custodio y notas.
+  - 49 ubicaciones reales de la UOD (Clínicas Odontológicas B, C, E, F, Panorámica, Laboratorio Cómputo, Rectoría, Contabilidad, Admisiones, etc.).
+  - 113 referencias/modelos en catálogo organizados en 7 categorías tecnológicas.
+  - Generación de scripts SQL `supabase/seed.sql` y `supabase/seed_original_inventario.sql`.
+  - Sincronización completa con vistas del frontend (Dashboard, Catálogo, Ubicaciones y Movimientos).
 - **Próximo paso:**
   - **Etapa 5 – Interfaz base:** Conectar el Frontend Next.js con Supabase Auth y la API de .NET (`GET /api/v1/me`), protegiendo rutas y sincronizando la sesión real.
