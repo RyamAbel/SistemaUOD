@@ -156,6 +156,93 @@ export interface CrearProveedorDto {
   activo?: boolean;
 }
 
+export interface RecursoFiltrosDto {
+  pageIndex?: number;
+  pageSize?: number;
+  search?: string;
+  categoriaId?: string;
+  tipo?: 'consumible' | 'activo_fijo';
+  ubicacionId?: string;
+  responsableId?: string;
+  proveedorId?: string;
+  stockBajo?: boolean;
+  stockAgotado?: boolean;
+  costoMin?: number;
+  costoMax?: number;
+  fechaAdquisicionDesde?: string;
+  fechaAdquisicionHasta?: string;
+  conFoto?: boolean;
+  conQr?: boolean;
+  activo?: boolean;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
+export interface RecursoDto {
+  id: string;
+  sku: string;
+  nombre: string;
+  descripcion?: string | null;
+  categoriaId: string;
+  categoriaNombre: string;
+  tipo: 'consumible' | 'activo_fijo';
+  unidadMedida: string;
+  stockMinimo: number;
+  stockMaximo?: number | null;
+  puntoReorden?: number | null;
+  costoEstimado: number;
+  activo: boolean;
+  stockActual: number;
+  fotoPrincipalUrl?: string | null;
+  totalFotos: number;
+  qrPrincipalCodigo?: string | null;
+  totalActivosSerie: number;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface RecursoDetalleDto extends RecursoDto {
+  fotos: Array<{ id: string; urlArchivo: string; esPrincipal: boolean; orden: number; creadoEn: string }>;
+  codigos: Array<{ id: string; tipoCodigo: string; codigo: string; esPrincipal: boolean; creadoEn: string }>;
+  existencias: Array<{ ubicacionId: string; ubicacionNombre: string; ubicacionCodigo: string; cantidad: number; actualizadoEn: string }>;
+  activosSerie: Array<{
+    id: string;
+    numeroSerie: string;
+    placaInstitucional?: string | null;
+    estado: string;
+    ubicacionId: string;
+    ubicacionNombre: string;
+    responsableId?: string | null;
+    responsableNombre?: string | null;
+    proveedorId?: string | null;
+    proveedorNombre?: string | null;
+    fechaAdquisicion?: string | null;
+    notas?: string | null;
+  }>;
+}
+
+export interface CrearRecursoDto {
+  sku: string;
+  nombre: string;
+  descripcion?: string;
+  categoriaId: string;
+  tipo: 'consumible' | 'activo_fijo';
+  unidadMedida?: string;
+  stockMinimo?: number;
+  stockMaximo?: number;
+  puntoReorden?: number;
+  costoEstimado?: number;
+  codigoQrInicial?: string;
+  activo?: boolean;
+}
+
+export interface DuplicarRecursoDto {
+  nuevoSku: string;
+  nuevoNombre: string;
+  copiarFotos?: boolean;
+  copiarCodigos?: boolean;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -274,6 +361,70 @@ export const apiClient = {
       method: 'PATCH',
       body: JSON.stringify({ activo })
     });
+  },
+
+  // Recursos
+  listarRecursos: async (filtros?: RecursoFiltrosDto): Promise<PagedResult<RecursoDto>> => {
+    const params = new URLSearchParams();
+    if (filtros?.pageIndex) params.set('pageIndex', filtros.pageIndex.toString());
+    if (filtros?.pageSize) params.set('pageSize', filtros.pageSize.toString());
+    if (filtros?.search) params.set('search', filtros.search);
+    if (filtros?.categoriaId) params.set('categoriaId', filtros.categoriaId);
+    if (filtros?.tipo) params.set('tipo', filtros.tipo);
+    if (filtros?.ubicacionId) params.set('ubicacionId', filtros.ubicacionId);
+    if (filtros?.responsableId) params.set('responsableId', filtros.responsableId);
+    if (filtros?.proveedorId) params.set('proveedorId', filtros.proveedorId);
+    if (filtros?.stockBajo !== undefined) params.set('stockBajo', filtros.stockBajo.toString());
+    if (filtros?.stockAgotado !== undefined) params.set('stockAgotado', filtros.stockAgotado.toString());
+    if (filtros?.costoMin !== undefined) params.set('costoMin', filtros.costoMin.toString());
+    if (filtros?.costoMax !== undefined) params.set('costoMax', filtros.costoMax.toString());
+    if (filtros?.conFoto !== undefined) params.set('conFoto', filtros.conFoto.toString());
+    if (filtros?.conQr !== undefined) params.set('conQr', filtros.conQr.toString());
+    if (filtros?.activo !== undefined) params.set('activo', filtros.activo.toString());
+    if (filtros?.sortBy) params.set('sortBy', filtros.sortBy);
+    if (filtros?.isDescending !== undefined) params.set('isDescending', filtros.isDescending.toString());
+
+    const qs = params.toString();
+    return request<PagedResult<RecursoDto>>(`recursos${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerRecurso: async (id: string): Promise<RecursoDetalleDto> => {
+    return request<RecursoDetalleDto>(`recursos/${id}`);
+  },
+
+  crearRecurso: async (dto: CrearRecursoDto): Promise<RecursoDto> => {
+    return request<RecursoDto>('recursos', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarRecurso: async (id: string, dto: CrearRecursoDto): Promise<RecursoDto> => {
+    return request<RecursoDto>(`recursos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  duplicarRecurso: async (id: string, dto: DuplicarRecursoDto): Promise<RecursoDto> => {
+    return request<RecursoDto>(`recursos/${id}/duplicar`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoRecurso: async (id: string, activo: boolean): Promise<void> => {
+    return request<void>(`recursos/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activo })
+    });
+  },
+
+  desactivarRecurso: async (id: string): Promise<void> => {
+    return request<void>(`recursos/${id}`, {
+      method: 'DELETE'
+    });
   }
 };
+
 

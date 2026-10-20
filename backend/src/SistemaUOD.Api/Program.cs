@@ -124,6 +124,7 @@ app.UseAuthorization();
 app.MapMeEndpoints();
 app.MapCategoriasEndpoints();
 app.MapProveedoresEndpoints();
+app.MapRecursosEndpoints();
 
 app.MapGet("/api/v1/health", () => Results.Ok(new
 {

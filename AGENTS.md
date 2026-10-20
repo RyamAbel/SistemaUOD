@@ -114,8 +114,15 @@ SistemaUOD/
     - Cliente frontend tipado en `apiClient.ts` con manejo de `ProblemDetails` (RFC 7807).
     - Pantalla interactiva en Next.js `SuppliersView.tsx` con tabs para Proveedores y Categorías, modales accesibles y badges de estado.
     - Batería de 18 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests`.
+  - ✅ Prompt 6.2: **API de recursos con filtros combinables**:
+    - Endpoints RESTful completos (`RecursosEndpoints.cs`) con `GET /api/v1/recursos` (17 filtros combinables), `GET /api/v1/recursos/{id}`, `POST`, `PUT`, `POST /duplicar`, `PATCH /estado` y `DELETE` (desactivación lógica).
+    - Servicio `RecursoService.cs` con validación de SKU único, verificación de categoría activa, búsqueda compuesta y clonación de especificaciones/fotos.
+    - Políticas de autorización estrictas (`Policies.ExigirGestionInventario` para escritura y clonación, lectura autenticada).
+    - Cliente frontend tipado en `apiClient.ts` con `RecursoFiltrosDto`, `RecursoDto`, `RecursoDetalleDto`, etc.
+    - Batería de 25 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
 - **Próximo paso:**
-  - **Prompt 6.2 – API de recursos con filtros:** Construir los endpoints y servicios de Recursos con filtros combinables (texto libre, categoría/subcategoría, tipo, ubicación, estado, responsable, stock bajo, proveedor, etc.), paginación eficiente, historial de cambios y pruebas automatizadas.
+  - **Prompt 6.3 – Fotos de los recursos:** Implementar la subida y gestión de fotos con Supabase Storage privado (JPG/PNG/WebP hasta 5 MB, compresión, enlaces firmados de corta duración, foto principal y reordenamiento).
+
 
 ---
 
