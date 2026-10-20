@@ -201,9 +201,17 @@ export interface RecursoDto {
   actualizadoEn: string;
 }
 
+export interface RecursoCodigoDto {
+  id: string;
+  tipoCodigo: string;
+  codigo: string;
+  esPrincipal: boolean;
+  creadoEn: string;
+}
+
 export interface RecursoDetalleDto extends RecursoDto {
   fotos: Array<{ id: string; urlArchivo: string; esPrincipal: boolean; orden: number; creadoEn: string }>;
-  codigos: Array<{ id: string; tipoCodigo: string; codigo: string; esPrincipal: boolean; creadoEn: string }>;
+  codigos: RecursoCodigoDto[];
   existencias: Array<{ ubicacionId: string; ubicacionNombre: string; ubicacionCodigo: string; cantidad: number; actualizadoEn: string }>;
   activosSerie: Array<{
     id: string;
@@ -241,6 +249,44 @@ export interface DuplicarRecursoDto {
   nuevoNombre: string;
   copiarFotos?: boolean;
   copiarCodigos?: boolean;
+}
+
+export interface AgregarCodigoRecursoDto {
+  codigo: string;
+  tipoCodigo: 'qr_propio' | 'codigo_barras' | 'fabricante' | 'placa_institucional';
+  esPrincipal?: boolean;
+}
+
+export interface ResolucionCodigoDto {
+  encontrado: boolean;
+  codigoBuscado: string;
+  tipoEntidad: 'recurso' | 'activo_serie';
+  tipoCodigoDetectado: string;
+  urlFicha: string;
+  recurso?: RecursoDto | null;
+  activoSerie?: {
+    id: string;
+    numeroSerie: string;
+    placaInstitucional?: string | null;
+    estado: string;
+    ubicacionId: string;
+    ubicacionNombre: string;
+    responsableId?: string | null;
+    responsableNombre?: string | null;
+    proveedorId?: string | null;
+    proveedorNombre?: string | null;
+    fechaAdquisicion?: string | null;
+    notas?: string | null;
+  } | null;
+  mensaje: string;
+}
+
+export interface EnlaceQrDto {
+  recursoId: string;
+  sku: string;
+  codigoQr: string;
+  enlaceSeguro: string;
+  urlDescargaImagen: string;
 }
 
 export const apiClient = {
@@ -477,8 +523,40 @@ export const apiClient = {
     return request<void>(`recursos/${recursoId}/fotos/${fotoId}`, {
       method: 'DELETE'
     });
+  },
+
+  // Códigos y QR (Resolución universal y gestión)
+  resolverCodigo: async (codigo: string): Promise<ResolucionCodigoDto> => {
+    return request<ResolucionCodigoDto>(`codigos/resolver?codigo=${encodeURIComponent(codigo)}`);
+  },
+
+  listarCodigosRecurso: async (recursoId: string): Promise<RecursoCodigoDto[]> => {
+    return request<RecursoCodigoDto[]>(`recursos/${recursoId}/codigos`);
+  },
+
+  agregarCodigoRecurso: async (recursoId: string, dto: AgregarCodigoRecursoDto): Promise<RecursoCodigoDto> => {
+    return request<RecursoCodigoDto>(`recursos/${recursoId}/codigos`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  eliminarCodigoRecurso: async (recursoId: string, codigoId: string): Promise<void> => {
+    return request<void>(`recursos/${recursoId}/codigos/${codigoId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  obtenerEnlaceQrRecurso: async (recursoId: string): Promise<EnlaceQrDto> => {
+    return request<EnlaceQrDto>(`recursos/${recursoId}/qr/enlace`);
+  },
+
+  obtenerUrlDescargaQr: (recursoId: string): string => {
+    const baseUrl = API_BASE_URL.replace(/\/+$/, '');
+    return `${baseUrl}/recursos/${recursoId}/qr/imagen`;
   }
 };
+
 
 
 

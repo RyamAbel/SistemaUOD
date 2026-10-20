@@ -127,8 +127,17 @@ SistemaUOD/
     - Endpoints RESTful completos (`RecursosFotosEndpoints.cs`): `GET`, `POST` (multipart), `PUT /principal`, `PUT /reordenar` y `DELETE`.
     - Cliente tipado en `apiClient.ts` con manejo de tokens asimétricos y multipart form-data.
     - Batería de 31 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+  - ✅ Prompt 6.4: **Códigos y QR (Resolución universal y generación segura)**:
+    - Generación de código QR institucional canónico (`https://siia.uod.edu.do/recurso/{id}`) sin exponer credenciales ni datos sensibles.
+    - Generador de imágenes PNG en memoria con `QRCoder` (`/api/v1/recursos/{id}/qr/imagen`) para previsualización e impresión de etiquetas.
+    - Validación estricta de unicidad en códigos externos (barras, fabricante o serie) para prevenir duplicidades en todo el inventario.
+    - Endpoint resolutor universal (`GET /api/v1/codigos/resolver?codigo=...`) capaz de identificar cualquier código escaneado (QR institucional, SKU, código de barras, número de serie o placa institucional `EQ-XX`) y devolver la ficha correspondiente según permisos.
+    - Manejo seguro de sesión y permisos (401 si no hay sesión, 404 si no existe).
+    - Cliente tipado en `apiClient.ts` con `resolverCodigo`, `obtenerEnlaceQrRecurso`, etc.
+    - Batería de 37 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
 - **Próximo paso:**
-  - **Prompt 6.4 – Códigos y QR:** Implementar la generación y resolución de códigos QR propios y externos (código de fabricante o barras), validación de unicidad, endpoint resolutor universal de escaneo y ficha segura según permisos.
+  - **Prompt 6.5 – Pantalla de catálogo:** Construir la pantalla de catálogo interactiva según el sistema de diseño UOD: alternancia tabla/tarjetas con foto, panel de 17 filtros combinables, chips de filtros activos, ordenamiento, selección múltiple para acciones en lote y exportación rápida.
+
 
 
 
