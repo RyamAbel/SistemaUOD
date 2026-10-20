@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Shield, CheckCircle2, Lock } from 'lucide-react';
+import { Shield, AlertCircle, XCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface LoginViewProps {
@@ -9,7 +9,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
-  const { signInWithGoogle, loading } = useAuth();
+  const { signInWithGoogle, loading, authError, clearAuthError } = useAuth();
 
   return (
     <div
@@ -46,6 +46,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
           </p>
         </div>
 
+        {/* Error Alert Box */}
+        {authError && (
+          <div className="mb-5 p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800 flex items-start gap-2.5 relative">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1 pr-4">
+              <span className="font-bold block text-rose-900">Acceso no autorizado</span>
+              <span className="text-[11px] leading-relaxed block mt-0.5 text-rose-700">
+                {authError.includes('invitado') || authError.includes('autorizado')
+                  ? 'Este correo de Google no cuenta con una invitación activa en SIIA. Comunícate con Tecnología UOD para recibir una invitación.'
+                  : authError}
+              </span>
+            </div>
+            <button
+              onClick={clearAuthError}
+              className="absolute top-2.5 right-2 text-rose-400 hover:text-rose-700 p-1"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Google OAuth Button */}
         <button
           id="google-signin-btn"
@@ -80,11 +101,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
           <span>Acceso exclusivo para personal autorizado</span>
         </div>
 
-        {/* Demo bypass */}
-        <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+        {/* Bypass Demo Mode */}
+        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
           <button
             onClick={onBypassDemo}
-            className="text-[11px] text-[#1C3177] hover:text-[#2B4BA0] font-semibold underline transition-colors"
+            className="text-[11px] text-slate-400 hover:text-[#1C3177] transition-colors underline font-medium"
           >
             Modo demostración (sin conexión)
           </button>

@@ -14,6 +14,8 @@ import {
   Settings
 } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
+
 export type NavTab =
   | 'dashboard'
   | 'catalogo'
@@ -37,6 +39,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   stockAlertCount = 0
 }) => {
+  const { perfil, rol } = useAuth();
+  const currentRol = perfil?.rol || rol || 'consulta';
+
   const menuItems: { id: NavTab; label: string; icon: React.FC<any>; badge?: number }[] = [
     { id: 'dashboard', label: 'Panel Principal', icon: LayoutDashboard },
     { id: 'catalogo', label: 'Catálogo de Activos', icon: Package },
@@ -50,6 +55,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'configuracion', label: 'Configuración', icon: Settings },
   ];
 
+  const allowedTabsByRol: Record<string, NavTab[]> = {
+    super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
+    gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes'],
+    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'inventario_fisico'],
+    auditor: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'reportes'],
+    consulta: ['dashboard', 'catalogo', 'ubicaciones']
+  };
+
+  const allowed = allowedTabsByRol[currentRol] || allowedTabsByRol['consulta'];
+  const visibleMenuItems = menuItems.filter(item => allowed.includes(item.id));
+
   return (
     <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between p-4 shadow-xs">
       <div className="space-y-6">
@@ -59,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Inventario Institucional UOD
           </span>
           <nav className="mt-2 space-y-1">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (

@@ -25,16 +25,17 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0 }) => {
-  const { user, signOut } = useAuth();
+  const { user, perfil, rol, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Admin UOD';
+  const displayName = perfil?.nombreCompleto || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Personal UOD';
+  const displayRol = (perfil?.rol || rol || 'consulta').replace('_', ' ').toUpperCase();
   const avatarUrl = user?.user_metadata?.avatar_url;
-  const initials = displayName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+  const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -184,7 +185,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0
             <div className="absolute right-0 top-11 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 z-50 animate-fade-in overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                 <p className="text-xs font-bold text-slate-900 truncate">{displayName}</p>
-                <p className="text-[10px] text-slate-500 truncate mt-0.5">{user?.email || 'admin@uod.edu.do'}</p>
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">{user?.email || 'usuario@uod.edu.do'}</p>
+                <div className="mt-1.5 flex items-center gap-1">
+                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[9px] font-bold text-[#1C3177]">
+                    {displayRol}
+                  </span>
+                </div>
               </div>
               <div className="py-1.5">
                 {[

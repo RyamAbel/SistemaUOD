@@ -98,5 +98,13 @@ SistemaUOD/
   - 113 referencias/modelos en catálogo organizados en 7 categorías tecnológicas.
   - Generación de scripts SQL `supabase/seed.sql` y `supabase/seed_original_inventario.sql`.
   - Sincronización completa con vistas del frontend (Dashboard, Catálogo, Ubicaciones y Movimientos).
+- **Etapa 5 (Interfaz base e integración Google Auth):** ✅ Completada y verificada:
+  - ✅ Prompt 5.1: Tokens de Tailwind, componentes base, paleta institucional UOD e iconos Lucide.
+  - ✅ Prompt 5.2: Autenticación exclusiva con Google OAuth 2.0 vía Supabase Auth (`exchangeCodeForSession` en `/auth/callback`), protección global de rutas, rechazo automático con banner explicativo para correos sin invitación (`trg_auth_user_created`), consumo de `GET /api/v1/me` para perfil y rol real.
+  - ✅ Prompt 5.3: Layout principal con navegación adaptada dinámicamente según el rol del usuario (`Sidebar.tsx`), búsqueda global (`Navbar.tsx` con atajo Ctrl+K), alertas de inventario en tiempo real y menú de usuario.
+  - ✅ Prompt 5.4: Cliente HTTP tipado (`frontend/src/lib/apiClient.ts`) con interceptor de JWT Supabase, manejo estandarizado de `ProblemDetails` (RFC 7807) en español y modelos de paginación.
+  - ✅ Prompt 5.5: Panel lateral del Asistente IA (`AiAssistantDrawer.tsx`) con chat interactivo, selector de modo (operativo / tutor), indicador de pensamiento y tarjetas de confirmación obligatoria previa para toda acción en el inventario.
+  - ✅ Prompt 5.6: Revisión de accesibilidad WCAG 2.1 AA, pruebas de compilación estricta Next.js Turbopack (`npm run build` 6/6 páginas en verde).
 - **Próximo paso:**
-  - **Etapa 5 – Interfaz base:** Conectar el Frontend Next.js con Supabase Auth y la API de .NET (`GET /api/v1/me`), protegiendo rutas y sincronizando la sesión real.
+  - **Etapa 6 – Catálogo de recursos (con fotos, QR y filtros):** Iniciar con el **Prompt 6.1 – Categorías y proveedores (fija el patrón)**, implementando endpoints con permisos por rol y registro en bitácora, servicios, pruebas y pantallas en Next.js.
+

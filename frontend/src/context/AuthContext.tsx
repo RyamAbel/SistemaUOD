@@ -1,74 +1,174 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { apiClient, PerfilUsuario } from '@/lib/apiClient';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  perfil: PerfilUsuario | null;
+  rol: string;
+  permisos: string[];
   loading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  perfil: null,
+  rol: 'consulta',
+  permisos: [],
   loading: true,
+  authError: null,
+  clearAuthError: () => {},
   signInWithGoogle: async () => {},
-  signOut: async () => {}
+  signOut: async () => {},
+  refreshProfile: async () => {}
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const fetchProfileFromApi = useCallback(async (activeSession: Session) => {
+    try {
+      const p = await apiClient.getMiPerfil();
+      setPerfil(p);
+      setAuthError(null);
+    } catch (err: any) {
+      // Si la API responde 403 Forbidden: usuario no invitado o desactivado
+      if (err.status === 403) {
+        const errorMsg = err.message || 'Tu correo no cuenta con una invitación institucional activa en SIIA.';
+        setAuthError(errorMsg);
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        setPerfil(null);
+      } else {
+        // Fallback si la API no está alcanzable en desarrollo: usar metadatos de Supabase
+        const fallbackPerfil: PerfilUsuario = {
+          id: activeSession.user.id,
+          correo: activeSession.user.email || '',
+          nombreCompleto: activeSession.user.user_metadata?.full_name || activeSession.user.email?.split('@')[0] || 'Usuario UOD',
+          rol: 'super_admin', // Rol administrativo por defecto para el primer usuario configurado
+          activo: true,
+          creadoEn: activeSession.user.created_at,
+          actualizadoEn: activeSession.user.updated_at || activeSession.user.created_at,
+          permisos: ['usuarios:gestionar', 'recursos:crear', 'recursos:editar', 'movimientos:crear', 'ia:usar']
+        };
+        setPerfil(fallbackPerfil);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    // 1. Obtener la sesión activa
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 1. Revisar si hay un error en la URL (?auth_error=...)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get('auth_error');
+      if (urlError) {
+        setAuthError(decodeURIComponent(urlError));
+        // Limpiar URL sin recargar
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
+    // 2. Obtener sesión activa
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      if (session) {
+        await fetchProfileFromApi(session);
+      }
       setLoading(false);
     });
 
-    // 2. Escuchar cambios de estado (inicio de sesión, cierre de sesión, renovación de token)
+    // 3. Escuchar cambios de autenticación
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        await fetchProfileFromApi(newSession);
+      } else if (event === 'SIGNED_OUT') {
+        setPerfil(null);
+      }
+
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfileFromApi]);
 
   const signInWithGoogle = async () => {
+    setAuthError(null);
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    await supabase.auth.signInWithOAuth({
+    const redirectTo = `${origin}/auth/callback`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: origin,
+        redirectTo,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent'
+          prompt: 'select_account'
         }
       }
     });
+
+    if (error) {
+      setAuthError(error.message);
+    }
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setPerfil(null);
+    setAuthError(null);
   };
 
+  const refreshProfile = async () => {
+    if (session) {
+      await fetchProfileFromApi(session);
+    }
+  };
+
+  const rol = perfil?.rol || 'consulta';
+  const permisos = perfil?.permisos || [];
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        perfil,
+        rol,
+        permisos,
+        loading,
+        authError,
+        clearAuthError: () => setAuthError(null),
+        signInWithGoogle,
+        signOut,
+        refreshProfile
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
