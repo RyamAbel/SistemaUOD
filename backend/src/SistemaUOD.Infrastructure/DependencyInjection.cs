@@ -44,6 +44,9 @@ public static class DependencyInjection
         services.AddScoped<IProveedorService, ProveedorService>();
         services.AddScoped<IRecursoService, RecursoService>();
 
+        services.AddHttpClient<IStorageService, SupabaseStorageService>();
+        services.AddScoped<IRecursoFotoService, RecursoFotoService>();
+
         return services;
     }
 }

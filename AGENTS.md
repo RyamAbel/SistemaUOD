@@ -120,8 +120,16 @@ SistemaUOD/
     - Políticas de autorización estrictas (`Policies.ExigirGestionInventario` para escritura y clonación, lectura autenticada).
     - Cliente frontend tipado en `apiClient.ts` con `RecursoFiltrosDto`, `RecursoDto`, `RecursoDetalleDto`, etc.
     - Batería de 25 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+  - ✅ Prompt 6.3: **Fotos de los recursos (Supabase Storage privado)**:
+    - Validación de seguridad binaria estricta (Magic Numbers reales para JPG, PNG y WebP, descartando ejecutables o scripts camuflados).
+    - Límite de 5 MB por archivo e integración con Supabase Storage privado (`recursos-fotos`).
+    - Lógica de asignación y alternancia de foto principal (promoción automática al borrar la foto destacada).
+    - Endpoints RESTful completos (`RecursosFotosEndpoints.cs`): `GET`, `POST` (multipart), `PUT /principal`, `PUT /reordenar` y `DELETE`.
+    - Cliente tipado en `apiClient.ts` con manejo de tokens asimétricos y multipart form-data.
+    - Batería de 31 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
 - **Próximo paso:**
-  - **Prompt 6.3 – Fotos de los recursos:** Implementar la subida y gestión de fotos con Supabase Storage privado (JPG/PNG/WebP hasta 5 MB, compresión, enlaces firmados de corta duración, foto principal y reordenamiento).
+  - **Prompt 6.4 – Códigos y QR:** Implementar la generación y resolución de códigos QR propios y externos (código de fabricante o barras), validación de unicidad, endpoint resolutor universal de escaneo y ficha segura según permisos.
+
 
 
 ---

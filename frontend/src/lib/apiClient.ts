@@ -424,7 +424,61 @@ export const apiClient = {
     return request<void>(`recursos/${id}`, {
       method: 'DELETE'
     });
+  },
+
+  // Fotos de Recursos (Supabase Storage privado)
+  listarFotosRecurso: async (recursoId: string) => {
+    return request<Array<{ id: string; urlArchivo: string; esPrincipal: boolean; orden: number; creadoEn: string }>>(
+      `recursos/${recursoId}/fotos`
+    );
+  },
+
+  subirFotoRecurso: async (recursoId: string, archivo: File, esPrincipal: boolean = false) => {
+    const formData = new FormData();
+    formData.append('file', archivo);
+    formData.append('esPrincipal', esPrincipal.toString());
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const url = `${API_BASE_URL.replace(/\/+$/, '')}/recursos/${recursoId}/fotos`;
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!res.ok) {
+      let problem: any;
+      try { problem = await res.json(); } catch {}
+      throw new Error(problem?.detail || problem?.title || `Error al subir fotografía (${res.status})`);
+    }
+
+    return await res.json();
+  },
+
+  establecerFotoPrincipal: async (recursoId: string, fotoId: string): Promise<void> => {
+    return request<void>(`recursos/${recursoId}/fotos/${fotoId}/principal`, {
+      method: 'PUT'
+    });
+  },
+
+  reordenarFotosRecurso: async (recursoId: string, fotosOrdenadasIds: string[]): Promise<void> => {
+    return request<void>(`recursos/${recursoId}/fotos/reordenar`, {
+      method: 'PUT',
+      body: JSON.stringify({ fotosOrdenadasIds })
+    });
+  },
+
+  eliminarFotoRecurso: async (recursoId: string, fotoId: string): Promise<void> => {
+    return request<void>(`recursos/${recursoId}/fotos/${fotoId}`, {
+      method: 'DELETE'
+    });
   }
 };
+
 
 
