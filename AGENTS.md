@@ -135,8 +135,17 @@ SistemaUOD/
     - Manejo seguro de sesión y permisos (401 si no hay sesión, 404 si no existe).
     - Cliente tipado en `apiClient.ts` con `resolverCodigo`, `obtenerEnlaceQrRecurso`, etc.
     - Batería de 37 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+  - ✅ Prompt 6.5: **Pantalla de catálogo interactiva**:
+    - Alternancia fluida entre vista de tabla densa institucional y cuadrícula de tarjetas con foto/badges de estado, persistida en `localStorage`.
+    - Barra de búsqueda predictiva en tiempo real con debounce integrado (SKU, nombre, marca, modelo).
+    - Panel lateral desplegable con 17 filtros combinables (categorías, estado, tipo de recurso, rango de precios, stock bajo/agotado, etc.).
+    - Barra de chips interactivos de filtros activos con botón de remoción individual y botón de reseteo global.
+    - Selección múltiple de recursos con barra flotante de acciones en lote (cambio masivo de estado, desactivación y exportación).
+    - Modal de visualización y descarga rápida de código QR institucional canónico.
+    - Exportación instantánea del subconjunto filtrado a formato CSV con metadatos institucionales.
+    - Cumplimiento WCAG 2.1 AA y diseño responsivo adaptativo UOD.
 - **Próximo paso:**
-  - **Prompt 6.5 – Pantalla de catálogo:** Construir la pantalla de catálogo interactiva según el sistema de diseño UOD: alternancia tabla/tarjetas con foto, panel de 17 filtros combinables, chips de filtros activos, ordenamiento, selección múltiple para acciones en lote y exportación rápida.
+  - **Prompt 6.6 – Formulario de recurso:** Construir el formulario de creación y edición de recursos en panel lateral modal accesible: campos completos del modelo, subida de fotos drag & drop o cámara, escaneo/validación en tiempo real del código de fabricante y SKU, detección de posibles duplicados por número de serie o similitud de nombre/marca, y opciones «guardar y agregar otro» y «duplicar recurso».
 
 
 
