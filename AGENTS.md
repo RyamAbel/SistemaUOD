@@ -181,9 +181,14 @@ SistemaUOD/
     - Servicio `UbicacionService.cs` con árbol jerárquico recursivo, validación de código único institucional y prevención estricta de borrado para ubicaciones con existencias, activos físicos asignados o sububicaciones (retorna `400 BadRequest` con ProblemDetails).
     - Políticas de autorización estrictas (`Policies.ExigirGestionInventario` para escritura, lectura autenticada).
     - Pantalla interactiva en Next.js `LocationsView.tsx` con doble vista (árbol jerárquico desplegable y tabla plana), detalle de ubicación con los equipos físicos de los 341 activos TI UOD asignados, modal de creación/edición y diálogo de prevención de borrado que ofrece desactivación.
-    - Batería de 47 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+  - ✅ Prompt 7.2: **Existencias y stock mínimo (RF-12)**:
+    - Endpoints RESTful completos (`ExistenciasEndpoints.cs`) con `GET /api/v1/existencias` (resumen de stock por recurso con reglas de reorden RF-12), `GET /api/v1/existencias/recurso/{recursoId}` (ficha y desglose por ubicación y lotes), `GET /api/v1/existencias/detalladas`, `GET /api/v1/existencias/alertas/stock-bajo` y `GET /api/v1/existencias/alertas/vencimientos`.
+    - Servicio `ExistenciaService.cs` implementando la fórmula RF-12: clasificación en `agotado`, `bajo_minimo`, `reorden` y `normal`, stock disponible `Math.Max(0, StockTotal - StockReservado)`, cantidad sugerida a reordenar para alcanzar stock máximo óptimo, y seguimiento de lotes clínicos próximos a vencer (30 días).
+    - Métodos e interfaces tipados en `frontend/src/lib/apiClient.ts` (`obtenerResumenExistencias`, `obtenerStockPorRecurso`, `obtenerExistenciasDetalladas`, `obtenerAlertasStockBajo`, `obtenerAlertasVencimientos`).
+    - Batería de 54 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
 - **Próximo paso:**
-  - **Prompt 7.2 – Existencias y stock mínimo:** Implementar la consulta de existencias por recurso, ubicación y lote (y vencimiento cuando aplique), con stock total, disponible y reservado, y cálculo de stock bajo el mínimo según la regla del documento (RF-12).
+  - **Prompt 7.3 – Movimientos transaccionales:** Implementar la API para registrar movimientos con transacción atómica (sin stock negativo, idempotencia y comprobante en PDF).
 
 
 

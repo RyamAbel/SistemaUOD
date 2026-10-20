@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IRecursoFotoService, RecursoFotoService>();
         services.AddScoped<ICodigoService, CodigoService>();
         services.AddScoped<IUbicacionService, UbicacionService>();
+        services.AddScoped<IExistenciaService, ExistenciaService>();
 
         return services;
     }

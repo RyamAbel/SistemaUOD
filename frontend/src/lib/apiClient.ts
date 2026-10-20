@@ -340,6 +340,86 @@ export interface EnlaceQrDto {
   urlDescargaImagen: string;
 }
 
+// ==========================================
+// Módulo de Existencias y Stock (RF-12)
+// ==========================================
+export interface ExistenciaDto {
+  id: string;
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  recursoTipo: string;
+  unidadMedida: string;
+  ubicacionId: string;
+  ubicacionCodigo: string;
+  ubicacionNombre: string;
+  loteId?: string | null;
+  numeroLote?: string | null;
+  fechaVencimiento?: string | null;
+  diasParaVencer?: number | null;
+  estaVencido: boolean;
+  proximoAVencer: boolean;
+  cantidad: number;
+  cantidadReservada: number;
+  cantidadDisponible: number;
+  actualizadoEn: string;
+}
+
+export interface ExistenciaPorUbicacionDto {
+  ubicacionId: string;
+  ubicacionCodigo: string;
+  ubicacionNombre: string;
+  cantidad: number;
+  cantidadDisponible: number;
+}
+
+export interface ExistenciaPorLoteDto {
+  loteId: string;
+  numeroLote: string;
+  fechaVencimiento?: string | null;
+  diasParaVencer?: number | null;
+  estaVencido: boolean;
+  proximoAVencer: boolean;
+  cantidad: number;
+  proveedorNombre?: string | null;
+}
+
+export interface ResumenStockRecursoDto {
+  recursoId: string;
+  sku: string;
+  nombre: string;
+  categoriaNombre: string;
+  unidadMedida: string;
+  tipo: string;
+  stockTotal: number;
+  stockReservado: number;
+  stockDisponible: number;
+  stockMinimo: number;
+  stockMaximo?: number | null;
+  puntoReorden?: number | null;
+  estadoStock: 'agotado' | 'bajo_minimo' | 'reorden' | 'normal';
+  requiereReorden: boolean;
+  cantidadSugeridaReorden: number;
+  lotesVencidosCount: number;
+  lotesProximosVencerCount: number;
+  ubicaciones: ExistenciaPorUbicacionDto[];
+  lotes: ExistenciaPorLoteDto[];
+}
+
+export interface ExistenciaFiltrosDto {
+  recursoId?: string;
+  ubicacionId?: string;
+  loteId?: string;
+  soloStockBajo?: boolean;
+  soloAgotados?: boolean;
+  proximosAVencer?: boolean;
+  search?: string;
+  pageIndex?: number;
+  pageSize?: number;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -657,6 +737,47 @@ export const apiClient = {
   obtenerUrlDescargaQr: (recursoId: string): string => {
     const baseUrl = API_BASE_URL.replace(/\/+$/, '');
     return `${baseUrl}/recursos/${recursoId}/qr/imagen`;
+  },
+
+  // ==========================================
+  // Existencias y Stock Mínimo (RF-12)
+  // ==========================================
+  obtenerResumenExistencias: async (filtros: Partial<ExistenciaFiltrosDto> = {}): Promise<PagedResult<ResumenStockRecursoDto>> => {
+    const query = new URLSearchParams();
+    if (filtros.pageIndex) query.append('pageIndex', String(filtros.pageIndex));
+    if (filtros.pageSize) query.append('pageSize', String(filtros.pageSize));
+    if (filtros.recursoId) query.append('recursoId', filtros.recursoId);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.soloStockBajo !== undefined) query.append('soloStockBajo', String(filtros.soloStockBajo));
+    if (filtros.soloAgotados !== undefined) query.append('soloAgotados', String(filtros.soloAgotados));
+    if (filtros.proximosAVencer !== undefined) query.append('proximosAVencer', String(filtros.proximosAVencer));
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.sortBy) query.append('sortBy', filtros.sortBy);
+    if (filtros.isDescending !== undefined) query.append('isDescending', String(filtros.isDescending));
+
+    const qs = query.toString();
+    return request<PagedResult<ResumenStockRecursoDto>>(`existencias${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerStockPorRecurso: async (recursoId: string): Promise<ResumenStockRecursoDto> => {
+    return request<ResumenStockRecursoDto>(`existencias/recurso/${recursoId}`);
+  },
+
+  obtenerExistenciasDetalladas: async (recursoId?: string, ubicacionId?: string): Promise<ExistenciaDto[]> => {
+    const query = new URLSearchParams();
+    if (recursoId) query.append('recursoId', recursoId);
+    if (ubicacionId) query.append('ubicacionId', ubicacionId);
+
+    const qs = query.toString();
+    return request<ExistenciaDto[]>(`existencias/detalladas${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerAlertasStockBajo: async (): Promise<ResumenStockRecursoDto[]> => {
+    return request<ResumenStockRecursoDto[]>('existencias/alertas/stock-bajo');
+  },
+
+  obtenerAlertasVencimientos: async (diasAnticipacion: number = 30): Promise<ExistenciaPorLoteDto[]> => {
+    return request<ExistenciaPorLoteDto[]>(`existencias/alertas/vencimientos?diasAnticipacion=${diasAnticipacion}`);
   }
 };
 
