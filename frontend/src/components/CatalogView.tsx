@@ -26,7 +26,8 @@ import {
   FileSpreadsheet,
   Maximize2,
   Edit2,
-  Copy
+  Copy,
+  Printer
 } from 'lucide-react';
 import {
   apiClient,
@@ -37,6 +38,8 @@ import {
 } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { ResourceFormDrawer } from './ResourceFormDrawer';
+import { ResourceDetailModal } from './ResourceDetailModal';
+import { QrLabelsPrintModal } from './QrLabelsPrintModal';
 
 interface CatalogViewProps {
   articulos?: any[];
@@ -112,6 +115,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [duplicatingResource, setDuplicatingResource] = useState<RecursoDto | null>(null);
+
+  // 8. Ficha de detalle de recurso y modal de impresión en lote
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailResourceId, setDetailResourceId] = useState<string | null>(null);
+  const [batchPrintModalOpen, setBatchPrintModalOpen] = useState(false);
+
+  const handleOpenDetail = (id: string) => {
+    setDetailResourceId(id);
+    setDetailModalOpen(true);
+    onOpenResourceDetail?.(id);
+  };
 
   // Toast feedback
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -495,6 +509,13 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBatchPrintModalOpen(true)}
+              className="rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1.5 text-[11px] font-bold text-white transition-colors flex items-center space-x-1"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Imprimir Etiquetas QR ({selectedIds.size})</span>
+            </button>
             <button
               onClick={() => {
                 setBatchActionType('desactivar');
@@ -913,7 +934,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                                 </>
                               )}
                               <button
-                                onClick={() => onOpenResourceDetail?.(recurso.id)}
+                                onClick={() => handleOpenDetail(recurso.id)}
                                 className="rounded-lg bg-blue-50 text-[#1C3177] px-2.5 py-1 text-[11px] font-bold hover:bg-blue-100 transition-colors"
                               >
                                 Ficha
@@ -1078,7 +1099,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                         </>
                       )}
                       <button
-                        onClick={() => onOpenResourceDetail?.(recurso.id)}
+                        onClick={() => handleOpenDetail(recurso.id)}
                         className="flex-1 rounded-xl bg-[#1C3177] py-2 text-xs font-bold text-white hover:bg-[#2B4BA0] transition-colors text-center"
                       >
                         Ver Detalle
@@ -1266,6 +1287,29 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
             setDuplicatingResource(null);
           }
         }}
+      />
+
+      {/* Modal Ficha Técnica del Recurso (Prompt 6.7) */}
+      <ResourceDetailModal
+        isOpen={detailModalOpen}
+        recursoId={detailResourceId}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setDetailResourceId(null);
+        }}
+        onEditResource={(id) => {
+          setDetailModalOpen(false);
+          setEditingResourceId(id);
+          setDuplicatingResource(null);
+          setDrawerOpen(true);
+        }}
+      />
+
+      {/* Modal Impresión en Lote de Etiquetas QR (Prompt 6.7) */}
+      <QrLabelsPrintModal
+        isOpen={batchPrintModalOpen}
+        onClose={() => setBatchPrintModalOpen(false)}
+        recursos={data.items.filter((r) => selectedIds.has(r.id))}
       />
     </div>
   );

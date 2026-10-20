@@ -152,8 +152,19 @@ SistemaUOD/
     - Flujo de creación rápida: botón «Guardar y agregar otro» (mantiene categoría para carga rápida masiva) y botón «Guardar recurso».
     - Soporte nativo para duplicación de recursos con clonación de atributos y generación de SKU sugerido.
     - Integración transparente en `CatalogView.tsx` (botón «Nuevo Recurso», acciones de editar y clonar en tabla y tarjetas).
+  - ✅ Prompt 6.7: **Ficha del recurso y etiquetas QR imprimibles (PDF / Lote)**:
+    - Componente `ResourceDetailModal.tsx` con tabs organizados:
+      - *Información General:* Galería fotográfica interactiva con selector de miniaturas, barra de estado de stock en tiempo real (existencias vs stock mínimo y máximo), atributos en tarjetas y especificaciones técnicas.
+      - *Existencias por Ubicación:* Desglose institucional de inventario por departamentos, aulas y clínicas odontológicas UOD.
+      - *Equipos / Series Físicas:* Registro y trazabilidad de los 341 equipos físicos con ID institucional (`EQ-XX`), número de serie, custodio y estado operativo.
+      - *Códigos y QR:* Código QR institucional canónico (`https://siia.uod.edu.do/recurso/{id}`) con botones de descarga en PNG y acceso al generador de etiquetas.
+    - Generador de etiquetas QR imprimibles `QrLabelsPrintModal.tsx`:
+      - Admite impresión individual o en lote masivo para los ítems seleccionados en el catálogo.
+      - 3 formatos de etiqueta física: Compacta (45x25mm), Estándar (60x35mm) y Grande (80x50mm).
+      - Configuración de copias por recurso e inclusión opcional de fotografía del ítem.
+      - Reglas CSS `@media print` optimizadas para impresoras térmicas de etiquetas o exportación limpia a PDF sin elementos residuales de la interfaz.
 - **Próximo paso:**
-  - **Prompt 6.7 – Ficha del recurso y etiquetas QR:** Construir la ficha detallada del recurso (galería de fotos con zoom, existencias por ubicación, historial de movimientos, activos de serie asignados y QR visible) y el generador de etiquetas QR imprimibles (individual y en lote) listas para PDF.
+  - **Prompt 6.8 – Escáner con la cámara (PWA):** Implementar el escáner de códigos de barras y QR con la cámara del dispositivo móvil desde la web app, resolución universal con `GET /api/v1/codigos/resolver`, acciones rápidas según el rol del usuario (registrar movimiento, reporte o crear nuevo si no existe), manejo de linterna/permiso denegado y manifiesto PWA.
 
 
 
