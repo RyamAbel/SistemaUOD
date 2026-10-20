@@ -240,4 +240,63 @@ public class RecursosEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         Assert.NotNull(detalle);
         Assert.False(detalle.Activo);
     }
+
+    [Fact]
+    public async Task CrearRecurso_ConRolAuditor_Retorna403Forbidden()
+    {
+        var client = _factory.CreateClient();
+        var categoriaId = await ObtenerOCrearCategoriaValidaAsync();
+
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/recursos", role: "auditor");
+        request.Content = JsonContent.Create(new CrearRecursoDto
+        {
+            Sku = "SKU-AUDITOR-DENIED",
+            Nombre = "Monitor Odontológico 24 Pulgadas",
+            CategoriaId = categoriaId,
+            Tipo = "activo_fijo"
+        });
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConsultarRecurso_ConRolAuditor_Retorna200Ok()
+    {
+        var client = _factory.CreateClient();
+        var categoriaId = await ObtenerOCrearCategoriaValidaAsync();
+        var skuValido = $"SKU-AUDIT-{Guid.NewGuid().ToString("N")[..6]}";
+
+        // 1. Crear recurso como super_admin
+        var reqCreate = CrearPeticion(HttpMethod.Post, "/api/v1/recursos", role: "super_admin");
+        reqCreate.Content = JsonContent.Create(new CrearRecursoDto
+        {
+            Sku = skuValido,
+            Nombre = "Lámpara de Fotocurado LED Inalámbrica",
+            CategoriaId = categoriaId,
+            Tipo = "activo_fijo"
+        });
+        var resCreate = await client.SendAsync(reqCreate);
+        Assert.Equal(HttpStatusCode.Created, resCreate.StatusCode);
+        var creado = await resCreate.Content.ReadFromJsonAsync<RecursoDto>();
+        Assert.NotNull(creado);
+
+        // 2. Consultar como auditor (debe permitirlo)
+        var reqGet = CrearPeticion(HttpMethod.Get, $"/api/v1/recursos/{creado.Id}", role: "auditor");
+        var resGet = await client.SendAsync(reqGet);
+        Assert.Equal(HttpStatusCode.OK, resGet.StatusCode);
+
+        // 3. Intentar editar como auditor (debe denegarlo con 403 Forbidden)
+        var reqPut = CrearPeticion(HttpMethod.Put, $"/api/v1/recursos/{creado.Id}", role: "auditor");
+        reqPut.Content = JsonContent.Create(new CrearRecursoDto
+        {
+            Sku = skuValido,
+            Nombre = "Lámpara Modificada por Auditor",
+            CategoriaId = categoriaId,
+            Tipo = "activo_fijo"
+        });
+        var resPut = await client.SendAsync(reqPut);
+        Assert.Equal(HttpStatusCode.Forbidden, resPut.StatusCode);
+    }
 }

@@ -105,7 +105,7 @@ SistemaUOD/
   - ✅ Prompt 5.4: Cliente HTTP tipado (`frontend/src/lib/apiClient.ts`) con interceptor de JWT Supabase, manejo estandarizado de `ProblemDetails` (RFC 7807) en español y modelos de paginación.
   - ✅ Prompt 5.5: Panel lateral del Asistente IA (`AiAssistantDrawer.tsx`) con chat interactivo, selector de modo (operativo / tutor), indicador de pensamiento y tarjetas de confirmación obligatoria previa para toda acción en el inventario.
   - ✅ Prompt 5.6: Revisión de accesibilidad WCAG 2.1 AA, pruebas de compilación estricta Next.js Turbopack (`npm run build` 6/6 páginas en verde).
-- **Etapa 6 (Catálogo de recursos con fotos, QR y filtros):** 🔄 En curso:
+- **Etapa 6 (Catálogo de recursos con fotos, QR y filtros):** ✅ Completada al 100%:
   - ✅ Prompt 6.1: **Categorías y proveedores (patrón fijado y validado)**:
     - Endpoints RESTful con Clean Architecture en Minimal APIs (`CategoriasEndpoints.cs`, `ProveedoresEndpoints.cs`).
     - Políticas de seguridad por rol (`Policies.ExigirGestionInventario` para escritura, `Policies.ExigirSuperAdmin` para borrado, lectura autenticada).
@@ -171,8 +171,13 @@ SistemaUOD/
     - Flujo ante código desconocido: opción directa de «Crear nuevo recurso con este código» prellenando el formulario.
     - Configuración PWA lista: `manifest.json` institucional en `frontend/public/` y metadata en `layout.tsx` para instalación como aplicación nativa en Android, iOS y Desktop.
     - Accesos rápidos en `Navbar.tsx` y en la barra de herramientas de `CatalogView.tsx`.
-- **Próximo paso:**
-  - **Prompt 6.9 – Prueba real y cierre de Etapa 6:** Verificación integral de todos los flujos del catálogo (creación, edición, duplicación, subida de foto, etiquetas QR imprimibles, escaneo y permisos por rol). Ejecución de la batería de pruebas y cierre formal de la Etapa 6.
+  - ✅ Prompt 6.9: **Prueba real, validación de permisos y cierre formal de la Etapa 6**:
+    - Verificación integral de permisos por rol: roles `auditor` y `consulta` pueden explorar el catálogo y ver fichas completas, pero tienen estrictamente denegado crear o modificar recursos (retornan `403 Forbidden`).
+    - Batería de 39 pruebas automatizadas de integración superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+    - Compilación estricta en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
+- **Próxima Etapa:**
+  - **Etapa 7 – Ubicaciones, existencias y movimientos:**
+    - **Prompt 7.1 – Ubicaciones:** Ubicaciones jerárquicas (sede, almacén, departamento, aula, clínica odontológica) con responsable/custodio, API con permisos y bitácora, pantallas de árbol y de formulario, prevención de borrado con existencias activas.
 
 
 
