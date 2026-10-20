@@ -105,6 +105,40 @@ SistemaUOD/
   - ✅ Prompt 5.4: Cliente HTTP tipado (`frontend/src/lib/apiClient.ts`) con interceptor de JWT Supabase, manejo estandarizado de `ProblemDetails` (RFC 7807) en español y modelos de paginación.
   - ✅ Prompt 5.5: Panel lateral del Asistente IA (`AiAssistantDrawer.tsx`) con chat interactivo, selector de modo (operativo / tutor), indicador de pensamiento y tarjetas de confirmación obligatoria previa para toda acción en el inventario.
   - ✅ Prompt 5.6: Revisión de accesibilidad WCAG 2.1 AA, pruebas de compilación estricta Next.js Turbopack (`npm run build` 6/6 páginas en verde).
+- **Etapa 6 (Catálogo de recursos con fotos, QR y filtros):** 🔄 En curso:
+  - ✅ Prompt 6.1: **Categorías y proveedores (patrón fijado y validado)**:
+    - Endpoints RESTful con Clean Architecture en Minimal APIs (`CategoriasEndpoints.cs`, `ProveedoresEndpoints.cs`).
+    - Políticas de seguridad por rol (`Policies.ExigirGestionInventario` para escritura, `Policies.ExigirSuperAdmin` para borrado, lectura autenticada).
+    - Validaciones estrictas de dominio (RNC dominicano de 9 u 11 dígitos con regex, códigos únicos, prevención de ciclos padre-hijo).
+    - Trazabilidad y auditoría inmutable automática en `ApplicationDbContext.SaveChangesAsync()` (Ley 172-13).
+    - Cliente frontend tipado en `apiClient.ts` con manejo de `ProblemDetails` (RFC 7807).
+    - Pantalla interactiva en Next.js `SuppliersView.tsx` con tabs para Proveedores y Categorías, modales accesibles y badges de estado.
+    - Batería de 18 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests`.
 - **Próximo paso:**
-  - **Etapa 6 – Catálogo de recursos (con fotos, QR y filtros):** Iniciar con el **Prompt 6.1 – Categorías y proveedores (fija el patrón)**, implementando endpoints con permisos por rol y registro en bitácora, servicios, pruebas y pantallas en Next.js.
+  - **Prompt 6.2 – API de recursos con filtros:** Construir los endpoints y servicios de Recursos con filtros combinables (texto libre, categoría/subcategoría, tipo, ubicación, estado, responsable, stock bajo, proveedor, etc.), paginación eficiente, historial de cambios y pruebas automatizadas.
+
+---
+
+## 6. Patrón Arquitectónico Estándar para Módulos (Regla Fija)
+Todo nuevo módulo de negocio en SIIA sigue rigurosamente esta estructura en 5 capas:
+1. **Dominio (`SistemaUOD.Domain`):**
+   - Entidad con claves primarias UUID/Guid, timestamps UTC (`CreadoEn`, `ActualizadoEn`), estado booleano (`Activo`) y relaciones tipadas.
+2. **Aplicación (`SistemaUOD.Application`):**
+   - DTOs separados para lectura (`*Dto`), creación (`Crear*Dto`) y edición (`Actualizar*Dto`).
+   - Validaciones de DataAnnotations con mensajes claros en español.
+   - Interfaz de servicio (`I*Service`) con soporte para cancelación (`CancellationToken`) y paginación (`PagedRequest`, `PagedResult<T>`).
+3. **Infraestructura (`SistemaUOD.Infrastructure`):**
+   - Implementación del servicio con `IApplicationDbContext`.
+   - Consultas optimizadas con `AsNoTracking()`.
+   - Inyección en `DependencyInjection.cs` con ciclo de vida `Scoped`.
+   - Registro automático e inmutable de auditoría (quién, qué cambió, valores antes/después, IP y timestamp) sin código repetitivo.
+4. **API y Seguridad (`SistemaUOD.Api`):**
+   - Minimal API mapeada en `Endpoints/*Endpoints.cs` con tags de OpenAPI y sumarios.
+   - Respuestas estandarizadas con `ProblemDetails` (RFC 7807) ante errores o validaciones fallidas.
+   - Autorización estricta por roles (`ExigirSuperAdmin`, `ExigirGestionInventario`, etc.).
+5. **Pruebas y Frontend (`SistemaUOD.Tests` & `frontend`):**
+   - Pruebas de integración con `CustomWebApplicationFactory` simulando autenticación y roles.
+   - Cliente HTTP tipado en `apiClient.ts`.
+   - Vista React en Next.js con Tailwind siguiendo la paleta institucional UOD (`#1C3177`, `#3DAA5C`, `#F7F9FC`), estados de carga (skeletons), empty states y accesibilidad WCAG 2.1 AA.
+
 

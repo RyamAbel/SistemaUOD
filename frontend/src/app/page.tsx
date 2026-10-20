@@ -12,6 +12,7 @@ import { MovementsView } from '@/components/MovementsView';
 import { MaintenanceView } from '@/components/MaintenanceView';
 import { ReportsView } from '@/components/ReportsView';
 import { SettingsView } from '@/components/SettingsView';
+import { SuppliersView } from '@/components/SuppliersView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import {
   initialArticulos,
@@ -201,29 +202,7 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'compras' && (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-[#3DAA5C]" />
-                Proveedores y Órdenes de Compra
-              </h3>
-              <p className="text-xs text-slate-500">
-                Gestión de suplidores registrados con RNC institucional y cotizaciones asistidas.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                  <span className="font-bold text-sm text-slate-900">Dental Corp. Dominicana S.R.L.</span>
-                  <div className="text-xs text-slate-500 mt-1">RNC: 1-31-88421-2 • Contacto: Carlos Mendoza</div>
-                  <div className="text-[11px] text-[#2D8246] mt-2 font-bold">Crédito 30 días • Insumos de Implantes</div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                  <span className="font-bold text-sm text-slate-900">Biomateriales del Caribe S.A.</span>
-                  <div className="text-xs text-slate-500 mt-1">RNC: 1-01-99234-5 • Contacto: Laura Silva</div>
-                  <div className="text-[11px] text-[#2D8246] mt-2 font-bold">Distribuidor oficial 3M Oral Care</div>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'compras' && <SuppliersView />}
 
           {activeTab === 'inventario_fisico' && (
             <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">

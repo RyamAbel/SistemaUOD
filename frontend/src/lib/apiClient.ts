@@ -106,6 +106,56 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 }
 
+export interface CategoriaDto {
+  id: string;
+  categoriaPadreId?: string | null;
+  categoriaPadreNombre?: string | null;
+  codigo: string;
+  nombre: string;
+  descripcion?: string | null;
+  activa: boolean;
+  creadoEn: string;
+  actualizadoEn: string;
+  subcategoriasCount: number;
+  recursosCount: number;
+}
+
+export interface CrearCategoriaDto {
+  categoriaPadreId?: string | null;
+  codigo: string;
+  nombre: string;
+  descripcion?: string | null;
+  activa?: boolean;
+}
+
+export interface ProveedorDto {
+  id: string;
+  rnc: string;
+  nombreComercial: string;
+  razonSocial?: string | null;
+  contactoNombre?: string | null;
+  telefono?: string | null;
+  correo?: string | null;
+  direccion?: string | null;
+  plazoCreditoDias: number;
+  activo: boolean;
+  creadoEn: string;
+  actualizadoEn: string;
+  activosSuministradosCount: number;
+}
+
+export interface CrearProveedorDto {
+  rnc: string;
+  nombreComercial: string;
+  razonSocial?: string | null;
+  contactoNombre?: string | null;
+  telefono?: string | null;
+  correo?: string | null;
+  direccion?: string | null;
+  plazoCreditoDias?: number;
+  activo?: boolean;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -124,6 +174,13 @@ export const apiClient = {
       headers
     }),
 
+  patch: <T>(endpoint: string, body?: any, headers?: Record<string, string>) =>
+    request<T>(endpoint, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+      headers
+    }),
+
   delete: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'DELETE', headers }),
 
@@ -134,5 +191,89 @@ export const apiClient = {
 
   checkHealth: async () => {
     return request<{ estado: string; sistema: string }>('health');
+  },
+
+  // Categorías
+  listarCategorias: async (soloActivas?: boolean): Promise<CategoriaDto[]> => {
+    const query = soloActivas !== undefined ? `?soloActivas=${soloActivas}` : '';
+    return request<CategoriaDto[]>(`categorias${query}`);
+  },
+
+  obtenerCategoria: async (id: string): Promise<CategoriaDto> => {
+    return request<CategoriaDto>(`categorias/${id}`);
+  },
+
+  crearCategoria: async (dto: CrearCategoriaDto): Promise<CategoriaDto> => {
+    return request<CategoriaDto>('categorias', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarCategoria: async (id: string, dto: CrearCategoriaDto): Promise<CategoriaDto> => {
+    return request<CategoriaDto>(`categorias/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoCategoria: async (id: string, activo: boolean): Promise<void> => {
+    return request<void>(`categorias/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activo })
+    });
+  },
+
+  eliminarCategoria: async (id: string): Promise<void> => {
+    return request<void>(`categorias/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Proveedores
+  listarProveedores: async (params?: {
+    pageIndex?: number;
+    pageSize?: number;
+    search?: string;
+    sortBy?: string;
+    isDescending?: boolean;
+    soloActivos?: boolean;
+  }): Promise<PagedResult<ProveedorDto>> => {
+    const searchParams = new URLSearchParams();
+    if (params?.pageIndex) searchParams.set('pageIndex', params.pageIndex.toString());
+    if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params?.isDescending !== undefined) searchParams.set('isDescending', params.isDescending.toString());
+    if (params?.soloActivos !== undefined) searchParams.set('soloActivos', params.soloActivos.toString());
+
+    const qs = searchParams.toString();
+    return request<PagedResult<ProveedorDto>>(`proveedores${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerProveedor: async (id: string): Promise<ProveedorDto> => {
+    return request<ProveedorDto>(`proveedores/${id}`);
+  },
+
+  crearProveedor: async (dto: CrearProveedorDto): Promise<ProveedorDto> => {
+    return request<ProveedorDto>('proveedores', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarProveedor: async (id: string, dto: CrearProveedorDto): Promise<ProveedorDto> => {
+    return request<ProveedorDto>(`proveedores/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoProveedor: async (id: string, activo: boolean): Promise<void> => {
+    return request<void>(`proveedores/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activo })
+    });
   }
 };
+

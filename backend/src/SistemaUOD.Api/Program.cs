@@ -122,6 +122,8 @@ app.UseAuthorization();
 
 // 8. Endpoints de la API (/api/v1)
 app.MapMeEndpoints();
+app.MapCategoriasEndpoints();
+app.MapProveedoresEndpoints();
 
 app.MapGet("/api/v1/health", () => Results.Ok(new
 {

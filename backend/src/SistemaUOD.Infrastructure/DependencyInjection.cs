@@ -40,6 +40,8 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<ICategoriaService, CategoriaService>();
+        services.AddScoped<IProveedorService, ProveedorService>();
 
         return services;
     }
