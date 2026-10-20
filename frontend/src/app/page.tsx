@@ -14,6 +14,8 @@ import { ReportsView } from '@/components/ReportsView';
 import { SettingsView } from '@/components/SettingsView';
 import { SuppliersView } from '@/components/SuppliersView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
+import { CameraScannerModal } from '@/components/CameraScannerModal';
+import { ResourceDetailModal } from '@/components/ResourceDetailModal';
 import {
   initialArticulos,
   initialMovimientos,
@@ -30,6 +32,11 @@ export default function Home() {
   const [articulos, setArticulos] = useState<ArticuloItem[]>(initialArticulos);
   const [movimientos, setMovimientos] = useState<MovimientoItem[]>(initialMovimientos);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Escáner Móvil PWA
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedResourceId, setScannedResourceId] = useState<string | null>(null);
+  const [scannedDetailOpen, setScannedDetailOpen] = useState(false);
 
   // Real-time stock alert count based on actual articles
   const stockAlertCount = articulos.filter(a => a.stockActual <= a.stockMinimo).length;
@@ -120,7 +127,12 @@ export default function Home() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#F7F9FC] text-slate-900">
       {/* Top Header Navigation with UOD Logo */}
-      <Navbar onOpenAi={() => setAiOpen(true)} aiOpen={aiOpen} alertCount={stockAlertCount} />
+      <Navbar
+        onOpenAi={() => setAiOpen(true)}
+        aiOpen={aiOpen}
+        alertCount={stockAlertCount}
+        onOpenScanner={() => setScannerOpen(true)}
+      />
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
@@ -241,6 +253,30 @@ export default function Home() {
         onClose={() => setAiOpen(false)}
         articulos={articulos}
         onExecuteAction={handleExecuteAction}
+      />
+
+      {/* Escáner Móvil PWA con Cámara (Prompt 6.8) */}
+      <CameraScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onOpenResourceDetail={(id) => {
+          setScannedResourceId(id);
+          setScannedDetailOpen(true);
+        }}
+        onCreateResourceWithCode={(codigo) => {
+          setActiveTab('catalogo');
+          triggerToast(`Código ${codigo} capturado. Abre «Nuevo Recurso» en catálogo.`);
+        }}
+      />
+
+      {/* Ficha de Recurso desde Escáner */}
+      <ResourceDetailModal
+        isOpen={scannedDetailOpen}
+        recursoId={scannedResourceId}
+        onClose={() => {
+          setScannedDetailOpen(false);
+          setScannedResourceId(null);
+        }}
       />
     </div>
   );

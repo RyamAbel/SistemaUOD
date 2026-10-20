@@ -5,6 +5,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SistemaUOD • SIIA - Sistema Inteligente de Inventario",
   description: "Plataforma institucional de inventario y control de activos con IA integrada.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SIIA UOD"
+  }
 };
 
 export default function RootLayout({

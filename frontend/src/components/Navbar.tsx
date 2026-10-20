@@ -14,7 +14,8 @@ import {
   X,
   AlertTriangle,
   Package,
-  Activity
+  Activity,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -22,9 +23,10 @@ interface NavbarProps {
   onOpenAi: () => void;
   aiOpen: boolean;
   alertCount?: number;
+  onOpenScanner?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0 }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0, onOpenScanner }) => {
   const { user, perfil, rol, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -90,6 +92,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0
 
       {/* Right Controls */}
       <div className="flex items-center gap-2.5 shrink-0">
+
+        {/* Escáner Móvil PWA */}
+        {onOpenScanner && (
+          <button
+            onClick={onOpenScanner}
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 text-xs font-bold transition-all shadow-xs"
+            title="Escanear código QR o barras con la cámara"
+          >
+            <Camera className="h-4 w-4 text-[#1C3177]" />
+            <span className="hidden sm:inline">Escanear</span>
+          </button>
+        )}
 
         {/* AI Button */}
         <button

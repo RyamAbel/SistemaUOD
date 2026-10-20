@@ -27,7 +27,8 @@ import {
   Maximize2,
   Edit2,
   Copy,
-  Printer
+  Printer,
+  Camera
 } from 'lucide-react';
 import {
   apiClient,
@@ -40,6 +41,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ResourceFormDrawer } from './ResourceFormDrawer';
 import { ResourceDetailModal } from './ResourceDetailModal';
 import { QrLabelsPrintModal } from './QrLabelsPrintModal';
+import { CameraScannerModal } from './CameraScannerModal';
 
 interface CatalogViewProps {
   articulos?: any[];
@@ -120,6 +122,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailResourceId, setDetailResourceId] = useState<string | null>(null);
   const [batchPrintModalOpen, setBatchPrintModalOpen] = useState(false);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
 
   const handleOpenDetail = (id: string) => {
     setDetailResourceId(id);
@@ -396,6 +399,16 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           >
             <Download className="h-3.5 w-3.5 text-slate-500" />
             <span className="hidden sm:inline">Exportar</span>
+          </button>
+
+          {/* Scanner Button */}
+          <button
+            onClick={() => setScannerModalOpen(true)}
+            title="Escanear código QR o barras con la cámara"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Camera className="h-3.5 w-3.5 text-[#1C3177]" />
+            <span className="hidden sm:inline">Escanear</span>
           </button>
 
           {/* Reload */}
@@ -1310,6 +1323,20 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
         isOpen={batchPrintModalOpen}
         onClose={() => setBatchPrintModalOpen(false)}
         recursos={data.items.filter((r) => selectedIds.has(r.id))}
+      />
+
+      {/* Escáner con Cámara PWA (Prompt 6.8) */}
+      <CameraScannerModal
+        isOpen={scannerModalOpen}
+        onClose={() => setScannerModalOpen(false)}
+        onOpenResourceDetail={(id) => {
+          handleOpenDetail(id);
+        }}
+        onCreateResourceWithCode={(codigo) => {
+          setEditingResourceId(null);
+          setDuplicatingResource(null);
+          setDrawerOpen(true);
+        }}
       />
     </div>
   );

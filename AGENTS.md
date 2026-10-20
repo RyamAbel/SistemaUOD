@@ -163,8 +163,16 @@ SistemaUOD/
       - 3 formatos de etiqueta física: Compacta (45x25mm), Estándar (60x35mm) y Grande (80x50mm).
       - Configuración de copias por recurso e inclusión opcional de fotografía del ítem.
       - Reglas CSS `@media print` optimizadas para impresoras térmicas de etiquetas o exportación limpia a PDF sin elementos residuales de la interfaz.
+  - ✅ Prompt 6.8: **Escáner con cámara PWA y resolución universal en vivo**:
+    - Componente accesible `CameraScannerModal.tsx` con integración de `html5-qrcode` para lectura continua en alta definición de códigos QR institucionales, códigos de barras (EAN-13, CODE-128, UPC) y números de serie físicos.
+    - Soporte para cámara trasera de smartphones (`facingMode: "environment"`), visor delimitador con esquinas iluminadas animadas, control de linterna (torch) y feedback acústico háptico vía Web Audio API.
+    - Manejo preventivo de denegación de permisos o ausencia de cámara con opción integrada de entrada y búsqueda manual de códigos o SKU.
+    - Resolución universal en tiempo real vía `GET /api/v1/codigos/resolver?codigo=...` con visualización directa de ficha técnica del recurso o activo físico identificado.
+    - Flujo ante código desconocido: opción directa de «Crear nuevo recurso con este código» prellenando el formulario.
+    - Configuración PWA lista: `manifest.json` institucional en `frontend/public/` y metadata en `layout.tsx` para instalación como aplicación nativa en Android, iOS y Desktop.
+    - Accesos rápidos en `Navbar.tsx` y en la barra de herramientas de `CatalogView.tsx`.
 - **Próximo paso:**
-  - **Prompt 6.8 – Escáner con la cámara (PWA):** Implementar el escáner de códigos de barras y QR con la cámara del dispositivo móvil desde la web app, resolución universal con `GET /api/v1/codigos/resolver`, acciones rápidas según el rol del usuario (registrar movimiento, reporte o crear nuevo si no existe), manejo de linterna/permiso denegado y manifiesto PWA.
+  - **Prompt 6.9 – Prueba real y cierre de Etapa 6:** Verificación integral de todos los flujos del catálogo (creación, edición, duplicación, subida de foto, etiquetas QR imprimibles, escaneo y permisos por rol). Ejecución de la batería de pruebas y cierre formal de la Etapa 6.
 
 
 
