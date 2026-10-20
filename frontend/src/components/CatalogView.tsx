@@ -24,7 +24,9 @@ import {
   ExternalLink,
   DollarSign,
   FileSpreadsheet,
-  Maximize2
+  Maximize2,
+  Edit2,
+  Copy
 } from 'lucide-react';
 import {
   apiClient,
@@ -34,6 +36,7 @@ import {
   PagedResult
 } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
+import { ResourceFormDrawer } from './ResourceFormDrawer';
 
 interface CatalogViewProps {
   articulos?: any[];
@@ -104,6 +107,11 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
 
   // 6. Modal de vista previa QR
   const [qrModalItem, setQrModalItem] = useState<RecursoDto | null>(null);
+
+  // 7. Drawer de creación / edición / duplicación de recurso
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [duplicatingResource, setDuplicatingResource] = useState<RecursoDto | null>(null);
 
   // Toast feedback
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -384,6 +392,21 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-[#1C3177]' : ''}`} />
           </button>
+
+          {/* Nuevo Recurso Button */}
+          {canManage && (
+            <button
+              onClick={() => {
+                setEditingResourceId(null);
+                setDuplicatingResource(null);
+                setDrawerOpen(true);
+              }}
+              className="flex items-center gap-1.5 rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nuevo Recurso</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -863,6 +886,32 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                               >
                                 <QrCode className="h-3.5 w-3.5" />
                               </button>
+                              {canManage && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingResourceId(recurso.id);
+                                      setDuplicatingResource(null);
+                                      setDrawerOpen(true);
+                                    }}
+                                    title="Editar recurso"
+                                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#1C3177] transition-colors"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingResourceId(null);
+                                      setDuplicatingResource(recurso);
+                                      setDrawerOpen(true);
+                                    }}
+                                    title="Duplicar como plantilla"
+                                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
                               <button
                                 onClick={() => onOpenResourceDetail?.(recurso.id)}
                                 className="rounded-lg bg-blue-50 text-[#1C3177] px-2.5 py-1 text-[11px] font-bold hover:bg-blue-100 transition-colors"
@@ -994,7 +1043,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                     </div>
 
                     {/* Footer con acciones */}
-                    <div className="p-4 pt-0 flex items-center gap-2">
+                    <div className="p-4 pt-0 flex items-center gap-1.5">
                       <button
                         onClick={() => setQrModalItem(recurso)}
                         title="Ver QR institucional"
@@ -1002,6 +1051,32 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                       >
                         <QrCode className="h-4 w-4" />
                       </button>
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingResourceId(recurso.id);
+                              setDuplicatingResource(null);
+                              setDrawerOpen(true);
+                            }}
+                            title="Editar recurso"
+                            className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 hover:text-[#1C3177] transition-colors"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingResourceId(null);
+                              setDuplicatingResource(recurso);
+                              setDrawerOpen(true);
+                            }}
+                            title="Duplicar recurso"
+                            className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => onOpenResourceDetail?.(recurso.id)}
                         className="flex-1 rounded-xl bg-[#1C3177] py-2 text-xs font-bold text-white hover:bg-[#2B4BA0] transition-colors text-center"
@@ -1171,6 +1246,27 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           </div>
         </div>
       )}
+
+      {/* Drawer Formulario de Recurso (Prompt 6.6) */}
+      <ResourceFormDrawer
+        isOpen={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditingResourceId(null);
+          setDuplicatingResource(null);
+        }}
+        recursoIdToEdit={editingResourceId}
+        initialDataToDuplicate={duplicatingResource}
+        onSaved={(savedRecurso, keepOpen) => {
+          fetchRecursos();
+          showToast(`Recurso "${savedRecurso.nombre}" guardado exitosamente`);
+          if (!keepOpen) {
+            setDrawerOpen(false);
+            setEditingResourceId(null);
+            setDuplicatingResource(null);
+          }
+        }}
+      />
     </div>
   );
 };

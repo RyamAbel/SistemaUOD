@@ -144,8 +144,16 @@ SistemaUOD/
     - Modal de visualización y descarga rápida de código QR institucional canónico.
     - Exportación instantánea del subconjunto filtrado a formato CSV con metadatos institucionales.
     - Cumplimiento WCAG 2.1 AA y diseño responsivo adaptativo UOD.
+  - ✅ Prompt 6.6: **Formulario de recurso (Panel lateral Drawer / Modal)**:
+    - Componente interactivo `ResourceFormDrawer.tsx` con tabs para datos básicos, umbrales de existencias (stock mínimo, máximo, punto de reorden), costos en DOP y especificaciones técnicas.
+    - Subida de fotografías con soporte drag & drop y captura directa desde cámara (`accept="image/*" capture="environment"`), validación de 5 MB y tipos permitidos, selección de foto principal y previsualizaciones dinámicas.
+    - Verificación y escaneo en vivo de códigos externos / de fabricante con `apiClient.resolverCodigo(codigo)` y alertas inmediatas si ya está registrado.
+    - Detección en tiempo real de posibles duplicados con debounce (búsqueda de recursos similares por nombre y modelo en catálogo).
+    - Flujo de creación rápida: botón «Guardar y agregar otro» (mantiene categoría para carga rápida masiva) y botón «Guardar recurso».
+    - Soporte nativo para duplicación de recursos con clonación de atributos y generación de SKU sugerido.
+    - Integración transparente en `CatalogView.tsx` (botón «Nuevo Recurso», acciones de editar y clonar en tabla y tarjetas).
 - **Próximo paso:**
-  - **Prompt 6.6 – Formulario de recurso:** Construir el formulario de creación y edición de recursos en panel lateral modal accesible: campos completos del modelo, subida de fotos drag & drop o cámara, escaneo/validación en tiempo real del código de fabricante y SKU, detección de posibles duplicados por número de serie o similitud de nombre/marca, y opciones «guardar y agregar otro» y «duplicar recurso».
+  - **Prompt 6.7 – Ficha del recurso y etiquetas QR:** Construir la ficha detallada del recurso (galería de fotos con zoom, existencias por ubicación, historial de movimientos, activos de serie asignados y QR visible) y el generador de etiquetas QR imprimibles (individual y en lote) listas para PDF.
 
 
 
