@@ -175,9 +175,15 @@ SistemaUOD/
     - Verificación integral de permisos por rol: roles `auditor` y `consulta` pueden explorar el catálogo y ver fichas completas, pero tienen estrictamente denegado crear o modificar recursos (retornan `403 Forbidden`).
     - Batería de 39 pruebas automatizadas de integración superadas al 100% en `SistemaUOD.Tests` (0 fallos).
     - Compilación estricta en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
-- **Próxima Etapa:**
-  - **Etapa 7 – Ubicaciones, existencias y movimientos:**
-    - **Prompt 7.1 – Ubicaciones:** Ubicaciones jerárquicas (sede, almacén, departamento, aula, clínica odontológica) con responsable/custodio, API con permisos y bitácora, pantallas de árbol y de formulario, prevención de borrado con existencias activas.
+- **Etapa 7 – Ubicaciones, existencias y movimientos:** 🔄 En curso:
+  - ✅ Prompt 7.1: **Ubicaciones jerárquicas y dependencias institucionales**:
+    - Endpoints RESTful completos (`UbicacionesEndpoints.cs`) con `GET /api/v1/ubicaciones` (listado plano con filtros y paginación), `GET /api/v1/ubicaciones/arbol` (jerarquía recursiva anidada), `GET /api/v1/ubicaciones/{id}`, `POST`, `PUT`, `PATCH /estado` y `DELETE`.
+    - Servicio `UbicacionService.cs` con árbol jerárquico recursivo, validación de código único institucional y prevención estricta de borrado para ubicaciones con existencias, activos físicos asignados o sububicaciones (retorna `400 BadRequest` con ProblemDetails).
+    - Políticas de autorización estrictas (`Policies.ExigirGestionInventario` para escritura, lectura autenticada).
+    - Pantalla interactiva en Next.js `LocationsView.tsx` con doble vista (árbol jerárquico desplegable y tabla plana), detalle de ubicación con los equipos físicos de los 341 activos TI UOD asignados, modal de creación/edición y diálogo de prevención de borrado que ofrece desactivación.
+    - Batería de 47 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+- **Próximo paso:**
+  - **Prompt 7.2 – Existencias y stock mínimo:** Implementar la consulta de existencias por recurso, ubicación y lote (y vencimiento cuando aplique), con stock total, disponible y reservado, y cálculo de stock bajo el mínimo según la regla del documento (RF-12).
 
 
 

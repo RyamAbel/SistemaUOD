@@ -156,6 +156,57 @@ export interface CrearProveedorDto {
   activo?: boolean;
 }
 
+export interface UbicacionDto {
+  id: string;
+  ubicacionPadreId?: string | null;
+  ubicacionPadreNombre?: string | null;
+  codigo: string;
+  nombre: string;
+  tipo: string;
+  responsableId?: string | null;
+  responsableNombre?: string | null;
+  responsableCorreo?: string | null;
+  activa: boolean;
+  totalSububicaciones: number;
+  totalExistencias: number;
+  totalActivosFisicos: number;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface UbicacionNodoArbolDto {
+  id: string;
+  ubicacionPadreId?: string | null;
+  codigo: string;
+  nombre: string;
+  tipo: string;
+  responsableNombre?: string | null;
+  activa: boolean;
+  totalExistencias: number;
+  totalActivosFisicos: number;
+  hijos: UbicacionNodoArbolDto[];
+}
+
+export interface CrearUbicacionDto {
+  ubicacionPadreId?: string | null;
+  codigo: string;
+  nombre: string;
+  tipo: string;
+  responsableId?: string | null;
+  activa?: boolean;
+}
+
+export interface UbicacionFiltrosDto {
+  pageIndex?: number;
+  pageSize?: number;
+  search?: string;
+  tipo?: string;
+  ubicacionPadreId?: string;
+  soloActivas?: boolean;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
 export interface RecursoFiltrosDto {
   pageIndex?: number;
   pageSize?: number;
@@ -406,6 +457,58 @@ export const apiClient = {
     return request<void>(`proveedores/${id}/estado`, {
       method: 'PATCH',
       body: JSON.stringify({ activo })
+    });
+  },
+
+  // Ubicaciones (Prompt 7.1)
+  listarUbicaciones: async (filtros?: UbicacionFiltrosDto): Promise<PagedResult<UbicacionDto>> => {
+    const params = new URLSearchParams();
+    if (filtros?.pageIndex) params.set('pageIndex', filtros.pageIndex.toString());
+    if (filtros?.pageSize) params.set('pageSize', filtros.pageSize.toString());
+    if (filtros?.search) params.set('search', filtros.search);
+    if (filtros?.tipo) params.set('tipo', filtros.tipo);
+    if (filtros?.ubicacionPadreId) params.set('ubicacionPadreId', filtros.ubicacionPadreId);
+    if (filtros?.soloActivas !== undefined) params.set('soloActivas', filtros.soloActivas.toString());
+    if (filtros?.sortBy) params.set('sortBy', filtros.sortBy);
+    if (filtros?.isDescending !== undefined) params.set('isDescending', filtros.isDescending.toString());
+
+    const qs = params.toString();
+    return request<PagedResult<UbicacionDto>>(`ubicaciones${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerArbolUbicaciones: async (soloActivas?: boolean): Promise<UbicacionNodoArbolDto[]> => {
+    const qs = soloActivas !== undefined ? `?soloActivas=${soloActivas}` : '';
+    return request<UbicacionNodoArbolDto[]>(`ubicaciones/arbol${qs}`);
+  },
+
+  obtenerUbicacion: async (id: string): Promise<UbicacionDto> => {
+    return request<UbicacionDto>(`ubicaciones/${id}`);
+  },
+
+  crearUbicacion: async (dto: CrearUbicacionDto): Promise<UbicacionDto> => {
+    return request<UbicacionDto>('ubicaciones', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarUbicacion: async (id: string, dto: CrearUbicacionDto): Promise<UbicacionDto> => {
+    return request<UbicacionDto>(`ubicaciones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoUbicacion: async (id: string, activa: boolean): Promise<void> => {
+    return request<void>(`ubicaciones/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activa })
+    });
+  },
+
+  eliminarUbicacion: async (id: string): Promise<void> => {
+    return request<void>(`ubicaciones/${id}`, {
+      method: 'DELETE'
     });
   },
 

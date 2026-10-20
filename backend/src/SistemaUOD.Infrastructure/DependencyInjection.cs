@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddHttpClient<IStorageService, SupabaseStorageService>();
         services.AddScoped<IRecursoFotoService, RecursoFotoService>();
         services.AddScoped<ICodigoService, CodigoService>();
+        services.AddScoped<IUbicacionService, UbicacionService>();
 
         return services;
     }

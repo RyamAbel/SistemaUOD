@@ -127,6 +127,7 @@ app.MapProveedoresEndpoints();
 app.MapRecursosEndpoints();
 app.MapRecursosFotosEndpoints();
 app.MapCodigosEndpoints();
+app.MapUbicacionesEndpoints();
 
 app.MapGet("/api/v1/health", () => Results.Ok(new
 {
