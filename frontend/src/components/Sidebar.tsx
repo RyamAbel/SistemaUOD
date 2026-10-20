@@ -57,13 +57,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const allowedTabsByRol: Record<string, NavTab[]> = {
     super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
+    admin_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
     gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes'],
-    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'inventario_fisico'],
+    encargado_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'inventario_fisico'],
+    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'inventario_fisico'],
     auditor: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'reportes'],
-    consulta: ['dashboard', 'catalogo', 'ubicaciones']
+    consulta: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'reportes']
   };
 
-  const allowed = allowedTabsByRol[currentRol] || allowedTabsByRol['consulta'];
+  const allowed = allowedTabsByRol[currentRol] || allowedTabsByRol['super_admin'];
   const visibleMenuItems = menuItems.filter(item => allowed.includes(item.id));
 
   return (
