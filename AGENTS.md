@@ -187,8 +187,14 @@ SistemaUOD/
     - Métodos e interfaces tipados en `frontend/src/lib/apiClient.ts` (`obtenerResumenExistencias`, `obtenerStockPorRecurso`, `obtenerExistenciasDetalladas`, `obtenerAlertasStockBajo`, `obtenerAlertasVencimientos`).
     - Batería de 54 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
+  - ✅ Prompt 7.3: **Movimientos transaccionales (API)**:
+    - Endpoints RESTful transaccionales (`MovimientosEndpoints.cs`) con `POST /api/v1/movimientos`, `POST /api/v1/movimientos/previsualizar`, `GET /api/v1/movimientos` (historial paginado multivariable) y `GET /api/v1/movimientos/{id}`.
+    - Servicio `MovimientoService.cs` con transacción atómica (todo o nada), validación estricta anti-stock negativo, correlativo único institucional (`MOV-YYYY-000001`), soporte para clave de idempotencia (`X-Idempotency-Key` / en memoria y BD) para prevenir duplicados en reintentos, y auditoría inmutable automática (Ley 172-13).
+    - Métodos e interfaces tipados en `frontend/src/lib/apiClient.ts` (`registrarMovimiento`, `previsualizarMovimiento`, `listarMovimientos`, `obtenerMovimientoPorId`).
+    - Batería de 62 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
 - **Próximo paso:**
-  - **Prompt 7.3 – Movimientos transaccionales:** Implementar la API para registrar movimientos con transacción atómica (sin stock negativo, idempotencia y comprobante en PDF).
+  - **Prompt 7.4 – Pantalla de movimientos (cabecera y líneas wizard):** Construir la interfaz de movimientos en 3 pasos: Paso 1 Datos generales, Paso 2 Selector predictivo de líneas con advertencia inmediata de stock insuficiente, Paso 3 Previsualización del impacto antes de confirmar. Soporte para escáner QR.
 
 
 

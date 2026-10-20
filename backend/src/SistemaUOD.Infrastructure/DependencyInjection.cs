@@ -39,6 +39,7 @@ public static class DependencyInjection
             }
         });
 
+        services.AddMemoryCache();
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<ICategoriaService, CategoriaService>();
         services.AddScoped<IProveedorService, ProveedorService>();
@@ -49,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<ICodigoService, CodigoService>();
         services.AddScoped<IUbicacionService, UbicacionService>();
         services.AddScoped<IExistenciaService, ExistenciaService>();
+        services.AddScoped<IMovimientoService, MovimientoService>();
 
         return services;
     }

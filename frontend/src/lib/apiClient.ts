@@ -420,6 +420,102 @@ export interface ExistenciaFiltrosDto {
   isDescending?: boolean;
 }
 
+// ==========================================
+// Módulo de Movimientos Transaccionales (Prompt 7.3)
+// ==========================================
+export interface MovimientoLineaDto {
+  id: string;
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  recursoTipo: string;
+  unidadMedida: string;
+  loteId?: string | null;
+  numeroLote?: string | null;
+  fechaVencimiento?: string | null;
+  cantidad: number;
+  costoUnitario: number;
+  subtotal: number;
+}
+
+export interface MovimientoDto {
+  id: string;
+  numeroMovimiento: string;
+  tipo: 'entrada' | 'salida' | 'traslado' | 'ajuste' | 'devolucion' | 'baja';
+  origenUbicacionId?: string | null;
+  origenUbicacionNombre?: string | null;
+  origenUbicacionCodigo?: string | null;
+  destinoUbicacionId?: string | null;
+  destinoUbicacionNombre?: string | null;
+  destinoUbicacionCodigo?: string | null;
+  usuarioId: string;
+  usuarioNombre: string;
+  usuarioCorreo: string;
+  origenIa: boolean;
+  motivo: string;
+  comprobanteUrl?: string | null;
+  totalLineas: number;
+  totalUnidades: number;
+  costoTotal: number;
+  creadoEn: string;
+  lineas: MovimientoLineaDto[];
+}
+
+export interface CrearMovimientoLineaDto {
+  recursoId: string;
+  loteId?: string | null;
+  cantidad: number;
+  costoUnitario?: number;
+}
+
+export interface CrearMovimientoDto {
+  tipo: 'entrada' | 'salida' | 'traslado' | 'ajuste' | 'devolucion' | 'baja';
+  origenUbicacionId?: string | null;
+  destinoUbicacionId?: string | null;
+  motivo: string;
+  comprobanteUrl?: string | null;
+  origenIa?: boolean;
+  idempotenciaKey?: string;
+  lineas: CrearMovimientoLineaDto[];
+}
+
+export interface MovimientoFiltrosDto {
+  tipo?: string;
+  ubicacionId?: string;
+  recursoId?: string;
+  usuarioId?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  search?: string;
+  pageIndex?: number;
+  pageSize?: number;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
+export interface PrevisualizarMovimientoLineaDto {
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  ubicacionId: string;
+  ubicacionNombre: string;
+  loteId?: string | null;
+  numeroLote?: string | null;
+  stockActual: number;
+  cantidadOperacion: number;
+  stockResultante: number;
+  esValido: boolean;
+  mensajeError?: string | null;
+}
+
+export interface PrevisualizarMovimientoResultadoDto {
+  esValido: boolean;
+  tipo: string;
+  totalLineas: number;
+  lineas: PrevisualizarMovimientoLineaDto[];
+  errores: string[];
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -778,6 +874,50 @@ export const apiClient = {
 
   obtenerAlertasVencimientos: async (diasAnticipacion: number = 30): Promise<ExistenciaPorLoteDto[]> => {
     return request<ExistenciaPorLoteDto[]>(`existencias/alertas/vencimientos?diasAnticipacion=${diasAnticipacion}`);
+  },
+
+  // ==========================================
+  // Movimientos Transaccionales (Prompt 7.3)
+  // ==========================================
+  registrarMovimiento: async (dto: CrearMovimientoDto, idempotencyKey?: string): Promise<MovimientoDto> => {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['X-Idempotency-Key'] = idempotencyKey;
+    }
+    return request<MovimientoDto>('movimientos', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+      headers
+    });
+  },
+
+  previsualizarMovimiento: async (dto: CrearMovimientoDto): Promise<PrevisualizarMovimientoResultadoDto> => {
+    return request<PrevisualizarMovimientoResultadoDto>('movimientos/previsualizar', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  listarMovimientos: async (filtros: Partial<MovimientoFiltrosDto> = {}): Promise<PagedResult<MovimientoDto>> => {
+    const query = new URLSearchParams();
+    if (filtros.tipo) query.append('tipo', filtros.tipo);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.recursoId) query.append('recursoId', filtros.recursoId);
+    if (filtros.usuarioId) query.append('usuarioId', filtros.usuarioId);
+    if (filtros.fechaDesde) query.append('fechaDesde', filtros.fechaDesde);
+    if (filtros.fechaHasta) query.append('fechaHasta', filtros.fechaHasta);
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.pageIndex) query.append('pageIndex', String(filtros.pageIndex));
+    if (filtros.pageSize) query.append('pageSize', String(filtros.pageSize));
+    if (filtros.sortBy) query.append('sortBy', filtros.sortBy);
+    if (filtros.isDescending !== undefined) query.append('isDescending', String(filtros.isDescending));
+
+    const qs = query.toString();
+    return request<PagedResult<MovimientoDto>>(`movimientos${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerMovimientoPorId: async (id: string): Promise<MovimientoDto> => {
+    return request<MovimientoDto>(`movimientos/${id}`);
   }
 };
 
