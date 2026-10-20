@@ -193,8 +193,15 @@ SistemaUOD/
     - Métodos e interfaces tipados en `frontend/src/lib/apiClient.ts` (`registrarMovimiento`, `previsualizarMovimiento`, `listarMovimientos`, `obtenerMovimientoPorId`).
     - Batería de 62 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
+  - ✅ Prompt 7.4: **Pantalla de movimientos (cabecera y líneas wizard)**:
+    - Componente interactivo `MovementsView.tsx` estructurado con el patrón de cabecera y líneas wizard en 3 pasos:
+      - *Paso 1 (Datos generales):* Selector interactivo de tipos (`entrada`, `salida`, `traslado`, `ajuste`, `devolucion`, `baja`) con chips y paleta UOD, selector dinámico de ubicación origen y destino con validación de no coincidencia, motivo obligatorio ($\ge 5$ caracteres) y soporte para documento o conduce adjunto.
+      - *Paso 2 (Líneas de recursos):* Selector predictivo con debounce y visualización de stock disponible en la ubicación seleccionada antes de añadir, alerta visual inmediata ante intento de salida que supere el inventario físico, y botón para agregar recursos directamente mediante lectura de código QR / código de barras con la cámara (`CameraScannerModal`).
+      - *Paso 3 (Impacto en existencias):* Simulación transaccional previa vía `apiClient.previsualizarMovimiento` que muestra tabla de balance (*Stock Actual*, *Operación*, *Stock Resultante*), bloqueo estricto si hay saldo negativo y confirmación atómica con retroalimentación toast y visualización del correlativo institucional generado (`MOV-YYYY-000001`).
+    - Pestaña de bitácora e historial con filtros rápidos por tipo, búsqueda de texto y modal drawer de detalle de líneas.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
 - **Próximo paso:**
-  - **Prompt 7.4 – Pantalla de movimientos (cabecera y líneas wizard):** Construir la interfaz de movimientos en 3 pasos: Paso 1 Datos generales, Paso 2 Selector predictivo de líneas con advertencia inmediata de stock insuficiente, Paso 3 Previsualización del impacto antes de confirmar. Soporte para escáner QR.
+  - **Prompt 7.5 – Historial y línea de tiempo:** Agregar el historial de movimientos filtrable (por recurso, ubicación, persona, tipo y fechas) con exportación a CSV/Excel, el stock mínimo editable por recurso con indicadores visuales en el catálogo (en stock, bajo, agotado) y la línea de tiempo del recurso en su ficha.
 
 
 

@@ -27,13 +27,15 @@ interface CameraScannerModalProps {
   onClose: () => void;
   onOpenResourceDetail?: (id: string) => void;
   onCreateResourceWithCode?: (codigo: string) => void;
+  onSelectResource?: (recurso: RecursoDto) => void;
 }
 
 export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   isOpen,
   onClose,
   onOpenResourceDetail,
-  onCreateResourceWithCode
+  onCreateResourceWithCode,
+  onSelectResource
 }) => {
   const { rol } = useAuth();
   const canManage = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
@@ -308,6 +310,19 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
 
                   {/* Acciones Rápidas */}
                   <div className="space-y-2 pt-1">
+                    {scanResult.recurso && onSelectResource && (
+                      <button
+                        onClick={() => {
+                          onSelectResource(scanResult.recurso!);
+                          onClose();
+                        }}
+                        className="w-full py-2.5 bg-[#3DAA5C] hover:bg-[#2D8246] text-white rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Agregar al Movimiento</span>
+                      </button>
+                    )}
+
                     {scanResult.recurso && onOpenResourceDetail && (
                       <button
                         onClick={() => {

@@ -1,320 +1,1468 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useId } from 'react';
 import {
   ArrowLeftRight,
   ArrowDownLeft,
   ArrowUpRight,
-  ArrowRight,
+  SlidersHorizontal,
   RotateCcw,
   XCircle,
   Plus,
-  Sparkles,
-  Paperclip,
+  Trash2,
+  QrCode,
+  Search,
   CheckCircle2,
+  AlertTriangle,
+  Info,
+  Loader2,
+  ShieldCheck,
+  FileText,
   Clock,
   Calendar,
-  ChevronRight
+  Building2,
+  Package,
+  Layers,
+  ChevronRight,
+  ChevronLeft,
+  ExternalLink,
+  Eye,
+  RefreshCw,
+  X,
+  UserCheck
 } from 'lucide-react';
-import { MovimientoItem, ArticuloItem, ubicacionesList } from '@/lib/initialData';
+import {
+  apiClient,
+  MovimientoDto,
+  CrearMovimientoDto,
+  CrearMovimientoLineaDto,
+  PrevisualizarMovimientoResultadoDto,
+  RecursoDto,
+  UbicacionDto,
+  PagedResult
+} from '@/lib/apiClient';
+import { useAuth } from '@/context/AuthContext';
+import { CameraScannerModal } from './CameraScannerModal';
 
 interface MovementsViewProps {
-  movimientos: MovimientoItem[];
-  articulos: ArticuloItem[];
-  onAddMovimiento: (mov: Omit<MovimientoItem, 'id' | 'numero' | 'fecha'>) => void;
+  movimientos?: any[];
+  articulos?: any[];
+  onAddMovimiento?: (mov: any) => void;
+  onOpenResourceDetail?: (id: string) => void;
 }
 
+type TipoMovimiento = 'entrada' | 'salida' | 'traslado' | 'ajuste' | 'devolucion' | 'baja';
+
+interface TipoConfig {
+  tipo: TipoMovimiento;
+  label: string;
+  descripcion: string;
+  color: string;
+  bgLight: string;
+  borderColor: string;
+  textColor: string;
+  icon: React.ReactNode;
+}
+
+const TIPOS_CONFIG: Record<TipoMovimiento, TipoConfig> = {
+  entrada: {
+    tipo: 'entrada',
+    label: 'Entrada',
+    descripcion: 'Recepción de compras, insumos clínicos o donaciones',
+    color: '#3DAA5C',
+    bgLight: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
+    textColor: 'text-[#2D8246]',
+    icon: <ArrowDownLeft className="w-4 h-4" />
+  },
+  salida: {
+    tipo: 'salida',
+    label: 'Salida / Entrega',
+    descripcion: 'Consumo clínico, entrega a cátedras o departamentos',
+    color: '#1C3177',
+    bgLight: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    textColor: 'text-[#1C3177]',
+    icon: <ArrowUpRight className="w-4 h-4" />
+  },
+  traslado: {
+    tipo: 'traslado',
+    label: 'Traslado',
+    descripcion: 'Transferencia interna entre almacenes y clínicas UOD',
+    color: '#D97706',
+    bgLight: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    textColor: 'text-amber-800',
+    icon: <ArrowLeftRight className="w-4 h-4" />
+  },
+  ajuste: {
+    tipo: 'ajuste',
+    label: 'Ajuste de Conteo',
+    descripcion: 'Corrección física tras conteo o inventario rotativo',
+    color: '#7C3AED',
+    bgLight: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    textColor: 'text-purple-800',
+    icon: <SlidersHorizontal className="w-4 h-4" />
+  },
+  devolucion: {
+    tipo: 'devolucion',
+    label: 'Devolución',
+    descripcion: 'Reingreso de material sobrante o retorno a proveedor',
+    color: '#0891B2',
+    bgLight: 'bg-cyan-50',
+    borderColor: 'border-cyan-200',
+    textColor: 'text-cyan-800',
+    icon: <RotateCcw className="w-4 h-4" />
+  },
+  baja: {
+    tipo: 'baja',
+    label: 'Baja / Desecho',
+    descripcion: 'Desincorporación por daño, vencimiento o merma clínica',
+    color: '#DC2626',
+    bgLight: 'bg-red-50',
+    borderColor: 'border-red-200',
+    textColor: 'text-red-700',
+    icon: <XCircle className="w-4 h-4" />
+  }
+};
+
 export const MovementsView: React.FC<MovementsViewProps> = ({
-  movimientos,
-  articulos,
-  onAddMovimiento
+  onOpenResourceDetail
 }) => {
-  const [activeFilter, setActiveFilter] = useState<string>('todos');
-  const [tipo, setTipo] = useState<'entrada' | 'salida' | 'traslado' | 'ajuste' | 'baja'>('traslado');
-  const [selectedArticulo, setSelectedArticulo] = useState('Implante de Titanio');
-  const [cantidad, setCantidad] = useState(20);
-  const [origen, setOrigen] = useState('Almacén Central');
-  const [destino, setDestino] = useState('Clínica Este');
-  const [motivo, setMotivo] = useState('Reabastecimiento para jornada quirúrgica');
-  const [responsable, setResponsable] = useState('Dr. Morales (Cirugía)');
-  const [fecha, setFecha] = useState('2026-10-18');
+  const { rol } = useAuth();
+  const canOperate = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'encargado_almacen';
 
-  const recentRows = [
-    { id: '101', tipo: 'Entrada', art: 'Implante de Titanio', cant: 300, ruta: 'Almacén Central → Quirófano 1', resp: 'Dr. Morales', fecha: '18/10/2026', status: 'Completado', color: 'bg-emerald-50 text-[#2D8246] border-emerald-200' },
-    { id: '102', tipo: 'Salida', art: 'Resina Compuesta A2', cant: 40, ruta: 'Clínica Principal → Consumo', resp: 'Dra. López', fecha: '18/10/2026', status: 'Completado', color: 'bg-blue-50 text-[#1C3177] border-blue-200' },
-    { id: '103', tipo: 'Traslado', art: 'Pasta Profilaxis', cant: 20, ruta: 'Almacén Central → Clínica Este', resp: 'Lic. Pérez', fecha: '18/10/2026', status: 'En Tránsito', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-    { id: '104', tipo: 'Baja', art: 'Anestésico Vencido', cant: 2, ruta: 'Clínica Este → Descarte', resp: 'Dra. Gómez', fecha: '17/10/2026', status: 'Auditado', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    { id: '105', tipo: 'Ajuste', art: 'Guantes Nitrilo', cant: 15, ruta: 'Inventario Físico → Ajuste', resp: 'Admin UOD', fecha: '17/10/2026', status: 'Completado', color: 'bg-emerald-50 text-[#2D8246] border-emerald-200' },
-  ];
+  // 1. Modos de pantalla
+  const [activeTab, setActiveTab] = useState<'wizard' | 'historial'>('wizard');
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onAddMovimiento({
-      tipo: tipo as any,
-      articuloNombre: selectedArticulo,
-      cantidad,
-      origen,
-      destino,
-      usuario: responsable,
-      origenIa: false,
-      motivo
-    });
+  // 2. Catálogos maestros para selección
+  const [ubicaciones, setUbicaciones] = useState<UbicacionDto[]>([]);
+  const [recursosBusqueda, setRecursosBusqueda] = useState<RecursoDto[]>([]);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(false);
+
+  // 3. Estado del Wizard - Paso 1: Datos Generales
+  const [tipo, setTipo] = useState<TipoMovimiento>('traslado');
+  const [origenUbicacionId, setOrigenUbicacionId] = useState<string>('');
+  const [destinoUbicacionId, setDestinoUbicacionId] = useState<string>('');
+  const [motivo, setMotivo] = useState<string>('');
+  const [comprobanteUrl, setComprobanteUrl] = useState<string>('');
+
+  // 4. Estado del Wizard - Paso 2: Líneas de Recursos
+  const [lineas, setLineas] = useState<Array<{
+    tempId: string;
+    recurso: RecursoDto;
+    cantidad: number;
+    costoUnitario: number;
+    stockDisponibleOrigen?: number;
+  }>>([]);
+
+  // Selector temporal para añadir una nueva línea
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRecurso, setSelectedRecurso] = useState<RecursoDto | null>(null);
+  const [stockDisponibleSeleccionado, setStockDisponibleSeleccionado] = useState<number | null>(null);
+  const [cantidadLinea, setCantidadLinea] = useState<number>(1);
+  const [costoLinea, setCostoLinea] = useState<number>(0);
+  const [buscandoRecursos, setBuscandoRecursos] = useState(false);
+
+  // 5. Estado del Wizard - Paso 3: Simulación / Previsualización
+  const [simulacion, setSimulacion] = useState<PrevisualizarMovimientoResultadoDto | null>(null);
+  const [simulando, setSimulando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [movimientoExitoso, setMovimientoExitoso] = useState<MovimientoDto | null>(null);
+
+  // 6. Historial de Movimientos
+  const [historialMovimientos, setHistorialMovimientos] = useState<MovimientoDto[]>([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [historialTipoFiltro, setHistorialTipoFiltro] = useState<string>('todos');
+  const [historialBusqueda, setHistorialBusqueda] = useState<string>('');
+  const [historialPage, setHistorialPage] = useState<number>(1);
+  const [historialTotalCount, setHistorialTotalCount] = useState<number>(0);
+  const [selectedHistorialMov, setSelectedHistorialMov] = useState<MovimientoDto | null>(null);
+
+  // 7. Escáner de Códigos
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // Cargar catálogo de ubicaciones
+  useEffect(() => {
+    const cargarUbicaciones = async () => {
+      setLoadingCatalogos(true);
+      try {
+        const res = await apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true });
+        setUbicaciones(res.items);
+      } catch (err) {
+        console.error('Error cargando ubicaciones:', err);
+      } finally {
+        setLoadingCatalogos(false);
+      }
+    };
+    cargarUbicaciones();
+  }, []);
+
+  // Búsqueda de recursos con debounce para el selector
+  useEffect(() => {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      setRecursosBusqueda([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setBuscandoRecursos(true);
+      try {
+        const res = await apiClient.listarRecursos({
+          search: searchTerm.trim(),
+          pageSize: 10,
+          activo: true
+        });
+        setRecursosBusqueda(res.items);
+      } catch (err) {
+        console.error('Error buscando recursos:', err);
+      } finally {
+        setBuscandoRecursos(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Consultar existencias de recurso seleccionado en la ubicación origen
+  useEffect(() => {
+    if (!selectedRecurso) {
+      setStockDisponibleSeleccionado(null);
+      return;
+    }
+
+    setCostoLinea(selectedRecurso.costoEstimado || 0);
+
+    const consultarExistencias = async () => {
+      if (tipo === 'entrada' || !origenUbicacionId) {
+        setStockDisponibleSeleccionado(selectedRecurso.stockActual);
+        return;
+      }
+
+      try {
+        const existencias = await apiClient.obtenerExistenciasDetalladas(
+          selectedRecurso.id,
+          origenUbicacionId
+        );
+        const cant = existencias.reduce((sum, e) => sum + e.cantidadDisponible, 0);
+        setStockDisponibleSeleccionado(cant);
+      } catch (err) {
+        setStockDisponibleSeleccionado(0);
+      }
+    };
+
+    consultarExistencias();
+  }, [selectedRecurso, origenUbicacionId, tipo]);
+
+  // Cargar historial de movimientos
+  const cargarHistorial = async (page: number = 1) => {
+    setLoadingHistorial(true);
+    try {
+      const filtros: any = {
+        pageIndex: page,
+        pageSize: 15,
+        search: historialBusqueda ? historialBusqueda.trim() : undefined,
+        tipo: historialTipoFiltro !== 'todos' ? historialTipoFiltro : undefined
+      };
+      const res = await apiClient.listarMovimientos(filtros);
+      setHistorialMovimientos(res.items);
+      setHistorialTotalCount(res.totalCount);
+      setHistorialPage(page);
+    } catch (err) {
+      console.error('Error al cargar historial de movimientos:', err);
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'historial') {
+      cargarHistorial(1);
+    }
+  }, [activeTab, historialTipoFiltro]);
+
+  // Validaciones del Paso 1
+  const paso1Valido = useMemo(() => {
+    if (!motivo || motivo.trim().length < 5) return false;
+    if (tipo === 'entrada') return !!destinoUbicacionId;
+    if (tipo === 'salida' || tipo === 'baja') return !!origenUbicacionId;
+    if (tipo === 'traslado') {
+      return !!origenUbicacionId && !!destinoUbicacionId && origenUbicacionId !== destinoUbicacionId;
+    }
+    if (tipo === 'ajuste' || tipo === 'devolucion') {
+      return !!origenUbicacionId || !!destinoUbicacionId;
+    }
+    return false;
+  }, [tipo, origenUbicacionId, destinoUbicacionId, motivo]);
+
+  // Comprobar si alguna línea excede el stock disponible
+  const hayLineasConDeficit = useMemo(() => {
+    if (tipo === 'entrada') return false;
+    return lineas.some(l => l.stockDisponibleOrigen !== undefined && l.cantidad > l.stockDisponibleOrigen);
+  }, [lineas, tipo]);
+
+  // Manejo de agregar línea
+  const handleAgregarLinea = () => {
+    if (!selectedRecurso || cantidadLinea <= 0) return;
+
+    // Verificar si ya existe en la lista
+    const indexExistente = lineas.findIndex(l => l.recurso.id === selectedRecurso.id);
+    if (indexExistente >= 0) {
+      const nuevasLineas = [...lineas];
+      nuevasLineas[indexExistente].cantidad += cantidadLinea;
+      nuevasLineas[indexExistente].costoUnitario = costoLinea;
+      setLineas(nuevasLineas);
+    } else {
+      setLineas(prev => [
+        ...prev,
+        {
+          tempId: `linea-${Date.now()}-${Math.random()}`,
+          recurso: selectedRecurso,
+          cantidad: cantidadLinea,
+          costoUnitario: costoLinea,
+          stockDisponibleOrigen: stockDisponibleSeleccionado ?? undefined
+        }
+      ]);
+    }
+
+    // Reset de campos
+    setSelectedRecurso(null);
+    setSearchTerm('');
+    setCantidadLinea(1);
+  };
+
+  const handleRemoverLinea = (tempId: string) => {
+    setLineas(prev => prev.filter(l => l.tempId !== tempId));
+  };
+
+  // Ejecutar simulación previa antes de avanzar al paso 3
+  const handleAvanzarAPaso3 = async () => {
+    if (lineas.length === 0 || hayLineasConDeficit) return;
+
+    setSimulando(true);
+    try {
+      const payload: CrearMovimientoDto = {
+        tipo,
+        origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
+        destinoUbicacionId: destinoUbicacionId ? destinoUbicacionId : null,
+        motivo: motivo.trim(),
+        comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
+        lineas: lineas.map(l => ({
+          recursoId: l.recurso.id,
+          cantidad: l.cantidad,
+          costoUnitario: l.costoUnitario
+        }))
+      };
+
+      const res = await apiClient.previsualizarMovimiento(payload);
+      setSimulacion(res);
+      setWizardStep(3);
+    } catch (err: any) {
+      showToast(err.message || 'Error al simular impacto de existencias');
+    } finally {
+      setSimulando(false);
+    }
+  };
+
+  // Confirmar y Guardar Movimiento Transaccional
+  const handleConfirmarMovimiento = async () => {
+    if (!paso1Valido || lineas.length === 0) return;
+
+    setGuardando(true);
+    try {
+      const payload: CrearMovimientoDto = {
+        tipo,
+        origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
+        destinoUbicacionId: destinoUbicacionId ? destinoUbicacionId : null,
+        motivo: motivo.trim(),
+        comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
+        idempotenciaKey: `MOV-REQ-${Date.now()}`,
+        lineas: lineas.map(l => ({
+          recursoId: l.recurso.id,
+          cantidad: l.cantidad,
+          costoUnitario: l.costoUnitario
+        }))
+      };
+
+      const nuevoMov = await apiClient.registrarMovimiento(payload, payload.idempotenciaKey);
+      setMovimientoExitoso(nuevoMov);
+      showToast(`Movimiento ${nuevoMov.numeroMovimiento} registrado exitosamente.`);
+    } catch (err: any) {
+      showToast(err.message || 'Error al ejecutar movimiento transaccional');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // Reset del formulario para crear otro movimiento
+  const handleReiniciarFormulario = () => {
+    setWizardStep(1);
+    setTipo('traslado');
+    setOrigenUbicacionId('');
+    setDestinoUbicacionId('');
+    setMotivo('');
+    setComprobanteUrl('');
+    setLineas([]);
+    setSelectedRecurso(null);
+    setSearchTerm('');
+    setSimulacion(null);
+    setMovimientoExitoso(null);
+  };
+
+  // Recepción de recurso desde el escáner QR
+  const handleRecursoEscaneado = (recurso: RecursoDto) => {
+    setSelectedRecurso(recurso);
+    setSearchTerm(`${recurso.sku} - ${recurso.nombre}`);
+    setCantidadLinea(1);
+    setScannerOpen(false);
+    showToast(`Recurso "${recurso.nombre}" escaneado con éxito.`);
+  };
+
+  // Totales de líneas añadidas
+  const totalUnidades = useMemo(() => lineas.reduce((acc, l) => acc + l.cantidad, 0), [lineas]);
+  const costoTotal = useMemo(() => lineas.reduce((acc, l) => acc + (l.cantidad * l.costoUnitario), 0), [lineas]);
 
   return (
     <div className="space-y-6">
-      {/* Header and 4 Quick Action Buttons */}
+      {/* 1. Header con Pestañas Principales */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5 text-[#1C3177]" />
-            Movimientos de Inventario
+          <h2 className="text-xl font-bold text-[#1C3177] flex items-center gap-2">
+            <ArrowLeftRight className="h-6 w-6 text-[#1C3177]" />
+            Movimientos y Saldo de Existencias
           </h2>
-          <p className="text-xs text-slate-500">
-            Control transaccional de transferencias clínicas, ingresos y bajas con trazabilidad.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Registro transaccional atómico de transferencias, consumos clínicos y recepciones con auditoría Ley 172-13.
           </p>
         </div>
 
-        {/* 4 Colored Action Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Alternador de Vistas */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200">
           <button
-            onClick={() => setTipo('entrada')}
-            className="rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
+            onClick={() => setActiveTab('wizard')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'wizard'
+                ? 'bg-white text-[#1C3177] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            Nueva Entrada
+            <Plus className="w-3.5 h-3.5" />
+            <span>Nuevo Movimiento</span>
           </button>
           <button
-            onClick={() => setTipo('salida')}
-            className="rounded-xl bg-[#1C3177] hover:bg-[#2B4BA0] text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
+            onClick={() => setActiveTab('historial')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'historial'
+                ? 'bg-white text-[#1C3177] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            Nueva Salida
-          </button>
-          <button
-            onClick={() => setTipo('traslado')}
-            className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
-          >
-            Traslado
-          </button>
-          <button
-            onClick={() => setTipo('ajuste')}
-            className="rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold px-3.5 py-2 text-xs transition-colors shadow-xs"
-          >
-            Ajuste
+            <Clock className="w-3.5 h-3.5" />
+            <span>Historial y Bitácora</span>
           </button>
         </div>
       </div>
 
-      {/* 5 Big Category Filter Pills */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[
-          { id: 'entrada', label: 'Entrada', icon: ArrowDownLeft, color: 'text-[#2D8246]' },
-          { id: 'salida', label: 'Salida', icon: ArrowUpRight, color: 'text-[#1C3177]' },
-          { id: 'traslado', label: 'Traslado', icon: ArrowRight, color: 'text-amber-600' },
-          { id: 'devolucion', label: 'Devolución', icon: RotateCcw, color: 'text-[#0891B2]' },
-          { id: 'baja', label: 'Baja', icon: XCircle, color: 'text-rose-600' }
-        ].map((pill) => {
-          const Icon = pill.icon;
-          const isSelected = activeFilter === pill.id;
-          return (
-            <button
-              key={pill.id}
-              onClick={() => setActiveFilter(isSelected ? 'todos' : pill.id)}
-              className={`flex items-center justify-center gap-2 rounded-2xl border p-3.5 text-xs font-bold transition-all shadow-xs ${
-                isSelected
-                  ? 'border-[#1C3177] bg-blue-50 text-[#1C3177]'
-                  : 'border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className={`h-4 w-4 ${pill.color}`} />
-              <span>{pill.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Two-Column Layout: Form (Left) + Table (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Form: Nuevo Movimiento */}
-        <div className="lg:col-span-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
-            Nuevo Movimiento
-          </h3>
-
-          <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-            <div>
-              <label className="text-[11px] text-slate-600 font-medium block mb-1">Tipo de Movimiento</label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as any)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-              >
-                <option value="traslado">Traslado entre Clínicas</option>
-                <option value="entrada">Entrada / Compra</option>
-                <option value="salida">Salida / Consumo</option>
-                <option value="ajuste">Ajuste de Stock</option>
-                <option value="baja">Baja por Daño/Vencimiento</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[11px] text-slate-600 font-medium block mb-1">Artículo</label>
-              <input
-                type="text"
-                value={selectedArticulo}
-                onChange={(e) => setSelectedArticulo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] text-slate-600 font-medium block mb-1">Cantidad</label>
-              <input
-                type="number"
-                min="1"
-                value={cantidad}
-                onChange={(e) => setCantidad(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-slate-600 font-medium block mb-1">Ubicación Origen</label>
-                <input
-                  type="text"
-                  value={origen}
-                  onChange={(e) => setOrigen(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-                />
+      {/* 2. Pestaña WIZARD: Registro en 3 Pasos */}
+      {activeTab === 'wizard' && (
+        <div className="space-y-6">
+          {/* Si ya se completó el movimiento exitosamente */}
+          {movimientoExitoso ? (
+            <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center space-y-6 shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-[#3DAA5C] flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
-              <div>
-                <label className="text-[11px] text-slate-600 font-medium block mb-1">Ubicación Destino</label>
-                <input
-                  type="text"
-                  value={destino}
-                  onChange={(e) => setDestino(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-                />
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-slate-900">
+                  ¡Movimiento Registrado Exitosamente!
+                </h3>
+                <p className="text-xs text-slate-600">
+                  La transacción transaccional fue ejecutada sin inconsistencias. El saldo físico de existencias ha sido actualizado en tiempo real.
+                </p>
+                <div className="inline-block px-4 py-2 bg-slate-100 rounded-xl font-mono text-sm font-bold text-[#1C3177] border border-slate-200">
+                  {movimientoExitoso.numeroMovimiento}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <span className="text-slate-500 block">Tipo:</span>
+                  <span className="font-bold text-slate-900 uppercase">{movimientoExitoso.tipo}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Líneas:</span>
+                  <span className="font-bold text-slate-900">{movimientoExitoso.totalLineas} artículos</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Unidades:</span>
+                  <span className="font-bold text-slate-900">{movimientoExitoso.totalUnidades} uds</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Total DOP:</span>
+                  <span className="font-bold text-[#2D8246]">${movimientoExitoso.costoTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={handleReiniciarFormulario}
+                  className="px-5 py-2.5 bg-[#1C3177] hover:bg-[#2B4BA0] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Registrar Otro Movimiento</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('historial');
+                    setMovimientoExitoso(null);
+                  }}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Ver en Historial</span>
+                </button>
               </div>
             </div>
+          ) : (
+            <>
+              {/* Stepper Visual de 3 Pasos */}
+              <div className="grid grid-cols-3 gap-2 p-2 bg-slate-100/90 rounded-2xl border border-slate-200">
+                <div
+                  className={`flex items-center gap-2.5 p-3 rounded-xl transition-all ${
+                    wizardStep === 1
+                      ? 'bg-white shadow-xs border border-slate-200 text-[#1C3177]'
+                      : wizardStep > 1
+                      ? 'bg-emerald-50 text-[#2D8246]'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                    wizardStep === 1 ? 'bg-[#1C3177] text-white' : wizardStep > 1 ? 'bg-[#3DAA5C] text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {wizardStep > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-xs font-bold block leading-none">Datos Generales</span>
+                    <span className="text-[10px] text-slate-500">Tipo, rutas y motivo</span>
+                  </div>
+                </div>
 
-            <div>
-              <label className="text-[11px] text-slate-600 font-medium block mb-1">Motivo</label>
-              <input
-                type="text"
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-              />
-            </div>
+                <div
+                  className={`flex items-center gap-2.5 p-3 rounded-xl transition-all ${
+                    wizardStep === 2
+                      ? 'bg-white shadow-xs border border-slate-200 text-[#1C3177]'
+                      : wizardStep > 2
+                      ? 'bg-emerald-50 text-[#2D8246]'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                    wizardStep === 2 ? 'bg-[#1C3177] text-white' : wizardStep > 2 ? 'bg-[#3DAA5C] text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {wizardStep > 2 ? <CheckCircle2 className="w-4 h-4" /> : '2'}
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-xs font-bold block leading-none">
+                      Líneas ({lineas.length})
+                    </span>
+                    <span className="text-[10px] text-slate-500">Recursos y cantidades</span>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-slate-600 font-medium block mb-1">Responsable</label>
-                <input
-                  type="text"
-                  value={responsable}
-                  onChange={(e) => setResponsable(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-                />
+                <div
+                  className={`flex items-center gap-2.5 p-3 rounded-xl transition-all ${
+                    wizardStep === 3
+                      ? 'bg-white shadow-xs border border-slate-200 text-[#1C3177]'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                    wizardStep === 3 ? 'bg-[#1C3177] text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    3
+                  </div>
+                  <div className="hidden sm:block">
+                    <span className="text-xs font-bold block leading-none">Impacto y Balance</span>
+                    <span className="text-[10px] text-slate-500">Confirmación final</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-[11px] text-slate-600 font-medium block mb-1">Fecha</label>
-                <input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-slate-800 text-[11px] font-medium focus:bg-white focus:outline-none focus:border-[#1C3177]"
-                />
-              </div>
-            </div>
 
-            <div>
-              <label className="text-[11px] text-slate-600 font-medium block mb-1">Adjuntos (Conduce / Factura)</label>
-              <button
-                type="button"
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 p-2.5 text-[11px] text-slate-500 hover:text-[#1C3177] hover:border-[#1C3177] transition-colors bg-slate-50/50"
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-                <span>Adjuntar comprobante</span>
-              </button>
-            </div>
+              {/* PASO 1: Datos Generales */}
+              {wizardStep === 1 && (
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 mb-1">
+                      1. Selecciona el Tipo de Movimiento
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Define la naturaleza transaccional de la operación de inventario.
+                    </p>
+                  </div>
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] text-white font-bold py-2.5 transition-colors shadow-xs"
-            >
-              Registrar Movimiento
-            </button>
-          </form>
+                  {/* Tarjetas de Tipos de Movimiento */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {(Object.keys(TIPOS_CONFIG) as TipoMovimiento[]).map(t => {
+                      const cfg = TIPOS_CONFIG[t];
+                      const isSelected = tipo === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTipo(t)}
+                          className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                            isSelected
+                              ? `${cfg.bgLight} ${cfg.borderColor} ring-2 ring-[${cfg.color}] shadow-xs`
+                              : 'border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className={`p-1.5 rounded-lg ${cfg.bgLight} ${cfg.textColor}`}>
+                                {cfg.icon}
+                              </span>
+                              {isSelected && (
+                                <CheckCircle2 className="w-4 h-4 text-[#3DAA5C]" />
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-slate-900 block">
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-2 line-clamp-2 leading-tight">
+                            {cfg.descripcion}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Ubicaciones de Origen y Destino */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {/* Origen */}
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                        Ubicación de Origen {tipo !== 'entrada' && <span className="text-red-500">*</span>}
+                      </label>
+                      <select
+                        disabled={tipo === 'entrada'}
+                        value={origenUbicacionId}
+                        onChange={e => setOrigenUbicacionId(e.target.value)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                          tipo === 'entrada'
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]'
+                        }`}
+                      >
+                        <option value="">-- Seleccionar Ubicación de Origen --</option>
+                        {ubicaciones.map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.codigo} - {u.nombre} ({u.tipo})
+                          </option>
+                        ))}
+                      </select>
+                      {tipo === 'entrada' && (
+                        <span className="text-[10px] text-slate-400 mt-1 block">
+                          No aplica en entradas (provienen de proveedor externo).
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Destino */}
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                        Ubicación de Destino {(tipo === 'entrada' || tipo === 'traslado') && <span className="text-red-500">*</span>}
+                      </label>
+                      <select
+                        disabled={tipo === 'salida' || tipo === 'baja'}
+                        value={destinoUbicacionId}
+                        onChange={e => setDestinoUbicacionId(e.target.value)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                          tipo === 'salida' || tipo === 'baja'
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]'
+                        }`}
+                      >
+                        <option value="">-- Seleccionar Ubicación de Destino --</option>
+                        {ubicaciones.map(u => (
+                          <option key={u.id} value={u.id} disabled={u.id === origenUbicacionId}>
+                            {u.codigo} - {u.nombre} ({u.tipo}) {u.id === origenUbicacionId ? '(Mismo que origen)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {(tipo === 'salida' || tipo === 'baja') && (
+                        <span className="text-[10px] text-slate-400 mt-1 block">
+                          No aplica en salidas definitivas o desincorporaciones.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Motivo y Documento de Soporte */}
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Motivo / Justificación Institucional <span className="text-red-500">*</span>
+                        </label>
+                        <span className={`text-[10px] ${motivo.trim().length >= 5 ? 'text-[#3DAA5C] font-semibold' : 'text-slate-400'}`}>
+                          {motivo.trim().length}/5 caracteres mín.
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={motivo}
+                        onChange={e => setMotivo(e.target.value)}
+                        placeholder="Ejemplo: Reabastecimiento para jornada de cirugía bucal o recepción de factura B15000123"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                        Documento o Conduce de Respaldo (Opcional)
+                      </label>
+                      <div className="relative">
+                        <FileText className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={comprobanteUrl}
+                          onChange={e => setComprobanteUrl(e.target.value)}
+                          placeholder="Número de conduce, acta de entrega o URL del documento adjunto"
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón de Avance a Paso 2 */}
+                  <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      disabled={!paso1Valido}
+                      onClick={() => setWizardStep(2)}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        paso1Valido
+                          ? 'bg-[#1C3177] hover:bg-[#2B4BA0] text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>Siguiente: Agregar Líneas de Recursos</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 2: Líneas de Recursos */}
+              {wizardStep === 2 && (
+                <div className="space-y-6">
+                  {/* Selector e Inserción de Artículos */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">
+                          2. Selecciona los Recursos y Cantidades
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Escribe el nombre o SKU institucional, o escanea el código físico con la cámara.
+                        </p>
+                      </div>
+
+                      {/* Botón de Escáner QR con Cámara */}
+                      <button
+                        type="button"
+                        onClick={() => setScannerOpen(true)}
+                        className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#1C3177] text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2"
+                      >
+                        <QrCode className="w-4 h-4 text-[#1C3177]" />
+                        <span>Escanear Código / QR</span>
+                      </button>
+                    </div>
+
+                    {/* Buscador predictivo de recursos */}
+                    <div className="relative">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={e => {
+                            setSearchTerm(e.target.value);
+                            setSelectedRecurso(null);
+                          }}
+                          placeholder="Buscar por SKU (ej. SKU-EX-001) o nombre del insumo clínico..."
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                        />
+                        {buscandoRecursos && (
+                          <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" />
+                        )}
+                      </div>
+
+                      {/* Menú flotante de resultados predictivos */}
+                      {recursosBusqueda.length > 0 && !selectedRecurso && (
+                        <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
+                          {recursosBusqueda.map(r => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedRecurso(r);
+                                setSearchTerm(`${r.sku} - ${r.nombre}`);
+                              }}
+                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex items-center justify-between text-xs"
+                            >
+                              <div className="space-y-0.5">
+                                <span className="font-bold text-slate-900 block">{r.nombre}</span>
+                                <span className="font-mono text-[11px] text-[#1C3177] font-semibold">{r.sku}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-slate-700 block">Stock: {r.stockActual} {r.unidadMedida}</span>
+                                <span className="text-[10px] text-slate-400">{r.categoriaNombre}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ficha de Recurso Seleccionado + Input de Cantidad */}
+                    {selectedRecurso && (
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
+                          <div>
+                            <span className="font-bold text-slate-900 text-xs block">{selectedRecurso.nombre}</span>
+                            <span className="font-mono text-[11px] text-[#1C3177]">{selectedRecurso.sku} • {selectedRecurso.categoriaNombre}</span>
+                          </div>
+
+                          {/* Badge de Stock en Ubicación Origen */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Stock disponible:</span>
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                              (stockDisponibleSeleccionado ?? 0) > 0
+                                ? 'bg-emerald-100 text-[#2D8246]'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {stockDisponibleSeleccionado ?? 0} {selectedRecurso.unidadMedida}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Fila de Controles: Cantidad y Costo */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Cantidad a operar
+                            </label>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => setCantidadLinea(Math.max(1, cantidadLinea - 1))}
+                                className="px-3 py-2 border border-slate-300 rounded-l-xl bg-white hover:bg-slate-100 text-xs font-bold"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min={1}
+                                value={cantidadLinea}
+                                onChange={e => setCantidadLinea(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="w-full text-center py-2 border-y border-slate-300 text-xs font-bold text-slate-900 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setCantidadLinea(cantidadLinea + 1)}
+                                className="px-3 py-2 border border-slate-300 rounded-r-xl bg-white hover:bg-slate-100 text-xs font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Costo Unitario (DOP)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={costoLinea}
+                              onChange={e => setCostoLinea(parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleAgregarLinea}
+                            className="w-full py-2 bg-[#3DAA5C] hover:bg-[#2D8246] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Añadir a la Lista</span>
+                          </button>
+                        </div>
+
+                        {/* Advertencia Inmediata de Stock Insuficiente */}
+                        {tipo !== 'entrada' &&
+                          stockDisponibleSeleccionado !== null &&
+                          cantidadLinea > stockDisponibleSeleccionado && (
+                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold">
+                              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                              <span>
+                                ⚠️ Advertencia inmediata: La cantidad ({cantidadLinea}) supera las existencias disponibles ({stockDisponibleSeleccionado}).
+                              </span>
+                            </div>
+                          )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tabla de Líneas Añadidas */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Líneas Agregadas ({lineas.length})
+                      </h4>
+                      {lineas.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setLineas([])}
+                          className="text-xs text-red-600 hover:text-red-700 font-bold"
+                        >
+                          Limpiar todo
+                        </button>
+                      )}
+                    </div>
+
+                    {lineas.length === 0 ? (
+                      <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2 text-slate-400">
+                        <Package className="w-8 h-8 mx-auto stroke-1" />
+                        <p className="text-xs font-medium">Aún no has agregado recursos a este movimiento.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="border-b border-slate-200 text-slate-500 font-semibold bg-slate-50/50">
+                            <tr>
+                              <th className="py-2.5 px-3">Recurso / SKU</th>
+                              <th className="py-2.5 px-3">Cantidad</th>
+                              <th className="py-2.5 px-3">Costo Unit.</th>
+                              <th className="py-2.5 px-3">Subtotal</th>
+                              <th className="py-2.5 px-3 text-center">Estado Stock</th>
+                              <th className="py-2.5 px-3 text-right">Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {lineas.map(l => {
+                              const tieneDeficit =
+                                tipo !== 'entrada' &&
+                                l.stockDisponibleOrigen !== undefined &&
+                                l.cantidad > l.stockDisponibleOrigen;
+
+                              return (
+                                <tr key={l.tempId} className="hover:bg-slate-50/60">
+                                  <td className="py-3 px-3">
+                                    <span className="font-bold text-slate-900 block">{l.recurso.nombre}</span>
+                                    <span className="font-mono text-[11px] text-[#1C3177]">{l.recurso.sku}</span>
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-slate-900">
+                                    {l.cantidad} {l.recurso.unidadMedida}
+                                  </td>
+                                  <td className="py-3 px-3 text-slate-600">
+                                    ${l.costoUnitario.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-[#2D8246]">
+                                    ${(l.cantidad * l.costoUnitario).toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-3 text-center">
+                                    {tieneDeficit ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Insuficiente ({l.stockDisponibleOrigen})
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#2D8246]">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Disponible
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoverLinea(l.tempId)}
+                                      className="p-1 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                                      title="Remover línea"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Resumen Totalizador */}
+                    {lineas.length > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="flex items-center gap-6 text-xs">
+                          <div>
+                            <span className="text-slate-500 block">Total Artículos:</span>
+                            <span className="font-bold text-slate-900">{lineas.length} líneas</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">Total Unidades:</span>
+                            <span className="font-bold text-slate-900">{totalUnidades} uds</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">Valor Acumulado:</span>
+                            <span className="font-bold text-[#2D8246]">${costoTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })} DOP</span>
+                          </div>
+                        </div>
+
+                        {hayLineasConDeficit && (
+                          <div className="text-xs text-red-600 font-bold flex items-center gap-1.5">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>Corrige las líneas con stock insuficiente antes de continuar</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Botones de Navegación de Paso 2 */}
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setWizardStep(1)}
+                        className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors flex items-center gap-1.5"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Atrás: Datos Generales</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={lineas.length === 0 || hayLineasConDeficit || simulando}
+                        onClick={handleAvanzarAPaso3}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                          lineas.length > 0 && !hayLineasConDeficit && !simulando
+                            ? 'bg-[#1C3177] hover:bg-[#2B4BA0] text-white shadow-xs'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {simulando ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Simulando impacto...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Siguiente: Previsualizar Impacto</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 3: Vista Previa del Impacto y Confirmación Transaccional */}
+              {wizardStep === 3 && (
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-6 shadow-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 mb-1">
+                      3. Vista Previa del Impacto en Existencias
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Comprueba cómo quedarán los balances físicos antes de asentar la transacción en base de datos.
+                    </p>
+                  </div>
+
+                  {/* Resumen de la Cabecera */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                    <div>
+                      <span className="text-slate-500 block">Tipo:</span>
+                      <span className="font-bold text-slate-900 uppercase">{tipo}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Origen:</span>
+                      <span className="font-bold text-slate-900">
+                        {ubicaciones.find(u => u.id === origenUbicacionId)?.nombre || 'Externo / Proveedor'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Destino:</span>
+                      <span className="font-bold text-slate-900">
+                        {ubicaciones.find(u => u.id === destinoUbicacionId)?.nombre || 'Consumo / Descarte'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Motivo:</span>
+                      <span className="font-bold text-slate-900 line-clamp-1">{motivo}</span>
+                    </div>
+                  </div>
+
+                  {/* Tabla de Simulación de Impacto */}
+                  {simulacion && (
+                    <div className="space-y-4">
+                      {!simulacion.esValido ? (
+                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-2">
+                          <div className="flex items-center gap-2 font-bold">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                            <span>La transacción no puede ejecutarse debido a los siguientes conflictos:</span>
+                          </div>
+                          <ul className="list-disc list-inside space-y-1 pl-2">
+                            {simulacion.errores.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                              <tr>
+                                <th className="py-2.5 px-3">Recurso</th>
+                                <th className="py-2.5 px-3">Ubicación Afectada</th>
+                                <th className="py-2.5 px-3 text-center">Stock Actual</th>
+                                <th className="py-2.5 px-3 text-center">Operación</th>
+                                <th className="py-2.5 px-3 text-center">Stock Resultante</th>
+                                <th className="py-2.5 px-3 text-center">Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {simulacion.lineas.map((linea, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="py-2.5 px-3">
+                                    <span className="font-bold text-slate-900 block">{linea.recursoNombre}</span>
+                                    <span className="font-mono text-[10px] text-[#1C3177]">{linea.recursoSku}</span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-700">
+                                    {linea.ubicacionNombre || 'Ubicación'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center font-bold text-slate-700">
+                                    {linea.stockActual}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center font-bold">
+                                    <span className={linea.cantidadOperacion > 0 ? 'text-[#3DAA5C]' : 'text-red-600'}>
+                                      {linea.cantidadOperacion > 0 ? `+${linea.cantidadOperacion}` : linea.cantidadOperacion}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center font-extrabold text-slate-900">
+                                    {linea.stockResultante}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#2D8246]">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      Balance Válido
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Acciones de Confirmación Final */}
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(2)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors flex items-center gap-1.5"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Modificar Líneas</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!simulacion?.esValido || guardando}
+                      onClick={handleConfirmarMovimiento}
+                      className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        simulacion?.esValido && !guardando
+                          ? 'bg-[#3DAA5C] hover:bg-[#2D8246] text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {guardando ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Asentando Transacción...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>Confirmar y Ejecutar Movimiento</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
+      )}
 
-        {/* Right Table: Movimientos Recientes */}
-        <div className="lg:col-span-8 flex flex-col justify-between space-y-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden flex-1">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Movimientos Recientes
-              </h3>
+      {/* 3. Pestaña HISTORIAL: Bitácora de Movimientos Pasados */}
+      {activeTab === 'historial' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+          {/* Barra de Filtros */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={historialBusqueda}
+                onChange={e => setHistorialBusqueda(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && cargarHistorial(1)}
+                placeholder="Buscar por correlativo MOV, motivo o artículo..."
+                className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+              />
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+            {/* Chips de filtro por tipo */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              {['todos', 'entrada', 'salida', 'traslado', 'ajuste', 'baja'].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setHistorialTipoFiltro(t)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
+                    historialTipoFiltro === t
+                      ? 'bg-[#1C3177] text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tabla de Historial */}
+          {loadingHistorial ? (
+            <div className="py-12 text-center text-slate-400 space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#1C3177]" />
+              <p className="text-xs font-medium">Cargando bitácora de movimientos...</p>
+            </div>
+          ) : historialMovimientos.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl space-y-2">
+              <Clock className="w-8 h-8 mx-auto stroke-1" />
+              <p className="text-xs font-medium">No se encontraron movimientos registrados con los filtros aplicados.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-3">ID</th>
-                    <th className="py-3 px-3">Tipo</th>
-                    <th className="py-3 px-3">Artículo</th>
-                    <th className="py-3 px-3 text-right">Cantidad</th>
-                    <th className="py-3 px-3">Origen → Destino</th>
-                    <th className="py-3 px-3">Responsable</th>
-                    <th className="py-3 px-3">Fecha</th>
-                    <th className="py-3 px-3 text-center">Estado</th>
+                    <th className="py-2.5 px-3">Correlativo</th>
+                    <th className="py-2.5 px-3">Tipo</th>
+                    <th className="py-2.5 px-3">Ruta</th>
+                    <th className="py-2.5 px-3">Líneas / Uds</th>
+                    <th className="py-2.5 px-3">Total DOP</th>
+                    <th className="py-2.5 px-3">Responsable</th>
+                    <th className="py-2.5 px-3">Fecha</th>
+                    <th className="py-2.5 px-3 text-right">Detalle</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-[11px] font-medium">
-                  {recentRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-3 font-mono text-slate-500 font-bold">{r.id}</td>
-                      <td className="py-3 px-3">
-                        <span className="font-bold text-slate-900">{r.tipo}</span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-800">{r.art}</td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-900 font-mono">{r.cant}</td>
-                      <td className="py-3 px-3 text-slate-600">{r.ruta}</td>
-                      <td className="py-3 px-3 text-slate-700">{r.resp}</td>
-                      <td className="py-3 px-3 text-slate-500 font-mono text-[10px]">{r.fecha}</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold border ${r.color}`}>
-                          {r.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-slate-100">
+                  {historialMovimientos.map(m => {
+                    const cfg = TIPOS_CONFIG[m.tipo] || TIPOS_CONFIG.traslado;
+                    return (
+                      <tr key={m.id} className="hover:bg-slate-50/60">
+                        <td className="py-3 px-3 font-mono font-bold text-[#1C3177]">
+                          {m.numeroMovimiento}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.bgLight} ${cfg.textColor}`}>
+                            {cfg.icon}
+                            <span className="capitalize">{m.tipo}</span>
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-slate-600">
+                          {m.origenUbicacionNombre || 'Externo'} → {m.destinoUbicacionNombre || 'Externo'}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-900">
+                          {m.totalLineas} artículos ({m.totalUnidades} uds)
+                        </td>
+                        <td className="py-3 px-3 font-bold text-[#2D8246]">
+                          ${m.costoTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-3 text-slate-700">
+                          {m.usuarioNombre}
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                          {new Date(m.creadoEn).toLocaleDateString('es-DO', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedHistorialMov(m)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
+                            title="Ver detalle de líneas"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
+        </div>
+      )}
 
-          {/* Bottom AI Recommendation Banner */}
-          <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/70 via-cyan-50/40 to-white p-4 shadow-xs flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#1C3177] border border-blue-200 shadow-2xs">
-                <Sparkles className="h-4 w-4 text-[#06B6D4]" />
-              </div>
-              <div className="text-xs">
-                <span className="font-bold text-[#1C3177] block mb-0.5">Recomendación IA Automatizada:</span>
-                <span className="text-slate-600">
-                  Basado en el historial, se recomienda programar reabastecimiento de <strong>[Implante de Titanio]</strong> para evitar demoras en la jornada quirúrgica.
+      {/* Modal Drawer de Detalle de Movimiento Histórico */}
+      {selectedHistorialMov && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#1C3177]" />
+                  Comprobante: {selectedHistorialMov.numeroMovimiento}
+                </h3>
+                <span className="text-[11px] text-slate-500 capitalize">
+                  Movimiento de tipo {selectedHistorialMov.tipo} • Ley 172-13
                 </span>
               </div>
+              <button
+                onClick={() => setSelectedHistorialMov(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button className="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors" aria-label="Ver recomendación completa">
-              <ChevronRight className="h-4 w-4" />
-            </button>
+
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <span className="text-slate-500 block">Origen:</span>
+                  <span className="font-bold text-slate-900">{selectedHistorialMov.origenUbicacionNombre || 'Externo'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Destino:</span>
+                  <span className="font-bold text-slate-900">{selectedHistorialMov.destinoUbicacionNombre || 'Externo'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Usuario:</span>
+                  <span className="font-bold text-slate-900">{selectedHistorialMov.usuarioNombre}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Fecha UTC:</span>
+                  <span className="font-bold text-slate-900">
+                    {new Date(selectedHistorialMov.creadoEn).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-500 block mb-1 font-semibold">Motivo registrado:</span>
+                <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800">
+                  {selectedHistorialMov.motivo}
+                </p>
+              </div>
+
+              {selectedHistorialMov.comprobanteUrl && (
+                <div>
+                  <span className="text-slate-500 block mb-1 font-semibold">Comprobante de soporte:</span>
+                  <span className="font-mono text-[11px] text-[#1C3177] bg-slate-100 px-2 py-1 rounded border border-slate-200 inline-block">
+                    {selectedHistorialMov.comprobanteUrl}
+                  </span>
+                </div>
+              )}
+
+              {/* Detalle de Líneas */}
+              <div className="space-y-2 pt-2">
+                <span className="text-slate-700 font-bold block">
+                  Artículos del Movimiento ({selectedHistorialMov.lineas.length})
+                </span>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                      <tr>
+                        <th className="py-2 px-3">Artículo / SKU</th>
+                        <th className="py-2 px-3">Cantidad</th>
+                        <th className="py-2 px-3">Costo Unit.</th>
+                        <th className="py-2 px-3 text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedHistorialMov.lineas.map(l => (
+                        <tr key={l.id}>
+                          <td className="py-2 px-3">
+                            <span className="font-bold text-slate-900 block">{l.recursoNombre}</span>
+                            <span className="font-mono text-[10px] text-[#1C3177]">{l.recursoSku}</span>
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-800">
+                            {l.cantidad} {l.unidadMedida}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">
+                            ${l.costoUnitario.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 font-bold text-[#2D8246] text-right">
+                            ${l.subtotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50/50">
+              <button
+                onClick={() => setSelectedHistorialMov(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Escáner de Códigos Integrado */}
+      <CameraScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onSelectResource={handleRecursoEscaneado}
+        onOpenResourceDetail={onOpenResourceDetail}
+      />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-xs text-slate-900 font-semibold shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <Info className="h-4 w-4 text-[#1C3177] shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 };
