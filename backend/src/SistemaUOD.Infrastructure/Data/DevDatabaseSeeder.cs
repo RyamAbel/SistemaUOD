@@ -8,8 +8,8 @@ public static class DevDatabaseSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        // Solo sembrar si la base de datos está vacía (por ejemplo, al usar proveedor InMemory)
-        if (await context.Categorias.AnyAsync())
+        // Solo sembrar si se está usando el proveedor InMemory y la base de datos está vacía
+        if (!context.Database.IsInMemory() || await context.Categorias.AnyAsync())
         {
             return;
         }
