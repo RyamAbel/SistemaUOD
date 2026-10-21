@@ -218,9 +218,16 @@ SistemaUOD/
     - Compilación estricta sin advertencias en Next.js Turbopack (`npm run build` con 6/6 rutas estáticas/dinámicas generadas).
     - Verificación visual en vivo en el navegador de la bitácora transaccional y exportación.
     - **Etapa 7 completada y cerrada formalmente al 100%.**
-- **Etapa 8 – Activos fijos, custodios y depreciación (RF-16 a RF-20):** 🔄 Próxima a iniciar:
-  - **Prompt 8.1 – Modelo y API de Activos Fijos y Series:** Gestión detallada de los 341 activos TI institucionalmente registrados (`EQ-01` a `EQ-341`), asignación de custodio institucional (perfil o empleado), estados de operatividad (`operativo`, `en_mantenimiento`, `baja`, `prestamo`), números de serie y placa física.
-  - **Prompt 8.2 – Traslados de activos y cambio de custodio:** Generación de acta de entrega/recepción institucional, firma digital o confirmación de custodio y registro en bitácora.
+- **Etapa 8 – Activos fijos, custodios y depreciación (RF-16 a RF-20):** 🔄 En curso:
+  - ✅ Prompt 8.1 – **Modelo y API de Activos Fijos y Series:**
+    - Endpoints RESTful completos (`ActivosEndpoints.cs`) bajo Minimal APIs: `GET /api/v1/activos` (filtros combinados por texto, recurso, categoría, ubicación, responsable, placa institucional y estado, con paginación `PagedResult<T>`), `GET /api/v1/activos/{id}`, `GET /api/v1/activos/placa/{placa}` (búsqueda directa por placa institucional `EQ-XX`), `POST`, `PUT`, `PATCH /estado` y `DELETE` (baja administrativa justificada).
+    - Servicio `ActivoService.cs` con validación estricta de placa institucional única en mayúsculas, existencia y actividad del recurso y ubicación física, y mapeo de historiales de asignaciones y mantenimientos técnicos.
+    - Políticas de seguridad por rol (`Policies.ExigirGestionInventario` para escritura, `403 Forbidden` para `consulta`, lectura autenticada).
+    - Interfaces y cliente tipado en `frontend/src/lib/apiClient.ts` (`listarActivos`, `obtenerActivoPorId`, `obtenerActivoPorPlaca`, `crearActivo`, `actualizarActivo`, `cambiarEstadoActivo`, `darDeBajaActivo`).
+    - Conexión dinámica en `AssetsView.tsx` consumiendo la API de Supabase en vivo para los 341 activos TI institucionales con fallback automático.
+    - **Total de pruebas automatizadas en .NET:** **74 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
+  - 🔄 **Prompt 8.2 – Traslados de activos y cambio de custodio:** Generación de acta de entrega/recepción institucional, firma digital o confirmación de custodio y registro en bitácora.
   - **Prompt 8.3 – Depreciación y cálculo de valor en libros (RF-19):** Métodos de línea recta según DGII / NIIF, vida útil remanente y reportes de amortización contable.
   - **Prompt 8.4 – Mantenimientos e historial técnico:** Bitácora de servicios técnicos, preventivos y correctivos por equipo.
   - **Prompt 8.5 – Pantallas de Activos Fijos:** Vistas interactivas de activos con buscador por placa/serie, filtros por custodio/ubicación y emisión de actas de descargo en PDF.

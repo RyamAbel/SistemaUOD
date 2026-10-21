@@ -516,6 +516,108 @@ export interface PrevisualizarMovimientoResultadoDto {
   errores: string[];
 }
 
+// ==========================================
+// Módulo de Activos Fijos y Series (Prompt 8.1)
+// ==========================================
+export interface ActivoSerieDto {
+  id: string;
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  categoriaId: string;
+  categoriaNombre: string;
+  numeroSerie: string;
+  placaInstitucional?: string | null;
+  estado: string;
+  ubicacionId: string;
+  ubicacionNombre: string;
+  responsableId?: string | null;
+  responsableNombre?: string | null;
+  responsableCorreo?: string | null;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  fechaAdquisicion?: string | null;
+  garantiaVence?: string | null;
+  costoEstimado: number;
+  notas?: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface ActivoAsignacionHistorialDto {
+  id: string;
+  custodioId: string;
+  custodioNombre: string;
+  tipo: string;
+  fechaInicio: string;
+  fechaDevolucionPrevista?: string | null;
+  fechaDevolucionReal?: string | null;
+  estado: string;
+  observaciones?: string | null;
+}
+
+export interface ActivoMantenimientoHistorialDto {
+  id: string;
+  tipo: string;
+  descripcion: string;
+  fechaProgramada: string;
+  fechaRealizada?: string | null;
+  estado: string;
+  costo: number;
+  tecnicoResponsable?: string | null;
+  proveedorNombre?: string | null;
+}
+
+export interface ActivoSerieDetalleDto extends ActivoSerieDto {
+  historialAsignaciones: ActivoAsignacionHistorialDto[];
+  historialMantenimientos: ActivoMantenimientoHistorialDto[];
+}
+
+export interface CrearActivoSerieDto {
+  recursoId: string;
+  numeroSerie: string;
+  placaInstitucional?: string | null;
+  estado?: string;
+  ubicacionId: string;
+  responsableId?: string | null;
+  proveedorId?: string | null;
+  fechaAdquisicion?: string | null;
+  garantiaVence?: string | null;
+  notas?: string | null;
+}
+
+export interface ActualizarActivoSerieDto {
+  numeroSerie: string;
+  placaInstitucional?: string | null;
+  estado: string;
+  ubicacionId: string;
+  responsableId?: string | null;
+  proveedorId?: string | null;
+  fechaAdquisicion?: string | null;
+  garantiaVence?: string | null;
+  notas?: string | null;
+}
+
+export interface CambiarEstadoActivoDto {
+  estado: string;
+  motivo?: string | null;
+}
+
+export interface ActivoFiltrosDto {
+  pageIndex?: number;
+  pageSize?: number;
+  search?: string;
+  recursoId?: string;
+  categoriaId?: string;
+  ubicacionId?: string;
+  responsableId?: string;
+  estado?: string;
+  custodio?: string;
+  placaInstitucional?: string;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -962,6 +1064,64 @@ export const apiClient = {
     a.click();
     window.URL.revokeObjectURL(downloadUrl);
     a.remove();
+  },
+
+  // ==========================================
+  // Activos Fijos y Series (Prompt 8.1)
+  // ==========================================
+  listarActivos: async (filtros: Partial<ActivoFiltrosDto> = {}): Promise<PagedResult<ActivoSerieDto>> => {
+    const query = new URLSearchParams();
+    if (filtros.pageIndex) query.append('pageIndex', String(filtros.pageIndex));
+    if (filtros.pageSize) query.append('pageSize', String(filtros.pageSize));
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.recursoId) query.append('recursoId', filtros.recursoId);
+    if (filtros.categoriaId) query.append('categoriaId', filtros.categoriaId);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.responsableId) query.append('responsableId', filtros.responsableId);
+    if (filtros.estado) query.append('estado', filtros.estado);
+    if (filtros.custodio) query.append('custodio', filtros.custodio);
+    if (filtros.placaInstitucional) query.append('placaInstitucional', filtros.placaInstitucional);
+    if (filtros.sortBy) query.append('sortBy', filtros.sortBy);
+    if (filtros.isDescending !== undefined) query.append('isDescending', String(filtros.isDescending));
+
+    const qs = query.toString();
+    return request<PagedResult<ActivoSerieDto>>(`activos${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerActivoPorId: async (id: string): Promise<ActivoSerieDetalleDto> => {
+    return request<ActivoSerieDetalleDto>(`activos/${id}`);
+  },
+
+  obtenerActivoPorPlaca: async (placa: string): Promise<ActivoSerieDetalleDto> => {
+    return request<ActivoSerieDetalleDto>(`activos/placa/${encodeURIComponent(placa)}`);
+  },
+
+  crearActivo: async (dto: CrearActivoSerieDto): Promise<ActivoSerieDto> => {
+    return request<ActivoSerieDto>('activos', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarActivo: async (id: string, dto: ActualizarActivoSerieDto): Promise<ActivoSerieDto> => {
+    return request<ActivoSerieDto>(`activos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoActivo: async (id: string, dto: CambiarEstadoActivoDto): Promise<ActivoSerieDto> => {
+    return request<ActivoSerieDto>(`activos/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  darDeBajaActivo: async (id: string, motivo?: string): Promise<ActivoSerieDto> => {
+    const qs = motivo ? `?motivo=${encodeURIComponent(motivo)}` : '';
+    return request<ActivoSerieDto>(`activos/${id}${qs}`, {
+      method: 'DELETE'
+    });
   }
 };
 

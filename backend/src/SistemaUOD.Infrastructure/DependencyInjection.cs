@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IUbicacionService, UbicacionService>();
         services.AddScoped<IExistenciaService, ExistenciaService>();
         services.AddScoped<IMovimientoService, MovimientoService>();
+        services.AddScoped<IActivoService, ActivoService>();
 
         return services;
     }

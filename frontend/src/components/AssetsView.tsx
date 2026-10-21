@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Search,
@@ -19,24 +19,59 @@ import {
   Cpu
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
+import { apiClient } from '@/lib/apiClient';
 
 export const AssetsView: React.FC = () => {
+  const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
+  const [cargandoApi, setCargandoApi] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('todos');
   const [selectedUbicacion, setSelectedUbicacion] = useState<string>('todas');
   const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas'>('tabla');
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
 
+  useEffect(() => {
+    let montado = true;
+    const cargarDesdeApi = async () => {
+      try {
+        setCargandoApi(true);
+        const res = await apiClient.listarActivos({ pageSize: 400 });
+        if (montado && res.items && res.items.length > 0) {
+          const mapeados: ActivoTI[] = res.items.map(item => ({
+            id: item.id,
+            recurso_id: item.recursoId,
+            placa_institucional: item.placaInstitucional || '',
+            numero_serie: item.numeroSerie,
+            recurso_nombre: item.recursoNombre,
+            categoria_nombre: item.categoriaNombre,
+            ubicacion_id: item.ubicacionId,
+            ubicacion_nombre: item.ubicacionNombre,
+            responsable: item.responsableNombre || 'Por Asignar',
+            estado: (item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado',
+            notas: item.notas || ''
+          }));
+          setActivos(mapeados);
+        }
+      } catch (err) {
+        console.warn('Usando dataset institucional local como fallback:', err);
+      } finally {
+        if (montado) setCargandoApi(false);
+      }
+    };
+    cargarDesdeApi();
+    return () => { montado = false; };
+  }, []);
+
   // Lista única de ubicaciones para el filtro
   const ubicacionesUnicas = useMemo(() => {
     const set = new Set<string>();
-    ACTIVOS_ORIGINALES.forEach(a => set.add(a.ubicacion_nombre));
+    activos.forEach(a => set.add(a.ubicacion_nombre));
     return Array.from(set).sort();
-  }, []);
+  }, [activos]);
 
   // Filtrado reactivo en tiempo real
   const activosFiltrados = useMemo(() => {
-    return ACTIVOS_ORIGINALES.filter(activo => {
+    return activos.filter(activo => {
       const matchSearch =
         search.trim() === '' ||
         activo.placa_institucional.toLowerCase().includes(search.toLowerCase()) ||
@@ -53,17 +88,17 @@ export const AssetsView: React.FC = () => {
 
       return matchSearch && matchEstado && matchUbicacion;
     });
-  }, [search, selectedEstado, selectedUbicacion]);
+  }, [activos, search, selectedEstado, selectedUbicacion]);
 
   // Contadores de estado
   const metricas = useMemo(() => {
     return {
-      total: ACTIVOS_ORIGINALES.length,
-      enUso: ACTIVOS_ORIGINALES.filter(a => a.estado === 'en_uso').length,
-      disponibles: ACTIVOS_ORIGINALES.filter(a => a.estado === 'disponible').length,
-      danados: ACTIVOS_ORIGINALES.filter(a => a.estado === 'danado').length
+      total: activos.length,
+      enUso: activos.filter(a => a.estado === 'en_uso').length,
+      disponibles: activos.filter(a => a.estado === 'disponible').length,
+      danados: activos.filter(a => a.estado === 'danado').length
     };
-  }, []);
+  }, [activos]);
 
   const getBadgeEstado = (estado: string) => {
     switch (estado) {
