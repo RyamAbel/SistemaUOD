@@ -133,3 +133,74 @@ public class ActivoFiltrosDto : PagedRequest
     public string? Custodio { get; set; }
     public string? PlacaInstitucional { get; set; }
 }
+
+public class TrasladarActivoDto
+{
+    [Required(ErrorMessage = "La nueva ubicación física es obligatoria.")]
+    public Guid NuevaUbicacionId { get; set; }
+
+    public Guid? NuevoCustodioId { get; set; }
+
+    [StringLength(30, ErrorMessage = "El tipo de asignación no puede exceder 30 caracteres.")]
+    public string? TipoAsignacion { get; set; } = "asignacion_fija";
+
+    [Required(ErrorMessage = "El motivo del traslado es obligatorio.")]
+    [MinLength(5, ErrorMessage = "El motivo debe contener al menos 5 caracteres.")]
+    [StringLength(300, ErrorMessage = "El motivo no puede exceder 300 caracteres.")]
+    public string Motivo { get; set; } = string.Empty;
+
+    [StringLength(500, ErrorMessage = "Las observaciones no pueden exceder 500 caracteres.")]
+    public string? Observaciones { get; set; }
+}
+
+public class AsignarCustodioDto
+{
+    [Required(ErrorMessage = "El custodio o responsable es obligatorio.")]
+    public Guid CustodioId { get; set; }
+
+    [StringLength(30, ErrorMessage = "El tipo de asignación no puede exceder 30 caracteres.")]
+    public string Tipo { get; set; } = "asignacion_fija";
+
+    public DateTime? FechaDevolucionPrevista { get; set; }
+
+    [Required(ErrorMessage = "El motivo u observaciones son obligatorios.")]
+    [MinLength(5, ErrorMessage = "El motivo debe contener al menos 5 caracteres.")]
+    [StringLength(500, ErrorMessage = "Las observaciones no pueden exceder 500 caracteres.")]
+    public string Observaciones { get; set; } = string.Empty;
+}
+
+public class ActaEntregaRecepcionDto
+{
+    public string NumeroActa { get; set; } = string.Empty;
+    public DateTime FechaEmision { get; set; } = DateTime.UtcNow;
+    public string TipoOperacion { get; set; } = "traslado";
+    public string Institucion { get; set; } = "Universidad Odontológica Dominicana (UOD)";
+    public string DepartamentoEmisor { get; set; } = "Departamento de Tecnología de la Información (TI)";
+    public Guid ActivoId { get; set; }
+    public string PlacaInstitucional { get; set; } = string.Empty;
+    public string NumeroSerie { get; set; } = string.Empty;
+    public string RecursoNombre { get; set; } = string.Empty;
+    public string RecursoSku { get; set; } = string.Empty;
+    public string CategoriaNombre { get; set; } = string.Empty;
+    public string? UbicacionAnterior { get; set; }
+    public string UbicacionNueva { get; set; } = string.Empty;
+    public string? CustodioAnterior { get; set; }
+    public string CustodioNuevo { get; set; } = string.Empty;
+    public string? CustodioNuevoCorreo { get; set; }
+    public string? CustodioNuevoDepartamento { get; set; }
+    public string Motivo { get; set; } = string.Empty;
+    public string? Observaciones { get; set; }
+    public List<string> ClausulasResponsabilidad { get; set; } = new();
+    public string FirmaEmisorNombre { get; set; } = "Administrador de TI";
+    public string FirmaEmisorCargo { get; set; } = "Encargado de Inventario y Activos UOD";
+    public string FirmaReceptorNombre { get; set; } = string.Empty;
+    public string FirmaReceptorCargo { get; set; } = "Custodio Responsable";
+}
+
+public class ResultadoTrasladoActivoDto
+{
+    public bool Exitoso { get; set; } = true;
+    public string Mensaje { get; set; } = string.Empty;
+    public ActivoSerieDto Activo { get; set; } = null!;
+    public ActaEntregaRecepcionDto Acta { get; set; } = null!;
+}

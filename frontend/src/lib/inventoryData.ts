@@ -44,6 +44,7 @@ export interface ActivoTI {
   ubicacion_id: string;
   ubicacion_nombre: string;
   responsable: string;
+  categoria_nombre?: string;
   notas: string | null;
 }
 

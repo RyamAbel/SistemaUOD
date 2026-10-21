@@ -16,10 +16,14 @@ import {
   Download,
   LayoutGrid,
   Table as TableIcon,
-  Cpu
+  Cpu,
+  ArrowRightLeft,
+  FileText
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, ActaEntregaRecepcionDto } from '@/lib/apiClient';
+import { TransferAssetModal } from './TransferAssetModal';
+import { ActaEntregaModal } from './ActaEntregaModal';
 
 export const AssetsView: React.FC = () => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
@@ -29,6 +33,8 @@ export const AssetsView: React.FC = () => {
   const [selectedUbicacion, setSelectedUbicacion] = useState<string>('todas');
   const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas'>('tabla');
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
+  const [activoParaTrasladar, setActivoParaTrasladar] = useState<ActivoTI | null>(null);
+  const [actaVisualizada, setActaVisualizada] = useState<ActaEntregaRecepcionDto | null>(null);
 
   useEffect(() => {
     let montado = true;
@@ -123,6 +129,62 @@ export const AssetsView: React.FC = () => {
             Dañado / Inactivo
           </span>
         );
+    }
+  };
+
+  const handleAbrirActa = async (activo: ActivoTI) => {
+    try {
+      const acta = await apiClient.obtenerActaEntrega(activo.id);
+      setActaVisualizada(acta);
+    } catch {
+      const anio = new Date().getFullYear();
+      setActaVisualizada({
+        numeroActa: `ACTA-${anio}-${activo.placa_institucional.replace(/\D/g, '').padStart(6, '0') || '000001'}`,
+        fechaEmision: new Date().toISOString(),
+        tipoOperacion: 'constancia_entrega',
+        institucion: 'Universidad Odontológica Dominicana (UOD)',
+        departamentoEmisor: 'Departamento de Tecnología de la Información (TI)',
+        activoId: activo.id,
+        placaInstitucional: activo.placa_institucional || 'S/P',
+        numeroSerie: activo.numero_serie,
+        recursoNombre: activo.recurso_nombre,
+        recursoSku: 'UOD-TI-2026',
+        categoriaNombre: activo.categoria_nombre || 'Tecnología',
+        ubicacionAnterior: null,
+        ubicacionNueva: activo.ubicacion_nombre,
+        custodioAnterior: null,
+        custodioNuevo: activo.responsable,
+        motivo: 'Asignación patrimonial de equipo tecnológico institucional UOD',
+        observaciones: activo.notas || null,
+        clausulasResponsabilidad: [
+          '1. El receptor asume la custodia física y el uso adecuado del equipo para fines institucionales y académicos de la UOD.',
+          '2. Cualquier daño, extravío o anomalía técnica debe reportarse de inmediato al Departamento de TI.',
+          '3. Queda prohibida la reubicación o cesión del bien sin autorización previa en el sistema SIIA.',
+          '4. Al finalizar la asignación, el bien debe retornarse formalmente a TI con su acta de descargo.'
+        ],
+        firmaEmisorNombre: 'Administrador de TI',
+        firmaEmisorCargo: 'Encargado de Inventario y Activos UOD',
+        firmaReceptorNombre: activo.responsable,
+        firmaReceptorCargo: 'Custodio Asignado'
+      });
+    }
+  };
+
+  const handleTrasladoExitoso = (res: any) => {
+    setActivos(prev => prev.map(a => {
+      if (a.id === res.activo.id || a.placa_institucional === res.activo.placaInstitucional) {
+        return {
+          ...a,
+          ubicacion_nombre: res.activo.ubicacionNombre,
+          responsable: res.activo.responsableNombre || a.responsable,
+          estado: 'en_uso'
+        };
+      }
+      return a;
+    }));
+    setActivoParaTrasladar(null);
+    if (res.acta) {
+      setActaVisualizada(res.acta);
     }
   };
 
@@ -319,16 +381,38 @@ export const AssetsView: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">{getBadgeEstado(activo.estado)}</td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setSelectedActivo(activo);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
-                          title="Ver detalle del activo"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setActivoParaTrasladar(activo);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Trasladar activo y emitir acta"
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleAbrirActa(activo);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                            title="Ver Acta Oficial de Entrega"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setSelectedActivo(activo);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Ver detalle del activo"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -431,16 +515,58 @@ export const AssetsView: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const act = selectedActivo;
+                    setSelectedActivo(null);
+                    setActivoParaTrasladar(act);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-blue-50 text-[#1C3177] hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  Trasladar
+                </button>
+                <button
+                  onClick={() => {
+                    const act = selectedActivo;
+                    handleAbrirActa(act);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Ver Acta Oficial
+                </button>
+              </div>
+
               <button
                 onClick={() => setSelectedActivo(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
               >
                 Cerrar
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Traslado de Activo */}
+      {activoParaTrasladar && (
+        <TransferAssetModal
+          activo={activoParaTrasladar}
+          ubicaciones={ubicacionesUnicas}
+          onClose={() => setActivoParaTrasladar(null)}
+          onSuccess={handleTrasladoExitoso}
+        />
+      )}
+
+      {/* Modal de Acta Oficial de Entrega / Recepción */}
+      {actaVisualizada && (
+        <ActaEntregaModal
+          acta={actaVisualizada}
+          onClose={() => setActaVisualizada(null)}
+        />
       )}
     </div>
   );

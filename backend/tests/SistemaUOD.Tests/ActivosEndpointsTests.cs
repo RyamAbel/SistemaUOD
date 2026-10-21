@@ -279,4 +279,151 @@ public class ActivosEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         Assert.NotNull(activoBaja);
         Assert.Equal("baja", activoBaja.Estado);
     }
+
+    [Fact]
+    public async Task TrasladarActivo_RolConsulta_Retorna403Forbidden()
+    {
+        var client = _factory.CreateClient();
+        var dto = new TrasladarActivoDto
+        {
+            NuevaUbicacionId = Guid.NewGuid(),
+            Motivo = "Intento de traslado sin permisos"
+        };
+
+        var request = CrearPeticion(HttpMethod.Post, $"/api/v1/activos/{Guid.NewGuid()}/trasladar", role: "consulta");
+        request.Content = JsonContent.Create(dto);
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TrasladarActivo_RolGestionInventario_ActualizaUbicacion_Y_EmiteActa()
+    {
+        var client = _factory.CreateClient();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var recurso = db.Recursos.FirstOrDefault();
+        var ubicaciones = db.Ubicaciones.Take(2).ToList();
+        var custodio = db.Perfiles.FirstOrDefault();
+
+        Assert.NotNull(recurso);
+        Assert.True(ubicaciones.Count >= 2);
+        Assert.NotNull(custodio);
+
+        var sufijo = Guid.NewGuid().ToString("N")[..6];
+        var dtoCrear = new CrearActivoSerieDto
+        {
+            RecursoId = recurso.Id,
+            UbicacionId = ubicaciones[0].Id,
+            NumeroSerie = $"SN-TRS-{sufijo}",
+            PlacaInstitucional = $"EQ-TRS-{sufijo}",
+            Estado = "disponible"
+        };
+
+        var reqCrear = CrearPeticion(HttpMethod.Post, "/api/v1/activos", role: "admin_inventario");
+        reqCrear.Content = JsonContent.Create(dtoCrear);
+        var respCrear = await client.SendAsync(reqCrear);
+        var activo = await respCrear.Content.ReadFromJsonAsync<ActivoSerieDto>();
+        Assert.NotNull(activo);
+
+        // Realizar traslado a la segunda ubicación con asignación de custodio
+        var dtoTraslado = new TrasladarActivoDto
+        {
+            NuevaUbicacionId = ubicaciones[1].Id,
+            NuevoCustodioId = custodio.Id,
+            Motivo = "Reasignación a Clínica Odontológica por requerimiento de docencia",
+            Observaciones = "Equipo verificado en óptimas condiciones operativas"
+        };
+
+        var reqTraslado = CrearPeticion(HttpMethod.Post, $"/api/v1/activos/{activo.Id}/trasladar", role: "admin_inventario");
+        reqTraslado.Content = JsonContent.Create(dtoTraslado);
+        var respTraslado = await client.SendAsync(reqTraslado);
+
+        Assert.Equal(HttpStatusCode.OK, respTraslado.StatusCode);
+        var resultado = await respTraslado.Content.ReadFromJsonAsync<ResultadoTrasladoActivoDto>();
+        Assert.NotNull(resultado);
+        Assert.True(resultado.Exitoso);
+        Assert.NotNull(resultado.Acta);
+        Assert.StartsWith("ACTA-", resultado.Acta.NumeroActa);
+        Assert.Equal(ubicaciones[1].Nombre, resultado.Activo.UbicacionNombre);
+        Assert.Equal(custodio.NombreCompleto, resultado.Activo.ResponsableNombre);
+        Assert.NotEmpty(resultado.Acta.ClausulasResponsabilidad);
+    }
+
+    [Fact]
+    public async Task AsignarCustodio_RolGestionInventario_ActualizaResponsable_Y_RegistraAsignacion()
+    {
+        var client = _factory.CreateClient();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var recurso = db.Recursos.FirstOrDefault();
+        var ubicacion = db.Ubicaciones.FirstOrDefault();
+        var custodio = db.Perfiles.FirstOrDefault();
+
+        Assert.NotNull(recurso);
+        Assert.NotNull(ubicacion);
+        Assert.NotNull(custodio);
+
+        var sufijo = Guid.NewGuid().ToString("N")[..6];
+        var dtoCrear = new CrearActivoSerieDto
+        {
+            RecursoId = recurso.Id,
+            UbicacionId = ubicacion.Id,
+            NumeroSerie = $"SN-ASIG-{sufijo}",
+            PlacaInstitucional = $"EQ-ASIG-{sufijo}",
+            Estado = "disponible"
+        };
+
+        var reqCrear = CrearPeticion(HttpMethod.Post, "/api/v1/activos", role: "admin_inventario");
+        reqCrear.Content = JsonContent.Create(dtoCrear);
+        var respCrear = await client.SendAsync(reqCrear);
+        var activo = await respCrear.Content.ReadFromJsonAsync<ActivoSerieDto>();
+        Assert.NotNull(activo);
+
+        // Asignar custodio
+        var dtoAsignar = new AsignarCustodioDto
+        {
+            CustodioId = custodio.Id,
+            Tipo = "asignacion_fija",
+            Observaciones = "Asignación formal de estación de trabajo institucional"
+        };
+
+        var reqAsig = CrearPeticion(HttpMethod.Post, $"/api/v1/activos/{activo.Id}/asignar-custodio", role: "admin_inventario");
+        reqAsig.Content = JsonContent.Create(dtoAsignar);
+        var respAsig = await client.SendAsync(reqAsig);
+
+        Assert.Equal(HttpStatusCode.OK, respAsig.StatusCode);
+        var res = await respAsig.Content.ReadFromJsonAsync<ResultadoTrasladoActivoDto>();
+        Assert.NotNull(res);
+        Assert.Equal(custodio.NombreCompleto, res.Activo.ResponsableNombre);
+        Assert.Equal("en_uso", res.Activo.Estado);
+    }
+
+    [Fact]
+    public async Task GenerarActaEntrega_Autenticado_Retorna200Ok_ConClausulasYFirmas()
+    {
+        var client = _factory.CreateClient();
+
+        // Obtener un activo de la lista
+        var listReq = CrearPeticion(HttpMethod.Get, "/api/v1/activos?pageSize=1", role: "consulta");
+        var listResp = await client.SendAsync(listReq);
+        var listResult = await listResp.Content.ReadFromJsonAsync<PagedResult<ActivoSerieDto>>();
+
+        if (listResult?.Items != null && listResult.Items.Count > 0)
+        {
+            var activo = listResult.Items.First();
+            var reqActa = CrearPeticion(HttpMethod.Get, $"/api/v1/activos/{activo.Id}/acta-entrega", role: "auditor");
+            var respActa = await client.SendAsync(reqActa);
+
+            Assert.Equal(HttpStatusCode.OK, respActa.StatusCode);
+            var acta = await respActa.Content.ReadFromJsonAsync<ActaEntregaRecepcionDto>();
+            Assert.NotNull(acta);
+            Assert.StartsWith("ACTA-", acta.NumeroActa);
+            Assert.NotEmpty(acta.ClausulasResponsabilidad);
+            Assert.False(string.IsNullOrWhiteSpace(acta.FirmaEmisorNombre));
+        }
+    }
 }

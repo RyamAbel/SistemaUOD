@@ -227,8 +227,14 @@ SistemaUOD/
     - Conexión dinámica en `AssetsView.tsx` consumiendo la API de Supabase en vivo para los 341 activos TI institucionales con fallback automático.
     - **Total de pruebas automatizadas en .NET:** **74 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
-  - 🔄 **Prompt 8.2 – Traslados de activos y cambio de custodio:** Generación de acta de entrega/recepción institucional, firma digital o confirmación de custodio y registro en bitácora.
-  - **Prompt 8.3 – Depreciación y cálculo de valor en libros (RF-19):** Métodos de línea recta según DGII / NIIF, vida útil remanente y reportes de amortización contable.
+  - ✅ Prompt 8.2 – **Traslados de activos y cambio de custodio (RF-17 y RF-18):**
+    - Endpoints RESTful transaccionales (`ActivosEndpoints.cs`): `POST /api/v1/activos/{id}/trasladar`, `POST /api/v1/activos/{id}/asignar-custodio` y `GET /api/v1/activos/{id}/acta-entrega`.
+    - Servicio `ActivoService.cs` con transacción atómica: validación estricta de activo activo (no baja), verificación de ubicación destino activa, finalización de asignaciones previas, creación de registro en `AsignacionPrestamo`, generación de correlativo institucional de movimiento `MOV-YYYY-XXXXXX` en `Movimientos`, registro de auditoría inmutable (Ley 172-13) y generación de número de acta oficial `ACTA-YYYY-XXXXXX`.
+    - Componente interactivo `ActaEntregaModal.tsx` con diseño institucional UOD: membrete de la Universidad Odontológica Dominicana, código oficial de acta, ficha técnica del bien (placa `EQ-XX`, serie, SKU, modelo), trazabilidad de ubicación y custodios, 4 cláusulas de responsabilidad patrimonial y recuadros formales de firmas para Emisor TI y Custodio Receptor con soporte nativo de impresión/PDF `@media print`.
+    - Componente `TransferAssetModal.tsx` integrado en `AssetsView.tsx` para realizar traslados in-situ entre las 49 sedes y clínicas odontológicas UOD, disparando automáticamente el acta oficial.
+    - **Total de pruebas automatizadas en .NET:** **78 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
+  - 🔄 **Prompt 8.3 – Depreciación y cálculo de valor en libros (RF-19):** Métodos de línea recta según DGII / NIIF, vida útil remanente y reportes de amortización contable.
   - **Prompt 8.4 – Mantenimientos e historial técnico:** Bitácora de servicios técnicos, preventivos y correctivos por equipo.
   - **Prompt 8.5 – Pantallas de Activos Fijos:** Vistas interactivas de activos con buscador por placa/serie, filtros por custodio/ubicación y emisión de actas de descargo en PDF.
   - **Prompt 8.6 – Pruebas y cierre de Etapa 8.**

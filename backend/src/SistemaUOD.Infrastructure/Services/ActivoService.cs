@@ -9,10 +9,12 @@ namespace SistemaUOD.Infrastructure.Services;
 public class ActivoService : IActivoService
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ActivoService(IApplicationDbContext context)
+    public ActivoService(IApplicationDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PagedResult<ActivoSerieDto>> ListarActivosAsync(ActivoFiltrosDto filtros, CancellationToken ct = default)
@@ -502,6 +504,374 @@ public class ActivoService : IActivoService
                 TecnicoResponsable = m.TecnicoResponsable,
                 ProveedorNombre = m.Proveedor != null ? m.Proveedor.NombreComercial : null
             }).ToList()
+        };
+    }
+
+    public async Task<ResultadoTrasladoActivoDto> TrasladarActivoAsync(Guid id, TrasladarActivoDto dto, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Asignaciones)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        if (activo.Estado == "baja")
+        {
+            throw new InvalidOperationException("No se puede trasladar un activo que ha sido dado de baja.");
+        }
+
+        // Validar nueva ubicación
+        var nuevaUbicacion = await _context.Ubicaciones.FirstOrDefaultAsync(u => u.Id == dto.NuevaUbicacionId, ct);
+        if (nuevaUbicacion == null)
+        {
+            throw new InvalidOperationException("La ubicación de destino especificada no existe.");
+        }
+
+        if (!nuevaUbicacion.Activa)
+        {
+            throw new InvalidOperationException($"La ubicación de destino '{nuevaUbicacion.Nombre}' se encuentra inactiva.");
+        }
+
+        var ubicacionAnterior = activo.Ubicacion?.Nombre ?? "Sin ubicación asignada";
+        var custodioAnterior = activo.Responsable?.NombreCompleto ?? "Sin custodio asignado";
+        Perfil? nuevoCustodio = null;
+
+        // Si se especificó un nuevo custodio
+        if (dto.NuevoCustodioId.HasValue)
+        {
+            nuevoCustodio = await _context.Perfiles.FirstOrDefaultAsync(p => p.Id == dto.NuevoCustodioId.Value, ct);
+            if (nuevoCustodio == null)
+            {
+                throw new InvalidOperationException("El nuevo custodio asignado no existe en el sistema.");
+            }
+
+            // Finalizar asignaciones activas previas
+            foreach (var asig in activo.Asignaciones.Where(a => a.Estado == "activo" || a.Estado == "activa"))
+            {
+                asig.Estado = "finalizada";
+                asig.FechaDevolucionReal = DateTime.UtcNow;
+                asig.ActualizadoEn = DateTime.UtcNow;
+            }
+
+            // Crear nueva asignación
+            var nuevaAsignacion = new AsignacionPrestamo
+            {
+                Id = Guid.NewGuid(),
+                ActivoSerieId = activo.Id,
+                CustodioId = nuevoCustodio.Id,
+                Tipo = dto.TipoAsignacion ?? "asignacion_fija",
+                FechaInicio = DateTime.UtcNow,
+                Estado = "activo",
+                Observaciones = dto.Motivo,
+                CreadoEn = DateTime.UtcNow,
+                ActualizadoEn = DateTime.UtcNow
+            };
+            _context.AsignacionesPrestamos.Add(nuevaAsignacion);
+            activo.ResponsableId = nuevoCustodio.Id;
+            activo.Responsable = nuevoCustodio;
+        }
+
+        // Actualizar ubicación física
+        var ubicacionAnteriorId = activo.UbicacionId;
+        activo.UbicacionId = dto.NuevaUbicacionId;
+        activo.Ubicacion = nuevaUbicacion;
+
+        // Si estaba disponible y ahora tiene custodio, pasa a en_uso
+        if (activo.Estado == "disponible" && activo.ResponsableId.HasValue)
+        {
+            activo.Estado = "en_uso";
+        }
+
+        // Registrar movimiento institucional de traslado
+        var anio = DateTime.UtcNow.Year;
+        var conteoMov = await _context.Movimientos.CountAsync(m => m.NumeroMovimiento.StartsWith($"MOV-{anio}-"), ct);
+        var numeroMovimiento = $"MOV-{anio}-{(conteoMov + 1):D6}";
+
+        var usuarioEmisorId = _currentUserService.UserId ?? activo.ResponsableId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var movimiento = new Movimiento
+        {
+            Id = Guid.NewGuid(),
+            NumeroMovimiento = numeroMovimiento,
+            Tipo = "traslado",
+            OrigenUbicacionId = ubicacionAnteriorId,
+            DestinoUbicacionId = dto.NuevaUbicacionId,
+            UsuarioId = usuarioEmisorId,
+            Motivo = $"[Traslado Activo {activo.PlacaInstitucional ?? activo.NumeroSerie}] {dto.Motivo}",
+            CreadoEn = DateTime.UtcNow
+        };
+        _context.Movimientos.Add(movimiento);
+
+        var linea = new MovimientoLinea
+        {
+            Id = Guid.NewGuid(),
+            MovimientoId = movimiento.Id,
+            RecursoId = activo.RecursoId,
+            Cantidad = 1,
+            CostoUnitario = activo.Recurso.CostoEstimado
+        };
+        _context.MovimientosLineas.Add(linea);
+
+        activo.Notas = string.IsNullOrWhiteSpace(activo.Notas)
+            ? $"[{DateTime.UtcNow:yyyy-MM-dd}] Traslado a {nuevaUbicacion.Nombre}: {dto.Motivo}"
+            : $"{activo.Notas} | [{DateTime.UtcNow:yyyy-MM-dd}] Traslado a {nuevaUbicacion.Nombre}: {dto.Motivo}";
+        activo.ActualizadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+
+        // Generar Acta de Entrega / Recepción Institucional
+        var conteoActas = await _context.AsignacionesPrestamos.CountAsync(ct);
+        var numeroActa = $"ACTA-{anio}-{(conteoActas + 1):D6}";
+
+        var acta = new ActaEntregaRecepcionDto
+        {
+            NumeroActa = numeroActa,
+            FechaEmision = DateTime.UtcNow,
+            TipoOperacion = "traslado",
+            Institucion = "Universidad Odontológica Dominicana (UOD)",
+            DepartamentoEmisor = "Departamento de Tecnología de la Información (TI)",
+            ActivoId = activo.Id,
+            PlacaInstitucional = activo.PlacaInstitucional ?? "S/P",
+            NumeroSerie = activo.NumeroSerie,
+            RecursoNombre = activo.Recurso.Nombre,
+            RecursoSku = activo.Recurso.Sku,
+            CategoriaNombre = activo.Recurso.Categoria?.Nombre ?? "Tecnología",
+            UbicacionAnterior = ubicacionAnterior,
+            UbicacionNueva = nuevaUbicacion.Nombre,
+            CustodioAnterior = custodioAnterior,
+            CustodioNuevo = nuevoCustodio?.NombreCompleto ?? activo.Responsable?.NombreCompleto ?? "Sin custodio asignado",
+            CustodioNuevoCorreo = nuevoCustodio?.Correo ?? activo.Responsable?.Correo,
+            CustodioNuevoDepartamento = nuevoCustodio?.Departamento ?? activo.Responsable?.Departamento,
+            Motivo = dto.Motivo,
+            Observaciones = dto.Observaciones,
+            ClausulasResponsabilidad = new List<string>
+            {
+                "1. El receptor asume la custodia física y el uso adecuado del equipo para fines estrictamente institucionales y académicos de la UOD.",
+                "2. Cualquier daño, extravío o mal funcionamiento técnico debe ser reportado de inmediato al Departamento de Tecnología de la Información (TI).",
+                "3. Queda prohibida la transferencia, cesión o reubicación del bien sin autorización y registro formal previo en el sistema SIIA.",
+                "4. En caso de cese de funciones, traslado departamental o finalización de asignación, el bien debe ser formalmente devuelto a TI mediante acta de descargo."
+            },
+            FirmaEmisorNombre = _currentUserService.Email ?? "Administrador de TI",
+            FirmaEmisorCargo = "Encargado de Inventario y Activos Fijos UOD",
+            FirmaReceptorNombre = nuevoCustodio?.NombreCompleto ?? activo.Responsable?.NombreCompleto ?? "Custodio Receptor",
+            FirmaReceptorCargo = nuevoCustodio?.Departamento ?? "Personal Institucional UOD"
+        };
+
+        var activoDto = MapearActivoDto(activo, nuevaUbicacion);
+
+        return new ResultadoTrasladoActivoDto
+        {
+            Exitoso = true,
+            Mensaje = $"Activo trasladado correctamente a '{nuevaUbicacion.Nombre}'. Acta {numeroActa} emitida.",
+            Activo = activoDto,
+            Acta = acta
+        };
+    }
+
+    public async Task<ResultadoTrasladoActivoDto> AsignarCustodioAsync(Guid id, AsignarCustodioDto dto, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Asignaciones)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        if (activo.Estado == "baja")
+        {
+            throw new InvalidOperationException("No se puede asignar custodio a un activo que ha sido dado de baja.");
+        }
+
+        var nuevoCustodio = await _context.Perfiles.FirstOrDefaultAsync(p => p.Id == dto.CustodioId, ct);
+        if (nuevoCustodio == null)
+        {
+            throw new InvalidOperationException("El custodio o responsable especificado no existe en el sistema.");
+        }
+
+        var custodioAnterior = activo.Responsable?.NombreCompleto ?? "Sin custodio previo";
+
+        // Finalizar asignaciones activas previas
+        foreach (var asig in activo.Asignaciones.Where(a => a.Estado == "activo" || a.Estado == "activa"))
+        {
+            asig.Estado = "finalizada";
+            asig.FechaDevolucionReal = DateTime.UtcNow;
+            asig.ActualizadoEn = DateTime.UtcNow;
+        }
+
+        // Crear nueva asignación
+        var nuevaAsignacion = new AsignacionPrestamo
+        {
+            Id = Guid.NewGuid(),
+            ActivoSerieId = activo.Id,
+            CustodioId = nuevoCustodio.Id,
+            Tipo = dto.Tipo ?? "asignacion_fija",
+            FechaInicio = DateTime.UtcNow,
+            FechaDevolucionPrevista = dto.FechaDevolucionPrevista,
+            Estado = "activo",
+            Observaciones = dto.Observaciones,
+            CreadoEn = DateTime.UtcNow,
+            ActualizadoEn = DateTime.UtcNow
+        };
+        _context.AsignacionesPrestamos.Add(nuevaAsignacion);
+
+        activo.ResponsableId = nuevoCustodio.Id;
+        activo.Responsable = nuevoCustodio;
+
+        if (activo.Estado == "disponible")
+        {
+            activo.Estado = "en_uso";
+        }
+
+        activo.Notas = string.IsNullOrWhiteSpace(activo.Notas)
+            ? $"[{DateTime.UtcNow:yyyy-MM-dd}] Asignación a {nuevoCustodio.NombreCompleto}: {dto.Observaciones}"
+            : $"{activo.Notas} | [{DateTime.UtcNow:yyyy-MM-dd}] Asignación a {nuevoCustodio.NombreCompleto}: {dto.Observaciones}";
+        activo.ActualizadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+
+        var anio = DateTime.UtcNow.Year;
+        var conteoActas = await _context.AsignacionesPrestamos.CountAsync(ct);
+        var numeroActa = $"ACTA-{anio}-{(conteoActas + 1):D6}";
+
+        var acta = new ActaEntregaRecepcionDto
+        {
+            NumeroActa = numeroActa,
+            FechaEmision = DateTime.UtcNow,
+            TipoOperacion = "asignacion_custodio",
+            Institucion = "Universidad Odontológica Dominicana (UOD)",
+            DepartamentoEmisor = "Departamento de Tecnología de la Información (TI)",
+            ActivoId = activo.Id,
+            PlacaInstitucional = activo.PlacaInstitucional ?? "S/P",
+            NumeroSerie = activo.NumeroSerie,
+            RecursoNombre = activo.Recurso.Nombre,
+            RecursoSku = activo.Recurso.Sku,
+            CategoriaNombre = activo.Recurso.Categoria?.Nombre ?? "Tecnología",
+            UbicacionAnterior = activo.Ubicacion.Nombre,
+            UbicacionNueva = activo.Ubicacion.Nombre,
+            CustodioAnterior = custodioAnterior,
+            CustodioNuevo = nuevoCustodio.NombreCompleto,
+            CustodioNuevoCorreo = nuevoCustodio.Correo,
+            CustodioNuevoDepartamento = nuevoCustodio.Departamento,
+            Motivo = dto.Observaciones,
+            Observaciones = dto.FechaDevolucionPrevista.HasValue ? $"Préstamo temporal con devolución prevista para el {dto.FechaDevolucionPrevista.Value:yyyy-MM-dd}" : null,
+            ClausulasResponsabilidad = new List<string>
+            {
+                "1. El custodio receptor asume la custodia del bien institucional para uso docente, administrativo o de soporte técnico asignado.",
+                "2. En caso de desperfecto o anomalía, debe notificarse formalmente al equipo de TI sin intentar intervenciones no autorizadas.",
+                "3. Este equipo no puede ser transferido a terceras personas sin previa emisión de una nueva acta formal en SIIA."
+            },
+            FirmaEmisorNombre = _currentUserService.Email ?? "Administrador de TI",
+            FirmaEmisorCargo = "Encargado de Inventario y Activos Fijos UOD",
+            FirmaReceptorNombre = nuevoCustodio.NombreCompleto,
+            FirmaReceptorCargo = nuevoCustodio.Departamento ?? "Custodio Asignado"
+        };
+
+        var activoDto = MapearActivoDto(activo, activo.Ubicacion);
+
+        return new ResultadoTrasladoActivoDto
+        {
+            Exitoso = true,
+            Mensaje = $"Custodio '{nuevoCustodio.NombreCompleto}' asignado correctamente. Acta {numeroActa} emitida.",
+            Activo = activoDto,
+            Acta = acta
+        };
+    }
+
+    public async Task<ActaEntregaRecepcionDto> GenerarActaEntregaAsync(Guid id, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Asignaciones)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        var anio = DateTime.UtcNow.Year;
+        var conteoActas = await _context.AsignacionesPrestamos.CountAsync(ct);
+        var numeroActa = $"ACTA-{anio}-{(conteoActas + 1):D6}";
+
+        var ultimaAsignacion = activo.Asignaciones
+            .OrderByDescending(a => a.FechaInicio)
+            .FirstOrDefault();
+
+        return new ActaEntregaRecepcionDto
+        {
+            NumeroActa = numeroActa,
+            FechaEmision = DateTime.UtcNow,
+            TipoOperacion = "constancia_entrega",
+            Institucion = "Universidad Odontológica Dominicana (UOD)",
+            DepartamentoEmisor = "Departamento de Tecnología de la Información (TI)",
+            ActivoId = activo.Id,
+            PlacaInstitucional = activo.PlacaInstitucional ?? "S/P",
+            NumeroSerie = activo.NumeroSerie,
+            RecursoNombre = activo.Recurso.Nombre,
+            RecursoSku = activo.Recurso.Sku,
+            CategoriaNombre = activo.Recurso.Categoria?.Nombre ?? "Tecnología",
+            UbicacionAnterior = null,
+            UbicacionNueva = activo.Ubicacion.Nombre,
+            CustodioAnterior = null,
+            CustodioNuevo = activo.Responsable?.NombreCompleto ?? "Sin custodio asignado",
+            CustodioNuevoCorreo = activo.Responsable?.Correo,
+            CustodioNuevoDepartamento = activo.Responsable?.Departamento,
+            Motivo = ultimaAsignacion?.Observaciones ?? "Asignación institucional activa de activo fijo",
+            Observaciones = activo.Notas,
+            ClausulasResponsabilidad = new List<string>
+            {
+                "1. El receptor asume la custodia física y el uso adecuado del equipo para fines estrictamente institucionales y académicos de la UOD.",
+                "2. Cualquier daño, extravío o mal funcionamiento técnico debe ser reportado de inmediato al Departamento de Tecnología de la Información (TI).",
+                "3. Queda prohibida la transferencia, cesión o reubicación del bien sin autorización y registro formal previo en el sistema SIIA."
+            },
+            FirmaEmisorNombre = _currentUserService.Email ?? "Administrador de TI",
+            FirmaEmisorCargo = "Encargado de Inventario y Activos Fijos UOD",
+            FirmaReceptorNombre = activo.Responsable?.NombreCompleto ?? "Custodio Responsable",
+            FirmaReceptorCargo = activo.Responsable?.Departamento ?? "Personal Institucional UOD"
+        };
+    }
+
+    private static ActivoSerieDto MapearActivoDto(ActivoSerie activo, Ubicacion ubicacion)
+    {
+        return new ActivoSerieDto
+        {
+            Id = activo.Id,
+            RecursoId = activo.RecursoId,
+            RecursoSku = activo.Recurso.Sku,
+            RecursoNombre = activo.Recurso.Nombre,
+            CategoriaId = activo.Recurso.CategoriaId,
+            CategoriaNombre = activo.Recurso.Categoria.Nombre,
+            NumeroSerie = activo.NumeroSerie,
+            PlacaInstitucional = activo.PlacaInstitucional,
+            Estado = activo.Estado,
+            UbicacionId = activo.UbicacionId,
+            UbicacionNombre = ubicacion.Nombre,
+            ResponsableId = activo.ResponsableId,
+            ResponsableNombre = activo.Responsable?.NombreCompleto,
+            ResponsableCorreo = activo.Responsable?.Correo,
+            ProveedorId = activo.ProveedorId,
+            ProveedorNombre = activo.Proveedor?.NombreComercial,
+            FechaAdquisicion = activo.FechaAdquisicion,
+            GarantiaVence = activo.GarantiaVence,
+            CostoEstimado = activo.Recurso.CostoEstimado,
+            Notas = activo.Notas,
+            CreadoEn = activo.CreadoEn,
+            ActualizadoEn = activo.ActualizadoEn
         };
     }
 }

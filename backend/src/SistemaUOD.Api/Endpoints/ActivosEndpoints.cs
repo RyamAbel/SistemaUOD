@@ -179,6 +179,90 @@ public static class ActivosEndpoints
         .WithName("DarDeBajaActivo")
         .WithSummary("Da de baja definitiva o temporal a un activo físico");
 
+        // 8. Trasladar activo a otra ubicación física (ExigirGestionInventario)
+        group.MapPost("/{id:guid}/trasladar", async (
+            Guid id,
+            [FromBody] TrasladarActivoDto dto,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await activoService.TrasladarActivoAsync(id, dto, ct);
+                return Results.Ok(resultado);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Error de validación de traslado",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("TrasladarActivo")
+        .WithSummary("Traslada un activo físico a otra ubicación institucional con emisión de acta formal");
+
+        // 9. Asignar nuevo custodio institucional al activo (ExigirGestionInventario)
+        group.MapPost("/{id:guid}/asignar-custodio", async (
+            Guid id,
+            [FromBody] AsignarCustodioDto dto,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await activoService.AsignarCustodioAsync(id, dto, ct);
+                return Results.Ok(resultado);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Error de validación de asignación",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("AsignarCustodioActivo")
+        .WithSummary("Asigna formalmente un custodio o responsable a un bien institucional");
+
+        // 10. Generar acta oficial de entrega / recepción
+        group.MapGet("/{id:guid}/acta-entrega", async (
+            Guid id,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var acta = await activoService.GenerarActaEntregaAsync(id, ct);
+                return Results.Ok(acta);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+        })
+        .WithName("GenerarActaEntregaActivo")
+        .WithSummary("Genera y obtiene el formato oficial del acta de entrega/recepción de un activo");
+
         return app;
     }
 }

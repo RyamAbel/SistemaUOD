@@ -618,6 +618,55 @@ export interface ActivoFiltrosDto {
   isDescending?: boolean;
 }
 
+export interface TrasladarActivoDto {
+  nuevaUbicacionId: string;
+  nuevoCustodioId?: string | null;
+  tipoAsignacion?: string | null;
+  motivo: string;
+  observaciones?: string | null;
+}
+
+export interface AsignarCustodioDto {
+  custodioId: string;
+  tipo?: string;
+  fechaDevolucionPrevista?: string | null;
+  observaciones: string;
+}
+
+export interface ActaEntregaRecepcionDto {
+  numeroActa: string;
+  fechaEmision: string;
+  tipoOperacion: string;
+  institucion: string;
+  departamentoEmisor: string;
+  activoId: string;
+  placaInstitucional: string;
+  numeroSerie: string;
+  recursoNombre: string;
+  recursoSku: string;
+  categoriaNombre: string;
+  ubicacionAnterior?: string | null;
+  ubicacionNueva: string;
+  custodioAnterior?: string | null;
+  custodioNuevo: string;
+  custodioNuevoCorreo?: string | null;
+  custodioNuevoDepartamento?: string | null;
+  motivo: string;
+  observaciones?: string | null;
+  clausulasResponsabilidad: string[];
+  firmaEmisorNombre: string;
+  firmaEmisorCargo: string;
+  firmaReceptorNombre: string;
+  firmaReceptorCargo: string;
+}
+
+export interface ResultadoTrasladoActivoDto {
+  exitoso: boolean;
+  mensaje: string;
+  activo: ActivoSerieDto;
+  acta: ActaEntregaRecepcionDto;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -1122,6 +1171,24 @@ export const apiClient = {
     return request<ActivoSerieDto>(`activos/${id}${qs}`, {
       method: 'DELETE'
     });
+  },
+
+  trasladarActivo: async (id: string, dto: TrasladarActivoDto): Promise<ResultadoTrasladoActivoDto> => {
+    return request<ResultadoTrasladoActivoDto>(`activos/${id}/trasladar`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  asignarCustodioActivo: async (id: string, dto: AsignarCustodioDto): Promise<ResultadoTrasladoActivoDto> => {
+    return request<ResultadoTrasladoActivoDto>(`activos/${id}/asignar-custodio`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  obtenerActaEntrega: async (id: string): Promise<ActaEntregaRecepcionDto> => {
+    return request<ActaEntregaRecepcionDto>(`activos/${id}/acta-entrega`);
   }
 };
 
