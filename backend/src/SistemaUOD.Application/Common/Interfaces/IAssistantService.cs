@@ -5,4 +5,5 @@ namespace SistemaUOD.Application.Common.Interfaces;
 public interface IAssistantService
 {
     Task<ChatResponseDto> ProcesarMensajeAsync(ChatRequestDto request, CancellationToken ct = default);
+    Task<ConsumoAsistenteDto> ObtenerResumenConsumoAsync(CancellationToken ct = default);
 }

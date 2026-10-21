@@ -57,3 +57,17 @@ public class ChatResponseDto
     public bool IsLiveGemini { get; set; } = true;
     public decimal CostoEstimadoDop { get; set; } = 0.00m;
 }
+
+public class ConsumoAsistenteDto
+{
+    public int TotalConsultasHoy { get; set; }
+    public int TotalConsultasMes { get; set; }
+    public Dictionary<string, int> ConsultasPorModo { get; set; } = new();
+    public Dictionary<string, int> HerramientasMasUsadas { get; set; } = new();
+    public decimal CostoTotalEstimadoDop { get; set; }
+    public decimal PresupuestoMensualDop { get; set; } = 500.00m;
+    public decimal PorcentajePresupuestoConsumido { get; set; }
+    public bool AlertaPresupuestoSuperado { get; set; } = false;
+    public int LimiteDiarioPorUsuario { get; set; } = 150;
+    public string AvisoPoliticaPrivacidad { get; set; } = "Las conversaciones se procesan de forma transitoria para soporte institucional y se depuran a los 30 días según la política de privacidad UOD y la Ley 172-13.";
+}

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SistemaUOD.Application.Common.Interfaces;
+using SistemaUOD.Application.Common.Security;
 using SistemaUOD.Application.DTOs;
 
 namespace SistemaUOD.Api.Endpoints;
@@ -60,6 +61,20 @@ public static class AssistantEndpoints
         })
         .WithName("ObtenerInfoAsistente")
         .WithSummary("Obtiene metadatos y capacidades del asistente de IA de SIIA");
+
+        group.MapGet("/consumo", async (
+            IAssistantService assistantService,
+            CancellationToken ct) =>
+        {
+            var consumo = await assistantService.ObtenerResumenConsumoAsync(ct);
+            return Results.Ok(consumo);
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("ObtenerConsumoAsistente")
+        .WithSummary("Obtiene métricas de consumo de IA, costo estimado en DOP y presupuesto de tokens (Prompt 9.7)")
+        .Produces<ConsumoAsistenteDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         return app;
     }

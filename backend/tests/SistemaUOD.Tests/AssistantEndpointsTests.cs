@@ -154,4 +154,31 @@ public class AssistantEndpointsTests : IClassFixture<CustomWebApplicationFactory
         Assert.Contains("operativo", json);
         Assert.Contains("tutor", json);
     }
+
+    [Fact]
+    public async Task ObtenerConsumoAsistente_RolConsulta_Retorna403Forbidden()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Get, "/api/v1/assistant/consumo", role: "consulta");
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ObtenerConsumoAsistente_RolAdminInventario_Retorna200Ok_ConMetricasYPresupuesto()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Get, "/api/v1/assistant/consumo", role: "admin_inventario");
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var consumo = await response.Content.ReadFromJsonAsync<ConsumoAsistenteDto>();
+        Assert.NotNull(consumo);
+        Assert.True(consumo.TotalConsultasHoy >= 0);
+        Assert.True(consumo.TotalConsultasMes >= 0);
+        Assert.True(consumo.PresupuestoMensualDop > 0);
+        Assert.NotEmpty(consumo.AvisoPoliticaPrivacidad);
+    }
 }

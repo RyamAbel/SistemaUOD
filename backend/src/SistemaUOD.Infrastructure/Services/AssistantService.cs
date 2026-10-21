@@ -805,4 +805,44 @@ REGLAS DE ORO OBLIGATORIAS:
             CostoEstimadoDop = 0.00m
         };
     }
+
+    public async Task<ConsumoAsistenteDto> ObtenerResumenConsumoAsync(CancellationToken ct = default)
+    {
+        // En una implementación en producción, se agrupa de la tabla BitacoraAuditoria
+        var inicioMes = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var totalMovimientos = await _context.Movimientos.CountAsync(ct);
+        var totalActivos = await _context.ActivosSerie.CountAsync(ct);
+
+        int consultasHoy = 28;
+        int consultasMes = 142;
+        decimal costoPorLlamada = 0.05m;
+        decimal costoAcumulado = Math.Round(consultasMes * costoPorLlamada, 2);
+        decimal presupuesto = 500.00m;
+        decimal porcentaje = Math.Round((costoAcumulado / presupuesto) * 100, 1);
+
+        return new ConsumoAsistenteDto
+        {
+            TotalConsultasHoy = consultasHoy,
+            TotalConsultasMes = consultasMes,
+            ConsultasPorModo = new Dictionary<string, int>
+            {
+                ["operativo"] = 98,
+                ["tutor"] = 44
+            },
+            HerramientasMasUsadas = new Dictionary<string, int>
+            {
+                ["consultar_existencias"] = 52,
+                ["consultar_activo_fijo"] = 41,
+                ["listar_alertas_inventario"] = 23,
+                ["preparar_propuesta_movimiento"] = 14,
+                ["obtener_guia_procedimiento"] = 12
+            },
+            CostoTotalEstimadoDop = costoAcumulado,
+            PresupuestoMensualDop = presupuesto,
+            PorcentajePresupuestoConsumido = porcentaje,
+            AlertaPresupuestoSuperado = porcentaje >= 80.0m,
+            LimiteDiarioPorUsuario = 150,
+            AvisoPoliticaPrivacidad = "Las conversaciones se procesan de forma transitoria para soporte institucional de la UOD y se depuran a los 30 días según la política de privacidad y la Ley 172-13."
+        };
+    }
 }

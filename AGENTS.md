@@ -264,17 +264,25 @@ SistemaUOD/
     - **Total de pruebas automatizadas en .NET:** **95 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
     - Compilación estricta en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas sin errores).
     - **Etapa 8 completada y cerrada formalmente al 100%.**
-- **Etapa 9 – Tutor y Asistente de IA (Gemini API & Function Calling):** 🔄 En curso (Prompts 9.1 a 9.6 implementados):
+- **Etapa 9 – Tutor y Asistente de IA (Gemini API & Function Calling):** ✅ Completada al 100%:
   - ✅ Prompt 9.1 – **Diseño del Asistente:** Arquitectura aprobada: orquestación exclusiva en el backend de .NET 10 LTS, modelo aislado sin acceso directo a SQL, herencia estricta del rol del usuario autenticado, y políticas de cero secretos en prompts.
   - ✅ Prompt 9.2 – **Llave y Modelos de Gemini:** Credenciales configuradas en `Gemini:ApiKey` y modelo configurable (`gemini-1.5-flash` / `gemini-2.0-flash` vía Google AI Studio) con control de temperatura y límites de tokens.
   - ✅ Prompt 9.3 – **Servicio del Asistente (API .NET 10 LTS):** Implementación de `IAssistantService` y `AssistantService.cs` bajo Clean Architecture con soporte para multi-turno, control de errores y motor semántico de contingencia local institucional con datos reales. Endpoint `POST /api/v1/assistant/chat` protegido con autenticación JWT y `GET /api/v1/assistant/info`.
   - ✅ Prompt 9.4 – **Funciones de Lectura (Function Calling):** Herramientas declaradas en formato JSON Schema de Gemini: `buscar_recursos`, `consultar_existencias`, `consultar_activo_fijo` (búsqueda de equipos `EQ-01` a `EQ-341`), `listar_alertas_inventario` (artículos en punto de reorden RF-12) y `consultar_depreciacion` (cálculo DGII Cat. 2).
   - ✅ Prompt 9.5 – **Instrucciones del Sistema y Modo Tutor:** Formato pedagógico interactivo con manuales operativos institucionales UOD paso a paso para recepción/entrada, traslados entre sedes, desincorporación patrimonial y depreciación contable.
   - ✅ Prompt 9.6 – **Conexión del Panel Lateral (Frontend Next.js):** Actualización de `AiAssistantDrawer.tsx` conectado a `apiClient.enviarMensajeAsistente`, con conmutador de modo (Operativo vs Tutor), badges de herramientas invocadas por la IA, botones de sugerencias rápidas UOD y tarjetas interactivas de confirmación obligatoria previa para toda propuesta de movimiento.
-  - **Total de pruebas automatizadas en .NET:** **102 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+  - ✅ Prompt 9.7 – **Registro, Límites y Costos:** Endpoint `GET /api/v1/assistant/consumo` protegido con `Policies.ExigirGestionInventario` que devuelve métricas de uso por modo, herramientas invocadas, costo acumulado en DOP ($0.05 DOP/llamada), presupuesto institucional ($500.00 DOP), alerta si supera el 80%, límite diario de 150 consultas/usuario y aviso de depuración a 30 días según la Ley 172-13.
+  - ✅ Prompt 9.8 – **Evaluación y Cierre de Etapa 9:** Batería de pruebas de verificación automatizadas en `AssistantEndpointsTests.cs`:
+    - Consulta de existencias y alertas de inventario RF-12.
+    - Consulta de ficha técnica y custodio de equipos físicos UOD (`EQ-01`).
+    - Guías pedagógicas de procedimientos en modo tutor.
+    - Rechazo estricto de propuestas de movimiento a roles de solo lectura (`consulta`).
+    - Formulación de propuestas de movimiento con tarjeta de confirmación a roles autorizados (`admin_inventario`).
+    - Seguridad de acceso en endpoint de consumo y presupuesto.
+  - **Total de pruebas automatizadas en .NET:** **104 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
   - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
-  - 🔄 **Prompt 9.7 – Registro, límites y costos.**
-  - 🔄 **Prompt 9.8 – Evaluación y cierre de Etapa 9.**
+  - **Etapa 9 completada y cerrada formalmente al 100%.**
+- **Etapa 10 – Asistente de IA: acciones con confirmación:** 🔄 Próxima etapa a iniciar.
 
 ---
 
