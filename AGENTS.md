@@ -206,8 +206,25 @@ SistemaUOD/
     - *Línea de tiempo del recurso:* Pestaña interactiva "Línea de Tiempo" en la ficha técnica (`ResourceDetailModal.tsx`) que despliega la trazabilidad cronológica vertical de transferencias, entradas y consumos que involucran al recurso, con correlativo institucional, tipo, deltas de cantidad ($\pm$), responsable y motivo.
     - Batería de 64 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
-- **Próximo paso:**
-  - **Prompt 7.6 – Pruebas y cierre formal de la Etapa 7:** Prueba de extremo a extremo de todo el ciclo de existencias y movimientos, verificación de consistencia transaccional y actualización formal de la memoria del proyecto.
+  - ✅ Prompt 7.6: **Pruebas y cierre formal de la Etapa 7**:
+    - Batería de pruebas de integración de extremo a extremo (E2E) `CicloCompletoMovimientosExistenciasTests.cs` validando el ciclo vital del inventario:
+      - Estado inicial de existencias y clasificación RF-12 (`agotado`).
+      - Recepción / Entrada de existencias con transición dinámica a estado `normal`.
+      - Traslado atómico entre ubicaciones institucionales con balance exacto y conservación de masa.
+      - Salida / Despacho de existencias y disparo preventivo del punto de reorden (`reorden`).
+      - Validación atómica estricta anti-saldo negativo (rechazo `400 BadRequest` sin mutación fantasma).
+      - Idempotencia transaccional con `X-Idempotency-Key` previniendo duplicados ante reintentos de red.
+    - **Total de pruebas automatizadas en .NET:** **65 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta sin advertencias en Next.js Turbopack (`npm run build` con 6/6 rutas estáticas/dinámicas generadas).
+    - Verificación visual en vivo en el navegador de la bitácora transaccional y exportación.
+    - **Etapa 7 completada y cerrada formalmente al 100%.**
+- **Etapa 8 – Activos fijos, custodios y depreciación (RF-16 a RF-20):** 🔄 Próxima a iniciar:
+  - **Prompt 8.1 – Modelo y API de Activos Fijos y Series:** Gestión detallada de los 341 activos TI institucionalmente registrados (`EQ-01` a `EQ-341`), asignación de custodio institucional (perfil o empleado), estados de operatividad (`operativo`, `en_mantenimiento`, `baja`, `prestamo`), números de serie y placa física.
+  - **Prompt 8.2 – Traslados de activos y cambio de custodio:** Generación de acta de entrega/recepción institucional, firma digital o confirmación de custodio y registro en bitácora.
+  - **Prompt 8.3 – Depreciación y cálculo de valor en libros (RF-19):** Métodos de línea recta según DGII / NIIF, vida útil remanente y reportes de amortización contable.
+  - **Prompt 8.4 – Mantenimientos e historial técnico:** Bitácora de servicios técnicos, preventivos y correctivos por equipo.
+  - **Prompt 8.5 – Pantallas de Activos Fijos:** Vistas interactivas de activos con buscador por placa/serie, filtros por custodio/ubicación y emisión de actas de descargo en PDF.
+  - **Prompt 8.6 – Pruebas y cierre de Etapa 8.**
 
 
 
