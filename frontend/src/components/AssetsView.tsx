@@ -18,12 +18,14 @@ import {
   Table as TableIcon,
   Cpu,
   ArrowRightLeft,
-  FileText
+  FileText,
+  Calculator
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
 import { apiClient, ActaEntregaRecepcionDto } from '@/lib/apiClient';
 import { TransferAssetModal } from './TransferAssetModal';
 import { ActaEntregaModal } from './ActaEntregaModal';
+import { DepreciationModal } from './DepreciationModal';
 
 export const AssetsView: React.FC = () => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
@@ -35,6 +37,8 @@ export const AssetsView: React.FC = () => {
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
   const [activoParaTrasladar, setActivoParaTrasladar] = useState<ActivoTI | null>(null);
   const [actaVisualizada, setActaVisualizada] = useState<ActaEntregaRecepcionDto | null>(null);
+  const [activoParaDepreciacion, setActivoParaDepreciacion] = useState<ActivoTI | null>(null);
+  const [exportandoCsv, setExportandoCsv] = useState(false);
 
   useEffect(() => {
     let montado = true;
@@ -188,6 +192,17 @@ export const AssetsView: React.FC = () => {
     }
   };
 
+  const handleExportarDepreciacionCsv = async () => {
+    try {
+      setExportandoCsv(true);
+      await apiClient.exportarDepreciacionCsv();
+    } catch (err: any) {
+      alert(err?.message || 'Error al exportar reporte contable de depreciación');
+    } finally {
+      setExportandoCsv(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Encabezado y Métricas Rápidas */}
@@ -202,30 +217,42 @@ export const AssetsView: React.FC = () => {
           </p>
         </div>
 
-        {/* Alternador de vista */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start">
+        {/* Acciones del encabezado: Exportación Contable DGII y Alternador de vista */}
+        <div className="flex items-center gap-3 self-start">
           <button
-            onClick={() => setViewMode('tabla')}
-            className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              viewMode === 'tabla'
-                ? 'bg-white text-[#1C3177] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={handleExportarDepreciacionCsv}
+            disabled={exportandoCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+            title="Descargar libro contable de depreciación fiscal DGII (Categoría 2 - 25% anual)"
           >
-            <TableIcon className="h-4 w-4" />
-            Tabla
+            <Download className="h-3.5 w-3.5 text-emerald-600" />
+            {exportandoCsv ? 'Generando CSV...' : 'Reporte Fiscal DGII (CSV)'}
           </button>
-          <button
-            onClick={() => setViewMode('tarjetas')}
-            className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              viewMode === 'tarjetas'
-                ? 'bg-white text-[#1C3177] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Tarjetas
-          </button>
+
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode('tabla')}
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                viewMode === 'tabla'
+                  ? 'bg-white text-[#1C3177] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TableIcon className="h-4 w-4" />
+              Tabla
+            </button>
+            <button
+              onClick={() => setViewMode('tarjetas')}
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                viewMode === 'tarjetas'
+                  ? 'bg-white text-[#1C3177] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Tarjetas
+            </button>
+          </div>
         </div>
       </div>
 
@@ -405,6 +432,16 @@ export const AssetsView: React.FC = () => {
                           <button
                             onClick={e => {
                               e.stopPropagation();
+                              setActivoParaDepreciacion(activo);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                            title="Calcular Depreciación y Valor en Libros (DGII)"
+                          >
+                            <Calculator className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
                               setSelectedActivo(activo);
                             }}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors cursor-pointer"
@@ -436,7 +473,19 @@ export const AssetsView: React.FC = () => {
                 <span className="font-mono font-bold text-xs text-[#1C3177] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
                   {activo.placa_institucional}
                 </span>
-                {getBadgeEstado(activo.estado)}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActivoParaDepreciacion(activo);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                    title="Calcular depreciación DGII"
+                  >
+                    <Calculator className="h-3.5 w-3.5" />
+                  </button>
+                  {getBadgeEstado(activo.estado)}
+                </div>
               </div>
 
               <div>
@@ -515,8 +564,8 @@ export const AssetsView: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2">
+            <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => {
                     const act = selectedActivo;
@@ -537,6 +586,17 @@ export const AssetsView: React.FC = () => {
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Ver Acta Oficial
+                </button>
+                <button
+                  onClick={() => {
+                    const act = selectedActivo;
+                    setSelectedActivo(null);
+                    setActivoParaDepreciacion(act);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
+                >
+                  <Calculator className="h-3.5 w-3.5" />
+                  Depreciación DGII
                 </button>
               </div>
 
@@ -566,6 +626,16 @@ export const AssetsView: React.FC = () => {
         <ActaEntregaModal
           acta={actaVisualizada}
           onClose={() => setActaVisualizada(null)}
+        />
+      )}
+
+      {/* Modal de Depreciación y Valor en Libros DGII Cat. 2 */}
+      {activoParaDepreciacion && (
+        <DepreciationModal
+          isOpen={!!activoParaDepreciacion}
+          onClose={() => setActivoParaDepreciacion(null)}
+          activoId={activoParaDepreciacion.id}
+          placaInstitucional={activoParaDepreciacion.placa_institucional}
         />
       )}
     </div>

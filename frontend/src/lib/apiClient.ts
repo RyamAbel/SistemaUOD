@@ -667,6 +667,92 @@ export interface ResultadoTrasladoActivoDto {
   acta: ActaEntregaRecepcionDto;
 }
 
+// ==========================================
+// Depreciación y Valor en Libros (Prompt 8.3 - DGII Cat. 2)
+// ==========================================
+export interface CalculoDepreciacionActivoDto {
+  activoId: string;
+  placaInstitucional: string;
+  numeroSerie: string;
+  recursoNombre: string;
+  recursoSku: string;
+  categoriaNombre: string;
+  ubicacionNombre: string;
+  custodioNombre?: string | null;
+  categoriaDgii: string;
+  tasaAnualPorcentaje: number;
+  vidaUtilMesesTotal: number;
+  costoAdquisicion: number;
+  valorResidual: number;
+  baseDepreciable: number;
+  depreciacionMensual: number;
+  depreciacionAcumulada: number;
+  valorEnLibros: number;
+  porcentajeDepreciado: number;
+  fechaInicioDepreciacion: string;
+  fechaCorteCalculo: string;
+  mesesTranscurridos: number;
+  mesesVidaUtilRestante: number;
+  estadoContable: string;
+  totalmenteDepreciado: boolean;
+}
+
+export interface PeriodoAmortizacionDto {
+  periodoNumero: number;
+  anio: number;
+  mes: number;
+  periodoTexto: string;
+  depreciacionPeriodo: number;
+  depreciacionAcumulada: number;
+  valorEnLibrosFinPeriodo: number;
+  porcentajeAmortizado: number;
+}
+
+export interface TablaAmortizacionActivoDto {
+  activoId: string;
+  placaInstitucional: string;
+  recursoNombre: string;
+  costoAdquisicion: number;
+  valorResidual: number;
+  valorEnLibrosActual: number;
+  tasaAnualPorcentaje: number;
+  totalPeriodosMeses: number;
+  periodos: PeriodoAmortizacionDto[];
+}
+
+export interface ResumenCategoriaDepreciacionDto {
+  categoriaNombre: string;
+  cantidadEquipos: number;
+  valorHistoricoDop: number;
+  depreciacionAcumuladaDop: number;
+  valorEnLibrosDop: number;
+}
+
+export interface ResumenDepreciacionContableDto {
+  fechaCorte: string;
+  totalActivosComputados: number;
+  activosEnProcesoDepreciacion: number;
+  activosTotalmenteDepreciados: number;
+  valorTotalHistoricoDop: number;
+  depreciacionTotalAcumuladaDop: number;
+  valorNetoEnLibrosTotalDop: number;
+  porcentajeDepreciacionGlobal: number;
+  desgloseCategorias: ResumenCategoriaDepreciacionDto[];
+}
+
+export interface FiltroDepreciacionDto {
+  pageIndex?: number;
+  pageSize?: number;
+  search?: string;
+  fechaCorte?: string;
+  categoriaId?: string;
+  ubicacionId?: string;
+  soloConValorEnLibros?: boolean;
+  soloTotalmenteDepreciados?: boolean;
+  sortBy?: string;
+  isDescending?: boolean;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -1189,6 +1275,73 @@ export const apiClient = {
 
   obtenerActaEntrega: async (id: string): Promise<ActaEntregaRecepcionDto> => {
     return request<ActaEntregaRecepcionDto>(`activos/${id}/acta-entrega`);
+  },
+
+  // ==========================================
+  // Depreciación Contable y Valor en Libros (DGII Cat. 2 - Prompt 8.3)
+  // ==========================================
+  obtenerResumenDepreciacion: async (fechaCorte?: string): Promise<ResumenDepreciacionContableDto> => {
+    const qs = fechaCorte ? `?fechaCorte=${encodeURIComponent(fechaCorte)}` : '';
+    return request<ResumenDepreciacionContableDto>(`depreciacion/resumen${qs}`);
+  },
+
+  listarReporteDepreciacion: async (filtros: Partial<FiltroDepreciacionDto> = {}): Promise<PagedResult<CalculoDepreciacionActivoDto>> => {
+    const query = new URLSearchParams();
+    if (filtros.pageIndex) query.append('pageIndex', String(filtros.pageIndex));
+    if (filtros.pageSize) query.append('pageSize', String(filtros.pageSize));
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.fechaCorte) query.append('fechaCorte', filtros.fechaCorte);
+    if (filtros.categoriaId) query.append('categoriaId', filtros.categoriaId);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.soloConValorEnLibros !== undefined) query.append('soloConValorEnLibros', String(filtros.soloConValorEnLibros));
+    if (filtros.soloTotalmenteDepreciados !== undefined) query.append('soloTotalmenteDepreciados', String(filtros.soloTotalmenteDepreciados));
+    if (filtros.sortBy) query.append('sortBy', filtros.sortBy);
+    if (filtros.isDescending !== undefined) query.append('isDescending', String(filtros.isDescending));
+
+    const qs = query.toString();
+    return request<PagedResult<CalculoDepreciacionActivoDto>>(`depreciacion/reporte${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerDepreciacionActivo: async (id: string, fechaCorte?: string): Promise<CalculoDepreciacionActivoDto> => {
+    const qs = fechaCorte ? `?fechaCorte=${encodeURIComponent(fechaCorte)}` : '';
+    return request<CalculoDepreciacionActivoDto>(`depreciacion/activo/${id}${qs}`);
+  },
+
+  obtenerTablaAmortizacionActivo: async (id: string): Promise<TablaAmortizacionActivoDto> => {
+    return request<TablaAmortizacionActivoDto>(`depreciacion/activo/${id}/tabla`);
+  },
+
+  exportarDepreciacionCsv: async (filtros: Partial<FiltroDepreciacionDto> = {}): Promise<void> => {
+    const query = new URLSearchParams();
+    if (filtros.fechaCorte) query.append('fechaCorte', filtros.fechaCorte);
+    if (filtros.categoriaId) query.append('categoriaId', filtros.categoriaId);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.soloConValorEnLibros !== undefined) query.append('soloConValorEnLibros', String(filtros.soloConValorEnLibros));
+    if (filtros.soloTotalmenteDepreciados !== undefined) query.append('soloTotalmenteDepreciados', String(filtros.soloTotalmenteDepreciados));
+
+    const qs = query.toString();
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
+    const url = `${API_BASE_URL.replace(/\/+$/, '')}/depreciacion/exportar${qs ? `?${qs}` : ''}`;
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Error al exportar reporte de depreciación: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `depreciacion_activos_uod_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
   }
 };
 

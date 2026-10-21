@@ -171,6 +171,7 @@ app.MapUbicacionesEndpoints();
 app.MapExistenciasEndpoints();
 app.MapMovimientosEndpoints();
 app.MapActivosEndpoints();
+app.MapDepreciacionEndpoints();
 
 app.MapGet("/api/v1/health", () => Results.Ok(new
 {

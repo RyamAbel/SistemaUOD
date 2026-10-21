@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IExistenciaService, ExistenciaService>();
         services.AddScoped<IMovimientoService, MovimientoService>();
         services.AddScoped<IActivoService, ActivoService>();
+        services.AddScoped<IDepreciacionService, DepreciacionService>();
 
         return services;
     }

@@ -234,8 +234,15 @@ SistemaUOD/
     - Componente `TransferAssetModal.tsx` integrado en `AssetsView.tsx` para realizar traslados in-situ entre las 49 sedes y clínicas odontológicas UOD, disparando automáticamente el acta oficial.
     - **Total de pruebas automatizadas en .NET:** **78 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
-  - 🔄 **Prompt 8.3 – Depreciación y cálculo de valor en libros (RF-19):** Métodos de línea recta según DGII / NIIF, vida útil remanente y reportes de amortización contable.
-  - **Prompt 8.4 – Mantenimientos e historial técnico:** Bitácora de servicios técnicos, preventivos y correctivos por equipo.
+  - ✅ Prompt 8.3 – **Depreciación y cálculo de valor en libros (RF-19):**
+    - Endpoints RESTful contables (`DepreciacionEndpoints.cs`) bajo Minimal APIs: `GET /api/v1/depreciacion/resumen` (totales consolidados, porcentaje amortizado y desglose por categorías tecnológicas), `GET /api/v1/depreciacion/reporte` (listado paginado multivariable con filtros por fecha de corte, categoría, ubicación y estado de depreciación), `GET /api/v1/depreciacion/activo/{id}` (cálculo individualizado con fecha de corte dinámica), `GET /api/v1/depreciacion/activo/{id}/tabla` (tabla proyectada de los 48 periodos mensuales de amortización) y `GET /api/v1/depreciacion/exportar` (exportación CSV con BOM UTF-8 y delimitadores `;` optimizado para Excel en español).
+    - Servicio `DepreciacionService.cs` implementando la fórmula en línea recta según normativas de la DGII (Ley 11-92 - Categoría 2 para equipos de procesamiento de datos y TI: 25% anual, vida útil de 48 meses y 5% de valor residual estándar).
+    - Métodos e interfaces tipados en `frontend/src/lib/apiClient.ts` (`obtenerResumenDepreciacion`, `listarReporteDepreciacion`, `obtenerDepreciacionActivo`, `obtenerTablaAmortizacionActivo`, `exportarDepreciacionCsv`).
+    - Componente interactivo `DepreciationModal.tsx` con diseño institucional UOD: ficha del activo (placa `EQ-XX`, serie, modelo, ubicación, custodio), selector dinámico de fecha de corte, 4 tarjetas de indicadores financieros (Costo Histórico DOP, Depreciación Acumulada DOP, Valor Neto en Libros DOP, y Vida Útil en Meses), barra de progreso de amortización, tabla expandible de los 48 periodos mensuales, descarga directa de CSV contable del activo e impresión limpia.
+    - Integración en `AssetsView.tsx` con botón de exportación masiva en encabezado ("Reporte Fiscal DGII (CSV)") y botones de acceso directo a la calculadora de depreciación por fila en la tabla, en cada tarjeta de activo y en la ficha de detalle.
+    - **Total de pruebas automatizadas en .NET:** **84 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
+  - 🔄 **Prompt 8.4 – Mantenimientos e historial técnico:** Bitácora de servicios técnicos, preventivos y correctivos por equipo.
   - **Prompt 8.5 – Pantallas de Activos Fijos:** Vistas interactivas de activos con buscador por placa/serie, filtros por custodio/ubicación y emisión de actas de descargo en PDF.
   - **Prompt 8.6 – Pruebas y cierre de Etapa 8.**
 
