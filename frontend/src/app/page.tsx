@@ -16,6 +16,7 @@ import { SuppliersView } from '@/components/SuppliersView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import { CameraScannerModal } from '@/components/CameraScannerModal';
 import { ResourceDetailModal } from '@/components/ResourceDetailModal';
+import { AssetsView } from '@/components/AssetsView';
 import {
   initialArticulos,
   initialMovimientos,
@@ -188,31 +189,7 @@ export default function Home() {
 
           {activeTab === 'mantenimiento' && <MaintenanceView />}
 
-          {activeTab === 'activos' && (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Box className="h-5 w-5 text-[#1C3177]" />
-                Módulo de Activos Odontológicos Individuales
-              </h3>
-              <p className="text-xs text-slate-500">
-                Trazabilidad por número de serie, placa institucional y responsable asignado.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { name: 'Sillón Quirúrgico Dental A1', sn: 'SN-UOD-2026-001', sala: 'Clínica Principal - Sala 1', resp: 'Dra. López' },
-                  { name: 'Autoclave Digital Tuttnauer 2540', sn: 'SN-UOD-2026-002', sala: 'Esterilización Central', resp: 'Lic. Pérez' },
-                  { name: 'Sensor Radiografía Digital RVG 6200', sn: 'SN-UOD-2026-003', sala: 'Radiología Oral', resp: 'Dr. Morales' }
-                ].map((act, i) => (
-                  <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-2">
-                    <span className="text-xs font-bold text-slate-900 block">{act.name}</span>
-                    <span className="text-[11px] text-[#1C3177] font-mono block font-semibold">Serial: {act.sn}</span>
-                    <span className="text-[11px] text-slate-600 block">{act.sala}</span>
-                    <span className="text-[11px] text-[#2D8246] font-bold block">Custodio: {act.resp}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {activeTab === 'activos' && <AssetsView />}
 
           {activeTab === 'compras' && <SuppliersView />}
 
