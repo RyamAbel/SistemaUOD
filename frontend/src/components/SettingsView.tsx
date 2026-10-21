@@ -27,19 +27,21 @@ export const SettingsView: React.FC = () => {
   const [confidence, setConfidence] = useState(70);
 
   const usersList = [
-    { name: 'Dr. Alejandro Peña', email: 'apena@uod.edu.do', role: 'Super Administrador', lastAccess: '18 Oct 2026 14:15', status: 'Activo', active: true },
-    { name: 'Dra. Carmen Morales', email: 'cmorales@uod.edu.do', role: 'Administrador de Clínica', lastAccess: '18 Oct 2026 12:40', status: 'Activo', active: true },
-    { name: 'Lic. Roberto Gómez', email: 'rgomez@uod.edu.do', role: 'Encargado de Almacén', lastAccess: '18 Oct 2026 09:20', status: 'Activo', active: true },
-    { name: 'Lic. Laura Silva', email: 'lsilva@uod.edu.do', role: 'Auditor Externo', lastAccess: '15 Oct 2026 17:30', status: 'Inactivo', active: false },
+    { name: 'Administrador UOD', email: 'admin@uod.edu.do', role: 'Super Administrador', lastAccess: '20 Oct 2026 21:05', status: 'Activo', active: true },
+    { name: 'Ryam Abel', email: 'ryam@uod.edu.do', role: 'Gestor de Inventario', lastAccess: '20 Oct 2026 20:45', status: 'Activo', active: true },
+    { name: 'Andrew', email: 'andrew@uod.edu.do', role: 'Soporte y Redes', lastAccess: '20 Oct 2026 19:10', status: 'Activo', active: true },
+    { name: 'Soporte Técnico UOD', email: 'soporte@uod.edu.do', role: 'Operador de Almacén', lastAccess: '20 Oct 2026 17:30', status: 'Activo', active: true },
+    { name: 'Auditoría Interna UOD', email: 'auditoria@uod.edu.do', role: 'Auditor Institucional', lastAccess: '19 Oct 2026 11:20', status: 'Activo', active: true }
   ];
 
   const rolesList = [
-    { title: 'Super Administrador', perms: 'Acceso total y configuración del sistema', color: 'border-emerald-200 bg-emerald-50/50 text-[#2D8246]' },
-    { title: 'Admin de Clínica', perms: 'Gestión de insumos y aprobaciones', color: 'border-blue-200 bg-blue-50/50 text-[#1C3177]' },
-    { title: 'Encargado de Almacén', perms: 'Movimientos, ingresos y conteo físico', color: 'border-cyan-200 bg-cyan-50/50 text-[#0891B2]' },
-    { title: 'Docente / Odontólogo', perms: 'Solicitud de materiales clínicos', color: 'border-blue-200 bg-blue-50/50 text-[#2B4BA0]' },
-    { title: 'Auditor Institucional', perms: 'Inspección de bitácora Ley 172-13', color: 'border-amber-200 bg-amber-50/50 text-amber-800' },
-    { title: 'Estudiante / Pasante', perms: 'Consulta de disponibilidad sin edición', color: 'border-slate-200 bg-slate-50 text-slate-700' }
+    { title: 'Super Administrador', perms: 'Acceso total y configuración del sistema SIIA', color: 'border-emerald-200 bg-emerald-50/50 text-[#2D8246]' },
+    { title: 'Administrador de Inventario', perms: 'Altas, bajas, duplicación y configuración de catálogo', color: 'border-blue-200 bg-blue-50/50 text-[#1C3177]' },
+    { title: 'Gestor de Inventario', perms: 'Aprobación de movimientos, traslados y ajustes de stock', color: 'border-cyan-200 bg-cyan-50/50 text-[#0891B2]' },
+    { title: 'Encargado de Almacén', perms: 'Recepción de equipos, salidas y control de existencias', color: 'border-blue-200 bg-blue-50/50 text-[#2B4BA0]' },
+    { title: 'Operador de Almacén', perms: 'Conteo físico de activos, escaneo QR y registro de series', color: 'border-indigo-200 bg-indigo-50/50 text-indigo-800' },
+    { title: 'Auditor Institucional', perms: 'Inspección de bitácora inmutable de auditoría (Ley 172-13)', color: 'border-amber-200 bg-amber-50/50 text-amber-800' },
+    { title: 'Consulta', perms: 'Visualización de catálogo y existencias sin permisos de escritura', color: 'border-slate-200 bg-slate-50 text-slate-700' }
   ];
 
   return (

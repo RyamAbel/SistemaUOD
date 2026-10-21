@@ -17,6 +17,7 @@ import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import { CameraScannerModal } from '@/components/CameraScannerModal';
 import { ResourceDetailModal } from '@/components/ResourceDetailModal';
 import { AssetsView } from '@/components/AssetsView';
+import { PhysicalAuditView } from '@/components/PhysicalAuditView';
 import {
   initialArticulos,
   initialMovimientos,
@@ -194,18 +195,7 @@ export default function Home() {
           {activeTab === 'compras' && <SuppliersView />}
 
           {activeTab === 'inventario_fisico' && (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-4 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-[#1C3177]" />
-                Inventario Físico y Escaneo QR
-              </h3>
-              <p className="text-xs text-slate-500">
-                Modo conteo rápido con conciliación automática de discrepancias y lector de códigos.
-              </p>
-              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500 bg-slate-50/50">
-                Escaneo óptico habilitado para dispositivos móviles y lectores de código de barras USB/Bluetooth.
-              </div>
-            </div>
+            <PhysicalAuditView onOpenScanner={() => setScannerOpen(true)} />
           )}
 
           {activeTab === 'reportes' && (
