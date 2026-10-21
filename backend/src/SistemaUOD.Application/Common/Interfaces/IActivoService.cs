@@ -15,4 +15,6 @@ public interface IActivoService
     Task<ResultadoTrasladoActivoDto> TrasladarActivoAsync(Guid id, TrasladarActivoDto dto, CancellationToken ct = default);
     Task<ResultadoTrasladoActivoDto> AsignarCustodioAsync(Guid id, AsignarCustodioDto dto, CancellationToken ct = default);
     Task<ActaEntregaRecepcionDto> GenerarActaEntregaAsync(Guid id, CancellationToken ct = default);
+    Task<ResultadoBajaActivoDto> ProcesarBajaPatrimonialAsync(Guid id, DarDeBajaActivoDto dto, CancellationToken ct = default);
+    Task<ActaDescargoPatrimonialDto> GenerarActaDescargoAsync(Guid id, CancellationToken ct = default);
 }

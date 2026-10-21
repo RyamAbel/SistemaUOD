@@ -667,6 +667,44 @@ export interface ResultadoTrasladoActivoDto {
   acta: ActaEntregaRecepcionDto;
 }
 
+export interface DarDeBajaActivoDto {
+  motivo: string;
+  dictamenTecnico?: string | null;
+  destinoFinalBien?: string;
+  autorizadoPor?: string | null;
+}
+
+export interface ActaDescargoPatrimonialDto {
+  numeroActa: string;
+  fechaBaja: string;
+  institucion: string;
+  departamentoEmisor: string;
+  activoId: string;
+  placaInstitucional: string;
+  numeroSerie: string;
+  recursoNombre: string;
+  recursoSku: string;
+  categoriaNombre: string;
+  ultimaUbicacion: string;
+  ultimoCustodio?: string | null;
+  valorHistoricoDop: number;
+  valorEnLibrosDop: number;
+  motivoBaja: string;
+  dictamenTecnico: string;
+  destinoFinalBien: string;
+  clausulasDescargo: string[];
+  firmaResponsableTi: string;
+  firmaAuditoriaInterna: string;
+  firmaRectoriaAdministracion: string;
+}
+
+export interface ResultadoBajaActivoDto {
+  exitoso: boolean;
+  mensaje: string;
+  activo: ActivoSerieDto;
+  actaDescargo: ActaDescargoPatrimonialDto;
+}
+
 // ==========================================
 // Depreciación y Valor en Libros (Prompt 8.3 - DGII Cat. 2)
 // ==========================================
@@ -1359,6 +1397,17 @@ export const apiClient = {
 
   obtenerActaEntrega: async (id: string): Promise<ActaEntregaRecepcionDto> => {
     return request<ActaEntregaRecepcionDto>(`activos/${id}/acta-entrega`);
+  },
+
+  procesarBajaPatrimonial: async (id: string, dto: DarDeBajaActivoDto): Promise<ResultadoBajaActivoDto> => {
+    return request<ResultadoBajaActivoDto>(`activos/${id}/descargo`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  obtenerActaDescargo: async (id: string): Promise<ActaDescargoPatrimonialDto> => {
+    return request<ActaDescargoPatrimonialDto>(`activos/${id}/acta-descargo`);
   },
 
   // ==========================================

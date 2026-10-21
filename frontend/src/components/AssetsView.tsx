@@ -20,14 +20,17 @@ import {
   ArrowRightLeft,
   FileText,
   Calculator,
-  Wrench
+  Wrench,
+  AlertOctagon
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
-import { apiClient, ActaEntregaRecepcionDto } from '@/lib/apiClient';
+import { apiClient, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto } from '@/lib/apiClient';
 import { TransferAssetModal } from './TransferAssetModal';
 import { ActaEntregaModal } from './ActaEntregaModal';
 import { DepreciationModal } from './DepreciationModal';
 import { MaintenanceModal } from './MaintenanceModal';
+import { DecommissionAssetModal } from './DecommissionAssetModal';
+import { ActaDescargoModal } from './ActaDescargoModal';
 
 export const AssetsView: React.FC = () => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
@@ -41,6 +44,8 @@ export const AssetsView: React.FC = () => {
   const [actaVisualizada, setActaVisualizada] = useState<ActaEntregaRecepcionDto | null>(null);
   const [activoParaDepreciacion, setActivoParaDepreciacion] = useState<ActivoTI | null>(null);
   const [activoParaMantenimiento, setActivoParaMantenimiento] = useState<ActivoTI | null>(null);
+  const [activoParaBaja, setActivoParaBaja] = useState<ActivoTI | null>(null);
+  const [actaDescargoVisualizada, setActaDescargoVisualizada] = useState<ActaDescargoPatrimonialDto | null>(null);
   const [exportandoCsv, setExportandoCsv] = useState(false);
 
   useEffect(() => {
@@ -60,7 +65,7 @@ export const AssetsView: React.FC = () => {
             ubicacion_id: item.ubicacionId,
             ubicacion_nombre: item.ubicacionNombre,
             responsable: item.responsableNombre || 'Por Asignar',
-            estado: (item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado',
+            estado: (item.estado === 'dado_de_baja' ? 'dado_de_baja' : item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado' | 'dado_de_baja',
             notas: item.notas || ''
           }));
           setActivos(mapeados);
@@ -94,7 +99,11 @@ export const AssetsView: React.FC = () => {
         activo.ubicacion_nombre.toLowerCase().includes(search.toLowerCase());
 
       const matchEstado =
-        selectedEstado === 'todos' || activo.estado === selectedEstado;
+        selectedEstado === 'todos' ||
+        (selectedEstado === 'en_uso' && activo.estado === 'en_uso') ||
+        (selectedEstado === 'disponible' && activo.estado === 'disponible') ||
+        (selectedEstado === 'danado' && (activo.estado === 'danado' || activo.estado === 'dado_de_baja')) ||
+        (selectedEstado === 'dado_de_baja' && activo.estado === 'dado_de_baja');
 
       const matchUbicacion =
         selectedUbicacion === 'todas' || activo.ubicacion_nombre === selectedUbicacion;
@@ -109,7 +118,7 @@ export const AssetsView: React.FC = () => {
       total: activos.length,
       enUso: activos.filter(a => a.estado === 'en_uso').length,
       disponibles: activos.filter(a => a.estado === 'disponible').length,
-      danados: activos.filter(a => a.estado === 'danado').length
+      danados: activos.filter(a => a.estado === 'danado' || a.estado === 'dado_de_baja').length
     };
   }, [activos]);
 
@@ -127,6 +136,13 @@ export const AssetsView: React.FC = () => {
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
             <Box className="h-3 w-3" />
             Disponible
+          </span>
+        );
+      case 'dado_de_baja':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+            <AlertOctagon className="h-3 w-3 text-rose-600" />
+            Descargo Patrimonial
           </span>
         );
       default:
@@ -192,6 +208,32 @@ export const AssetsView: React.FC = () => {
     setActivoParaTrasladar(null);
     if (res.acta) {
       setActaVisualizada(res.acta);
+    }
+  };
+
+  const handleBajaExitosa = (res: any) => {
+    setActivos(prev => prev.map(a => {
+      if (a.id === res.activo.id || a.placa_institucional === res.activo.placaInstitucional) {
+        return {
+          ...a,
+          estado: 'dado_de_baja',
+          responsable: 'Sin custodio'
+        };
+      }
+      return a;
+    }));
+    setActivoParaBaja(null);
+    if (res.actaDescargo) {
+      setActaDescargoVisualizada(res.actaDescargo);
+    }
+  };
+
+  const handleAbrirActaDescargo = async (activo: ActivoTI) => {
+    try {
+      const acta = await apiClient.obtenerActaDescargo(activo.id);
+      setActaDescargoVisualizada(acta);
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo generar el acta de descargo patrimonial');
     }
   };
 
@@ -455,6 +497,24 @@ export const AssetsView: React.FC = () => {
                           <button
                             onClick={e => {
                               e.stopPropagation();
+                              if (activo.estado === 'danado' || activo.estado === 'dado_de_baja') {
+                                handleAbrirActaDescargo(activo);
+                              } else {
+                                setActivoParaBaja(activo);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title={
+                              activo.estado === 'danado' || activo.estado === 'dado_de_baja'
+                                ? 'Ver Acta Oficial de Descargo Patrimonial'
+                                : 'Dar de baja patrimonial y emitir acta de descargo'
+                            }
+                          >
+                            <AlertOctagon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
                               setSelectedActivo(activo);
                             }}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors cursor-pointer"
@@ -506,6 +566,24 @@ export const AssetsView: React.FC = () => {
                     title="Servicios técnicos y bitácora de mantenimiento"
                   >
                     <Wrench className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (activo.estado === 'danado' || activo.estado === 'dado_de_baja') {
+                        handleAbrirActaDescargo(activo);
+                      } else {
+                        setActivoParaBaja(activo);
+                      }
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    title={
+                      activo.estado === 'danado' || activo.estado === 'dado_de_baja'
+                        ? 'Ver Acta Oficial de Descargo Patrimonial'
+                        : 'Dar de baja patrimonial y emitir acta de descargo'
+                    }
+                  >
+                    <AlertOctagon className="h-3.5 w-3.5" />
                   </button>
                   {getBadgeEstado(activo.estado)}
                 </div>
@@ -632,6 +710,30 @@ export const AssetsView: React.FC = () => {
                   <Wrench className="h-3.5 w-3.5" />
                   Mantenimiento
                 </button>
+                {selectedActivo.estado === 'danado' || selectedActivo.estado === 'dado_de_baja' ? (
+                  <button
+                    onClick={() => {
+                      const act = selectedActivo;
+                      handleAbrirActaDescargo(act);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    <AlertOctagon className="h-3.5 w-3.5" />
+                    Ver Acta de Descargo
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const act = selectedActivo;
+                      setSelectedActivo(null);
+                      setActivoParaBaja(act);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    <AlertOctagon className="h-3.5 w-3.5" />
+                    Dar de Baja / Descargo
+                  </button>
+                )}
               </div>
 
               <button
@@ -680,6 +782,23 @@ export const AssetsView: React.FC = () => {
           onClose={() => setActivoParaMantenimiento(null)}
           activoId={activoParaMantenimiento.id}
           placaInstitucional={activoParaMantenimiento.placa_institucional}
+        />
+      )}
+
+      {/* Modal de Baja Patrimonial / Desincorporación */}
+      {activoParaBaja && (
+        <DecommissionAssetModal
+          activo={activoParaBaja}
+          onClose={() => setActivoParaBaja(null)}
+          onSuccess={handleBajaExitosa}
+        />
+      )}
+
+      {/* Modal de Acta Oficial de Descargo Patrimonial */}
+      {actaDescargoVisualizada && (
+        <ActaDescargoModal
+          acta={actaDescargoVisualizada}
+          onClose={() => setActaDescargoVisualizada(null)}
         />
       )}
     </div>

@@ -40,7 +40,7 @@ export interface ActivoTI {
   recurso_nombre: string;
   numero_serie: string;
   placa_institucional: string;
-  estado: 'en_uso' | 'disponible' | 'danado';
+  estado: 'en_uso' | 'disponible' | 'danado' | 'dado_de_baja';
   ubicacion_id: string;
   ubicacion_nombre: string;
   responsable: string;

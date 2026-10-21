@@ -846,6 +846,159 @@ public class ActivoService : IActivoService
         };
     }
 
+    public async Task<ResultadoBajaActivoDto> ProcesarBajaPatrimonialAsync(Guid id, DarDeBajaActivoDto dto, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Proveedor)
+            .Include(a => a.Asignaciones)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+
+        if (activo.Estado == "dado_de_baja" || activo.Estado == "baja")
+            throw new InvalidOperationException("El activo ya se encuentra dado de baja.");
+
+        var custodioSaliente = activo.Responsable?.NombreCompleto;
+        var ultimaUbicacion = activo.Ubicacion?.Nombre ?? "Almacén Central";
+
+        // Finalizar asignaciones activas
+        foreach (var asig in activo.Asignaciones.Where(a => a.Estado == "activo" || a.Estado == "activa"))
+        {
+            asig.Estado = "finalizada";
+            asig.FechaDevolucionReal = DateTime.UtcNow;
+            asig.ActualizadoEn = DateTime.UtcNow;
+        }
+
+        activo.Estado = "dado_de_baja";
+        activo.ResponsableId = null;
+        activo.Responsable = null;
+        activo.Notas = string.IsNullOrWhiteSpace(activo.Notas)
+            ? $"[BAJA PATRIMONIAL {DateTime.UtcNow:yyyy-MM-dd}] Motivo: {dto.Motivo} | Destino: {dto.DestinoFinalBien}"
+            : $"{activo.Notas} | [BAJA PATRIMONIAL {DateTime.UtcNow:yyyy-MM-dd}] Motivo: {dto.Motivo} | Destino: {dto.DestinoFinalBien}";
+        activo.ActualizadoEn = DateTime.UtcNow;
+
+        // Registrar movimiento de baja formal
+        var anio = DateTime.UtcNow.Year;
+        var conteoMov = await _context.Movimientos.CountAsync(ct);
+        var correlativoMov = $"MOV-{anio}-{(conteoMov + 1):D6}";
+
+        var movimientoBaja = new Movimiento
+        {
+            Id = Guid.NewGuid(),
+            NumeroMovimiento = correlativoMov,
+            Tipo = "baja",
+            OrigenUbicacionId = activo.UbicacionId,
+            DestinoUbicacionId = null,
+            UsuarioId = _currentUserService.UserId ?? Guid.Empty,
+            OrigenIa = false,
+            Motivo = $"Baja patrimonial: {dto.Motivo}. Dictamen técnico: {dto.DictamenTecnico ?? "Dictamen por obsolescencia o avería"}",
+            CreadoEn = DateTime.UtcNow
+        };
+        _context.Movimientos.Add(movimientoBaja);
+
+        var conteoBajas = await _context.Movimientos.CountAsync(m => m.Tipo == "baja", ct);
+        var numeroActa = $"ACTA-DESCARGO-{anio}-{(conteoBajas + 1):D6}";
+
+        await _context.SaveChangesAsync(ct);
+
+        var costoHistorico = activo.Recurso?.CostoEstimado ?? 0;
+        var valorResidual = Math.Round(costoHistorico * 0.05m, 2);
+
+        var acta = new ActaDescargoPatrimonialDto
+        {
+            NumeroActa = numeroActa,
+            FechaBaja = DateTime.UtcNow,
+            Institucion = "Universidad Odontológica Dominicana (UOD)",
+            DepartamentoEmisor = "Comisión de Gestión Patrimonial e Inventario TI",
+            ActivoId = activo.Id,
+            PlacaInstitucional = activo.PlacaInstitucional ?? "SIN-PLACA",
+            NumeroSerie = activo.NumeroSerie,
+            RecursoNombre = activo.Recurso?.Nombre ?? "Bien Patrimonial",
+            RecursoSku = activo.Recurso?.Sku ?? string.Empty,
+            CategoriaNombre = activo.Recurso?.Categoria?.Nombre ?? "Tecnología",
+            UltimaUbicacion = ultimaUbicacion,
+            UltimoCustodio = custodioSaliente ?? "Sin custodio asignado",
+            ValorHistoricoDop = costoHistorico,
+            ValorEnLibrosDop = valorResidual,
+            MotivoBaja = dto.Motivo,
+            DictamenTecnico = dto.DictamenTecnico ?? "Evaluación técnica certifica que el bien presenta obsolescencia o avería que hace inviable su reparación económica.",
+            DestinoFinalBien = dto.DestinoFinalBien,
+            ClausulasDescargo = new List<string>
+            {
+                "1. Se certifica el descargo físico y contable del bien de los registros de inventario activo de la Universidad Odontológica Dominicana (UOD).",
+                "2. El custodio saliente queda formalmente liberado de toda responsabilidad patrimonial sobre el bien a partir de la firma de la presente acta.",
+                "3. El bien descatalogado será canalizado según la normativa de descarte ecológico y gestión ambiental de RAEE institucional.",
+                "4. Copia de la presente acta se remite al Departamento de Contabilidad y a la Auditoría Interna para el ajuste correspondiente en el libro mayor de activos fijos."
+            },
+            FirmaResponsableTi = _currentUserService.Email ?? "Encargado de Tecnología TI UOD",
+            FirmaAuditoriaInterna = "Auditoría Interna Institucional UOD",
+            FirmaRectoriaAdministracion = "Dirección Administrativa y Financiera UOD"
+        };
+
+        return new ResultadoBajaActivoDto
+        {
+            Exitoso = true,
+            Mensaje = $"Activo {activo.PlacaInstitucional} dado de baja exitosamente. Acta oficial {numeroActa} emitida.",
+            Activo = MapearActivoDto(activo, activo.Ubicacion!),
+            ActaDescargo = acta
+        };
+    }
+
+    public async Task<ActaDescargoPatrimonialDto> GenerarActaDescargoAsync(Guid id, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .AsNoTracking()
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+
+        var anio = DateTime.UtcNow.Year;
+        var numeroActa = $"ACTA-DESCARGO-{anio}-{Math.Abs(activo.Id.GetHashCode() % 100000):D6}";
+        var costoHistorico = activo.Recurso?.CostoEstimado ?? 0;
+        var valorResidual = Math.Round(costoHistorico * 0.05m, 2);
+
+        return new ActaDescargoPatrimonialDto
+        {
+            NumeroActa = numeroActa,
+            FechaBaja = activo.ActualizadoEn,
+            Institucion = "Universidad Odontológica Dominicana (UOD)",
+            DepartamentoEmisor = "Comisión de Gestión Patrimonial e Inventario TI",
+            ActivoId = activo.Id,
+            PlacaInstitucional = activo.PlacaInstitucional ?? "SIN-PLACA",
+            NumeroSerie = activo.NumeroSerie,
+            RecursoNombre = activo.Recurso?.Nombre ?? "Bien Patrimonial",
+            RecursoSku = activo.Recurso?.Sku ?? string.Empty,
+            CategoriaNombre = activo.Recurso?.Categoria?.Nombre ?? "Tecnología",
+            UltimaUbicacion = activo.Ubicacion?.Nombre ?? "Almacén Central",
+            UltimoCustodio = activo.Responsable?.NombreCompleto ?? "Sin custodio asignado",
+            ValorHistoricoDop = costoHistorico,
+            ValorEnLibrosDop = valorResidual,
+            MotivoBaja = "Obsolescencia o fin de ciclo operativo institucional",
+            DictamenTecnico = "Evaluación técnica confirma desincorporación definitiva del inventario activo.",
+            DestinoFinalBien = "descarte_ecologico",
+            ClausulasDescargo = new List<string>
+            {
+                "1. Se certifica el descargo físico y contable del bien de los registros de inventario activo de la Universidad Odontológica Dominicana (UOD).",
+                "2. El custodio saliente queda formalmente liberado de toda responsabilidad patrimonial sobre el bien a partir de la firma de la presente acta.",
+                "3. El bien descatalogado será canalizado según la normativa de descarte ecológico y gestión ambiental de RAEE institucional.",
+                "4. Copia de la presente acta se remite al Departamento de Contabilidad y a la Auditoría Interna para el ajuste correspondiente en el libro mayor de activos fijos."
+            },
+            FirmaResponsableTi = _currentUserService.Email ?? "Encargado de Tecnología TI UOD",
+            FirmaAuditoriaInterna = "Auditoría Interna Institucional UOD",
+            FirmaRectoriaAdministracion = "Dirección Administrativa y Financiera UOD"
+        };
+    }
+
     private static ActivoSerieDto MapearActivoDto(ActivoSerie activo, Ubicacion ubicacion)
     {
         return new ActivoSerieDto

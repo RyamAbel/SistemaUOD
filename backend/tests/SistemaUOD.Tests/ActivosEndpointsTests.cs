@@ -426,4 +426,106 @@ public class ActivosEndpointsTests : IClassFixture<CustomWebApplicationFactory>
             Assert.False(string.IsNullOrWhiteSpace(acta.FirmaEmisorNombre));
         }
     }
+
+    [Fact]
+    public async Task ProcesarBajaPatrimonial_RolConsulta_Retorna403Forbidden()
+    {
+        var client = _factory.CreateClient();
+        var dto = new DarDeBajaActivoDto
+        {
+            Motivo = "Obsolescencia tecnológica irreparable",
+            DictamenTecnico = "Tarjeta madre sulfatada sin repuestos en mercado local",
+            DestinoFinalBien = "reciclaje"
+        };
+
+        var request = CrearPeticion(HttpMethod.Post, $"/api/v1/activos/{Guid.NewGuid()}/descargo", role: "consulta");
+        request.Content = JsonContent.Create(dto);
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProcesarBajaPatrimonial_RolGestionInventario_GeneraBajaYActaDescargo()
+    {
+        var client = _factory.CreateClient();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var recurso = db.Recursos.FirstOrDefault();
+        var ubicacion = db.Ubicaciones.FirstOrDefault();
+
+        Assert.NotNull(recurso);
+        Assert.NotNull(ubicacion);
+
+        var sufijo = Guid.NewGuid().ToString("N")[..6];
+        var dtoCrear = new CrearActivoSerieDto
+        {
+            RecursoId = recurso.Id,
+            UbicacionId = ubicacion.Id,
+            NumeroSerie = $"SN-BAJA-{sufijo}",
+            PlacaInstitucional = $"EQ-BAJA-{sufijo}",
+            Estado = "disponible"
+        };
+
+        var reqCrear = CrearPeticion(HttpMethod.Post, "/api/v1/activos", role: "admin_inventario");
+        reqCrear.Content = JsonContent.Create(dtoCrear);
+        var respCrear = await client.SendAsync(reqCrear);
+        var activo = await respCrear.Content.ReadFromJsonAsync<ActivoSerieDto>();
+        Assert.NotNull(activo);
+
+        // Dar de baja patrimonial
+        var dtoBaja = new DarDeBajaActivoDto
+        {
+            Motivo = "Daño irreparable de pantalla y circuito principal",
+            DictamenTecnico = "Equipo evaluado por TI. Costo de reparación supera el 80% del valor de reposición.",
+            DestinoFinalBien = "descarte_ecologico",
+            AutorizadoPor = "RES-UOD-2026-088"
+        };
+
+        var reqBaja = CrearPeticion(HttpMethod.Post, $"/api/v1/activos/{activo.Id}/descargo", role: "admin_inventario");
+        reqBaja.Content = JsonContent.Create(dtoBaja);
+        var respBaja = await client.SendAsync(reqBaja);
+
+        Assert.Equal(HttpStatusCode.OK, respBaja.StatusCode);
+        var res = await respBaja.Content.ReadFromJsonAsync<ResultadoBajaActivoDto>();
+        Assert.NotNull(res);
+        Assert.Equal("dado_de_baja", res.Activo.Estado);
+        Assert.Null(res.Activo.ResponsableNombre);
+        Assert.NotNull(res.ActaDescargo);
+        Assert.StartsWith("ACTA-DESCARGO-", res.ActaDescargo.NumeroActa);
+        Assert.Equal(dtoBaja.Motivo, res.ActaDescargo.MotivoBaja);
+        Assert.Equal(dtoBaja.DictamenTecnico, res.ActaDescargo.DictamenTecnico);
+        Assert.NotEmpty(res.ActaDescargo.ClausulasDescargo);
+        Assert.False(string.IsNullOrWhiteSpace(res.ActaDescargo.FirmaResponsableTi));
+        Assert.False(string.IsNullOrWhiteSpace(res.ActaDescargo.FirmaAuditoriaInterna));
+        Assert.False(string.IsNullOrWhiteSpace(res.ActaDescargo.FirmaRectoriaAdministracion));
+    }
+
+    [Fact]
+    public async Task ObtenerActaDescargo_Autenticado_Retorna200Ok_ConClausulasYFirmasOficiales()
+    {
+        var client = _factory.CreateClient();
+
+        // Obtener un activo
+        var listReq = CrearPeticion(HttpMethod.Get, "/api/v1/activos?pageSize=1", role: "consulta");
+        var listResp = await client.SendAsync(listReq);
+        var listResult = await listResp.Content.ReadFromJsonAsync<PagedResult<ActivoSerieDto>>();
+
+        if (listResult?.Items != null && listResult.Items.Count > 0)
+        {
+            var activo = listResult.Items.First();
+            var reqActa = CrearPeticion(HttpMethod.Get, $"/api/v1/activos/{activo.Id}/acta-descargo", role: "auditor");
+            var respActa = await client.SendAsync(reqActa);
+
+            Assert.Equal(HttpStatusCode.OK, respActa.StatusCode);
+            var acta = await respActa.Content.ReadFromJsonAsync<ActaDescargoPatrimonialDto>();
+            Assert.NotNull(acta);
+            Assert.StartsWith("ACTA-DESCARGO-", acta.NumeroActa);
+            Assert.NotEmpty(acta.ClausulasDescargo);
+            Assert.NotNull(acta.FirmaResponsableTi);
+            Assert.NotNull(acta.FirmaAuditoriaInterna);
+            Assert.NotNull(acta.FirmaRectoriaAdministracion);
+        }
+    }
 }

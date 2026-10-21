@@ -218,7 +218,7 @@ SistemaUOD/
     - Compilación estricta sin advertencias en Next.js Turbopack (`npm run build` con 6/6 rutas estáticas/dinámicas generadas).
     - Verificación visual en vivo en el navegador de la bitácora transaccional y exportación.
     - **Etapa 7 completada y cerrada formalmente al 100%.**
-- **Etapa 8 – Activos fijos, custodios y depreciación (RF-16 a RF-20):** 🔄 En curso:
+- **Etapa 8 – Activos fijos, custodios y depreciación (RF-16 a RF-20):** ✅ Completada al 100%:
   - ✅ Prompt 8.1 – **Modelo y API de Activos Fijos y Series:**
     - Endpoints RESTful completos (`ActivosEndpoints.cs`) bajo Minimal APIs: `GET /api/v1/activos` (filtros combinados por texto, recurso, categoría, ubicación, responsable, placa institucional y estado, con paginación `PagedResult<T>`), `GET /api/v1/activos/{id}`, `GET /api/v1/activos/placa/{placa}` (búsqueda directa por placa institucional `EQ-XX`), `POST`, `PUT`, `PATCH /estado` y `DELETE` (baja administrativa justificada).
     - Servicio `ActivoService.cs` con validación estricta de placa institucional única en mayúsculas, existencia y actividad del recurso y ubicación física, y mapeo de historiales de asignaciones y mantenimientos técnicos.
@@ -250,8 +250,21 @@ SistemaUOD/
     - Integración completa en `AssetsView.tsx` con botón de herramientas `Wrench` en la tabla densa, en cada tarjeta de activo y en la ficha de detalle individual.
     - **Total de pruebas automatizadas en .NET:** **92 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
-  - 🔄 **Prompt 8.5 – Pantallas de Activos Fijos:** Vistas interactivas de activos con buscador por placa/serie, filtros por custodio/ubicación y emisión de actas de descargo en PDF.
-  - **Prompt 8.6 – Pruebas y cierre de Etapa 8.**
+  - ✅ Prompt 8.5 – **Bajas patrimoniales y Actas Oficiales de Descargo en PDF:**
+    - Endpoints RESTful patrimoniales (`ActivosEndpoints.cs`): `POST /api/v1/activos/{id}/descargo` y `GET /api/v1/activos/{id}/acta-descargo`.
+    - Servicio `ActivoService.cs` con transacción atómica: validación de activo activo, transición de estado a `dado_de_baja`, liberación de custodio, generación automática de correlativo de movimiento `MOV-YYYY-XXXXXX` en `Movimientos` con auditoría Ley 172-13, y emisión formal de número de acta `ACTA-DESCARGO-YYYY-XXXXXX`.
+    - Componente `DecommissionAssetModal.tsx`: diálogo guiado para desincorporación patrimonial con validación de motivo obligatorio, dictamen técnico circunstanciado, selector de destino del bien (`descarte_ecologico`, `repuestos`, `reciclaje`, `donacion`) y resolución administrativa de soporte.
+    - Componente `ActaDescargoModal.tsx`: formato oficial imprimible y exportable a PDF con membrete institucional de la Universidad Odontológica Dominicana, dictamen técnico pericial, valores contables (histórico y valor en libros), 4 cláusulas formales de desincorporación patrimonial y 3 recuadros de firmas colegiadas (Tecnología TI, Auditoría Interna Institucional y Dirección Administrativa y Financiera UOD) con optimización `@media print`.
+    - Integración completa en `AssetsView.tsx` con botón `AlertOctagon` por fila en tabla, en tarjetas y en ficha de detalle, conmutando automáticamente entre el flujo de desincorporación y la visualización/reimpresión del acta oficial de descargo.
+  - ✅ Prompt 8.6 – **Pruebas integrales y cierre formal de la Etapa 8:**
+    - Batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests/ActivosEndpointsTests.cs`:
+      - Rechazo con `403 Forbidden` al intentar dar de baja activos con roles sin privilegio (`consulta`).
+      - Desincorporación atómica con rol `admin_inventario`, generación de acta de descargo oficial con prefijo canónico `ACTA-DESCARGO-` y estado resultante `dado_de_baja`.
+      - Recuperación y validación del acta oficial de descargo con firmas colegiadas y cláusulas patrimoniales completas.
+    - **Total de pruebas automatizadas en .NET:** **95 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas sin errores).
+    - **Etapa 8 completada y cerrada formalmente al 100%.**
+- **Etapa 9 – Tutor y Asistente de IA (Gemini API & Function Calling):** 🔄 Próxima etapa a iniciar.
 
 
 

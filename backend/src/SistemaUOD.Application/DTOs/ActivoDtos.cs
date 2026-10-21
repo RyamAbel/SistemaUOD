@@ -204,3 +204,47 @@ public class ResultadoTrasladoActivoDto
     public ActivoSerieDto Activo { get; set; } = null!;
     public ActaEntregaRecepcionDto Acta { get; set; } = null!;
 }
+
+public class DarDeBajaActivoDto
+{
+    [Required(ErrorMessage = "El motivo de la baja o descargo es obligatorio.")]
+    [MinLength(5, ErrorMessage = "El motivo debe tener al menos 5 caracteres.")]
+    public string Motivo { get; set; } = string.Empty;
+
+    public string? DictamenTecnico { get; set; }
+    public string DestinoFinalBien { get; set; } = "descarte_ecologico"; // descarte_ecologico, donacion, reciclaje, repuestos
+    public string? AutorizadoPor { get; set; }
+}
+
+public class ActaDescargoPatrimonialDto
+{
+    public string NumeroActa { get; set; } = string.Empty;
+    public DateTime FechaBaja { get; set; } = DateTime.UtcNow;
+    public string Institucion { get; set; } = "Universidad Odontológica Dominicana (UOD)";
+    public string DepartamentoEmisor { get; set; } = "Comisión de Gestión Patrimonial e Inventario TI";
+    public Guid ActivoId { get; set; }
+    public string PlacaInstitucional { get; set; } = string.Empty;
+    public string NumeroSerie { get; set; } = string.Empty;
+    public string RecursoNombre { get; set; } = string.Empty;
+    public string RecursoSku { get; set; } = string.Empty;
+    public string CategoriaNombre { get; set; } = string.Empty;
+    public string UltimaUbicacion { get; set; } = string.Empty;
+    public string? UltimoCustodio { get; set; }
+    public decimal ValorHistoricoDop { get; set; }
+    public decimal ValorEnLibrosDop { get; set; }
+    public string MotivoBaja { get; set; } = string.Empty;
+    public string DictamenTecnico { get; set; } = string.Empty;
+    public string DestinoFinalBien { get; set; } = "descarte_ecologico";
+    public List<string> ClausulasDescargo { get; set; } = new();
+    public string FirmaResponsableTi { get; set; } = "Encargado de Tecnología TI UOD";
+    public string FirmaAuditoriaInterna { get; set; } = "Auditoría Interna Institucional UOD";
+    public string FirmaRectoriaAdministracion { get; set; } = "Dirección Administrativa y Financiera UOD";
+}
+
+public class ResultadoBajaActivoDto
+{
+    public bool Exitoso { get; set; } = true;
+    public string Mensaje { get; set; } = string.Empty;
+    public ActivoSerieDto Activo { get; set; } = null!;
+    public ActaDescargoPatrimonialDto ActaDescargo { get; set; } = null!;
+}

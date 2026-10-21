@@ -263,6 +263,59 @@ public static class ActivosEndpoints
         .WithName("GenerarActaEntregaActivo")
         .WithSummary("Genera y obtiene el formato oficial del acta de entrega/recepción de un activo");
 
+        // 11. Procesar baja y descargo patrimonial con acta oficial
+        group.MapPost("/{id:guid}/descargo", async (
+            Guid id,
+            [FromBody] DarDeBajaActivoDto dto,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await activoService.ProcesarBajaPatrimonialAsync(id, dto, ct);
+                return Results.Ok(resultado);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Error al procesar baja patrimonial",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("ProcesarBajaPatrimonialActivo")
+        .WithSummary("Da de baja definitiva un activo emitiendo formalmente su acta oficial de descargo");
+
+        // 12. Obtener acta oficial de descargo patrimonial
+        group.MapGet("/{id:guid}/acta-descargo", async (
+            Guid id,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var acta = await activoService.GenerarActaDescargoAsync(id, ct);
+                return Results.Ok(acta);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+        })
+        .WithName("ObtenerActaDescargoActivo")
+        .WithSummary("Genera y obtiene el acta oficial de descargo patrimonial de un bien dado de baja");
+
         return app;
     }
 }
