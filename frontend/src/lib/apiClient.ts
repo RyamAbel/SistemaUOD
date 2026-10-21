@@ -753,6 +753,90 @@ export interface FiltroDepreciacionDto {
   isDescending?: boolean;
 }
 
+// ==========================================
+// Mantenimientos y Servicios Técnicos (Prompt 8.4 - RF-20)
+// ==========================================
+export interface MantenimientoDto {
+  id: string;
+  activoSerieId: string;
+  placaInstitucional: string;
+  numeroSerie: string;
+  recursoNombre: string;
+  categoriaNombre: string;
+  ubicacionNombre: string;
+  tipo: 'preventivo' | 'correctivo' | 'calibracion';
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  tecnicoResponsable?: string | null;
+  costo: number;
+  descripcion: string;
+  fechaProgramada: string;
+  fechaRealizada?: string | null;
+  estado: 'programado' | 'en_proceso' | 'completado' | 'cancelado';
+  creadoEn: string;
+}
+
+export interface CrearMantenimientoDto {
+  activoSerieId: string;
+  tipo: 'preventivo' | 'correctivo' | 'calibracion';
+  proveedorId?: string | null;
+  tecnicoResponsable?: string | null;
+  costo: number;
+  descripcion: string;
+  fechaProgramada: string;
+  cambiarEstadoActivoAEnMantenimiento?: boolean;
+}
+
+export interface ActualizarMantenimientoDto {
+  tipo: 'preventivo' | 'correctivo' | 'calibracion';
+  proveedorId?: string | null;
+  tecnicoResponsable?: string | null;
+  costo: number;
+  descripcion: string;
+  fechaProgramada: string;
+  fechaRealizada?: string | null;
+  estado: 'programado' | 'en_proceso' | 'completado' | 'cancelado';
+}
+
+export interface CompletarMantenimientoDto {
+  fechaRealizada?: string;
+  costoFinal: number;
+  tecnicoResponsable?: string | null;
+  observacionesFinales?: string | null;
+  estadoFinalActivo?: 'disponible' | 'en_uso';
+}
+
+export interface CancelarMantenimientoDto {
+  motivo: string;
+}
+
+export interface MantenimientoFiltrosDto {
+  pageIndex?: number;
+  pageSize?: number;
+  search?: string;
+  activoSerieId?: string;
+  placaInstitucional?: string;
+  tipo?: string;
+  estado?: string;
+  proveedorId?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}
+
+export interface ResumenMantenimientosActivoDto {
+  activoSerieId: string;
+  placaInstitucional: string;
+  recursoNombre: string;
+  totalMantenimientos: number;
+  totalPreventivos: number;
+  totalCorrectivos: number;
+  totalCalibraciones: number;
+  costoTotalInvertidoDop: number;
+  ultimoMantenimientoFecha?: string | null;
+  proximoMantenimientoProgramado?: string | null;
+  ultimosServicios: MantenimientoDto[];
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, headers?: Record<string, string>) =>
     request<T>(endpoint, { method: 'GET', headers }),
@@ -1342,6 +1426,66 @@ export const apiClient = {
     a.click();
     window.URL.revokeObjectURL(downloadUrl);
     a.remove();
+  },
+
+  // ==========================================
+  // Mantenimientos y Servicios Técnicos (Prompt 8.4)
+  // ==========================================
+  listarMantenimientos: async (filtros: Partial<MantenimientoFiltrosDto> = {}): Promise<PagedResult<MantenimientoDto>> => {
+    const query = new URLSearchParams();
+    if (filtros.pageIndex) query.append('pageIndex', String(filtros.pageIndex));
+    if (filtros.pageSize) query.append('pageSize', String(filtros.pageSize));
+    if (filtros.search) query.append('search', filtros.search);
+    if (filtros.activoSerieId) query.append('activoSerieId', filtros.activoSerieId);
+    if (filtros.placaInstitucional) query.append('placaInstitucional', filtros.placaInstitucional);
+    if (filtros.tipo) query.append('tipo', filtros.tipo);
+    if (filtros.estado) query.append('estado', filtros.estado);
+    if (filtros.proveedorId) query.append('proveedorId', filtros.proveedorId);
+    if (filtros.fechaDesde) query.append('fechaDesde', filtros.fechaDesde);
+    if (filtros.fechaHasta) query.append('fechaHasta', filtros.fechaHasta);
+
+    const qs = query.toString();
+    return request<PagedResult<MantenimientoDto>>(`mantenimientos${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerMantenimientoPorId: async (id: string): Promise<MantenimientoDto> => {
+    return request<MantenimientoDto>(`mantenimientos/${id}`);
+  },
+
+  listarMantenimientosPorActivo: async (activoId: string): Promise<MantenimientoDto[]> => {
+    return request<MantenimientoDto[]>(`mantenimientos/activo/${activoId}`);
+  },
+
+  obtenerResumenMantenimientosActivo: async (activoId: string): Promise<ResumenMantenimientosActivoDto> => {
+    return request<ResumenMantenimientosActivoDto>(`mantenimientos/activo/${activoId}/resumen`);
+  },
+
+  registrarMantenimiento: async (dto: CrearMantenimientoDto): Promise<MantenimientoDto> => {
+    return request<MantenimientoDto>('mantenimientos', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarMantenimiento: async (id: string, dto: ActualizarMantenimientoDto): Promise<MantenimientoDto> => {
+    return request<MantenimientoDto>(`mantenimientos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  completarMantenimiento: async (id: string, dto: CompletarMantenimientoDto): Promise<MantenimientoDto> => {
+    return request<MantenimientoDto>(`mantenimientos/${id}/completar`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cancelarMantenimiento: async (id: string, dto: CancelarMantenimientoDto): Promise<MantenimientoDto> => {
+    return request<MantenimientoDto>(`mantenimientos/${id}/cancelar`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
   }
 };
 
