@@ -71,3 +71,42 @@ public class ConsumoAsistenteDto
     public int LimiteDiarioPorUsuario { get; set; } = 150;
     public string AvisoPoliticaPrivacidad { get; set; } = "Las conversaciones se procesan de forma transitoria para soporte institucional y se depuran a los 30 días según la política de privacidad UOD y la Ley 172-13.";
 }
+
+public class ResultadoConfirmacionPropuestaDto
+{
+    public bool Exitoso { get; set; } = true;
+    public string Mensaje { get; set; } = string.Empty;
+    public string PropuestaId { get; set; } = string.Empty;
+    public string? MovimientoCorrelativo { get; set; }
+    public Guid? MovimientoId { get; set; }
+    public Guid? RecursoId { get; set; }
+    public Guid? ActivoId { get; set; }
+    public string? PlacaInstitucional { get; set; }
+    public bool EsReversible { get; set; } = true;
+    public bool Revertido { get; set; } = false;
+    public DateTime ConfirmadoEn { get; set; } = DateTime.UtcNow;
+}
+
+public class AnalisisFotoRecursoDto
+{
+    [Required(ErrorMessage = "La imagen o captura es obligatoria.")]
+    public string FotoBase64 { get; set; } = string.Empty;
+
+    public string MimeType { get; set; } = "image/jpeg";
+
+    public string? ObservacionesUsuario { get; set; }
+}
+
+public class PropuestaRecursoDesdeFotoDto
+{
+    public string NombreSugerido { get; set; } = string.Empty;
+    public string? SkuSugerido { get; set; }
+    public string CategoriaSugerida { get; set; } = "Tecnología";
+    public string TipoEquipo { get; set; } = "activo_fijo"; // consumible o activo_fijo
+    public string MarcaModelo { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public decimal CostoEstimadoSugeridoDop { get; set; } = 0.00m;
+    public bool PosibleDuplicado { get; set; } = false;
+    public string? RecursoSimilarEncontrado { get; set; }
+    public string ConfianzaAnalisis { get; set; } = "alta"; // alta, media, baja
+}

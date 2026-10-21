@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   X,
@@ -11,10 +11,20 @@ import {
   BookOpen,
   Bot,
   Cpu,
-  Layers
+  RotateCcw,
+  Camera,
+  ImagePlus,
+  Clock,
+  ShieldAlert,
+  Check
 } from 'lucide-react';
 import { ArticuloItem, MovimientoItem } from '@/lib/initialData';
-import { apiClient, PropuestaAccionDto, ChatRequestDto } from '@/lib/apiClient';
+import {
+  apiClient,
+  PropuestaAccionDto,
+  ChatRequestDto,
+  PropuestaRecursoDesdeFotoDto
+} from '@/lib/apiClient';
 
 interface AiAssistantDrawerProps {
   isOpen: boolean;
@@ -29,6 +39,7 @@ interface ChatMessage {
   text: string;
   time: string;
   proposal?: PropuestaAccionDto;
+  photoProposal?: PropuestaRecursoDesdeFotoDto;
   toolsExecuted?: string[];
   isLiveGemini?: boolean;
 }
@@ -109,13 +120,38 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     {
       id: 'msg-1',
       sender: 'ai',
-      text: '¡Hola! Soy **SIIA**, el Asistente Inteligente de la Universidad Odontológica Dominicana (UOD). Puedo responder consultas de existencias, activos físicos (`EQ-01`), alertas de reposición o formular traslados con tu confirmación explícita. ¿En qué te colaboro hoy?',
+      text: '¡Hola! Soy **SIIA**, el Asistente Inteligente de la Universidad Odontológica Dominicana (UOD). Puedo responder consultas de existencias, activos físicos (`EQ-01`), alertas de reposición, analizar fotos de suministros con Gemini Vision o formular traslados con tu confirmación explícita. ¿En qué te colaboro hoy?',
       time: 'Ahora'
     }
   ]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [mode, setMode] = useState<'operativo' | 'tutor'>('operativo');
+
+  // Estado para la ventana de reversión (Deshacer de 5 minutos - Prompt 10.4)
+  const [activeUndo, setActiveUndo] = useState<{
+    propuestaId: string;
+    movimientoCorrelativo: string;
+    secondsLeft: number;
+  } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Temporizador para la cuenta regresiva de 5 minutos (300 segundos)
+  useEffect(() => {
+    if (!activeUndo) return;
+    const timer = setInterval(() => {
+      setActiveUndo((prev) => {
+        if (!prev) return null;
+        if (prev.secondsLeft <= 1) {
+          return null;
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeUndo]);
 
   if (!isOpen) return null;
 
@@ -200,27 +236,188 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     }
   };
 
-  const handleConfirmProposal = (proposal: PropuestaAccionDto) => {
-    onExecuteAction({
-      tipo: proposal.tipo as any,
-      articuloNombre: proposal.recursoNombre,
-      cantidad: proposal.cantidad,
-      origen: proposal.origenNombre || 'Almacén Central UOD',
-      destino: proposal.destinoNombre || 'Ubicación Destino',
-      usuario: 'Admin UOD (Vía Asistente IA)',
-      origenIa: true,
-      motivo: proposal.motivo
-    });
+  // Confirmar propuesta (Prompt 10.3)
+  const handleConfirmProposal = async (proposal: PropuestaAccionDto) => {
+    setIsThinking(true);
+    try {
+      const res = await apiClient.confirmarPropuestaAsistente(proposal.id);
+
+      onExecuteAction({
+        tipo: proposal.tipo as any,
+        articuloNombre: proposal.recursoNombre,
+        cantidad: proposal.cantidad,
+        origen: proposal.origenNombre || 'Almacén Central UOD',
+        destino: proposal.destinoNombre || 'Ubicación Destino',
+        usuario: 'Admin UOD (Vía Asistente IA)',
+        origenIa: true,
+        motivo: proposal.motivo
+      });
+
+      const correlativo = res.movimientoCorrelativo || `MOV-${new Date().getFullYear()}-000001`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `conf-${Date.now()}`,
+          sender: 'ai',
+          text: `✅ **Operación ${proposal.id} confirmada exitosamente**.\n\n` +
+                `- **Correlativo Oficial:** \`${correlativo}\`\n` +
+                `- **Recurso:** ${proposal.recursoNombre} (${proposal.cantidad} unidades)\n` +
+                `- **Ruta:** ${proposal.origenNombre || 'Almacén Central'} → ${proposal.destinoNombre || 'Ubicación Destino'}\n` +
+                `- **Auditoría:** Registrado con origen IA e inmutabilidad garantizada (Ley 172-13).\n\n` +
+                `⏱️ *Tienes una ventana de 5 minutos para revertir esta operación si fue un error.*`,
+          time: 'Ahora'
+        }
+      ]);
+
+      if (res.esReversible) {
+        setActiveUndo({
+          propuestaId: proposal.id,
+          movimientoCorrelativo: correlativo,
+          secondsLeft: 300
+        });
+      }
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          sender: 'ai',
+          text: `⛔ **No se pudo ejecutar la acción**: ${err?.message || 'Error de autorización o validación de balance.'}\n\n*Nota: Los roles de consulta y auditoría tienen restringida la mutación de inventario.*`,
+          time: 'Ahora'
+        }
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  // Cancelar propuesta
+  const handleCancelProposal = async (proposalId: string) => {
+    try {
+      await apiClient.cancelarPropuestaAsistente(proposalId);
+    } catch {
+      // Ignorar fallo de red en cancelación
+    }
 
     setMessages((prev) => [
       ...prev,
       {
-        id: `conf-${Date.now()}`,
+        id: `canc-${Date.now()}`,
         sender: 'ai',
-        text: `✅ **Operación ${proposal.id} confirmada y registrada**. Se trasladaron ${proposal.cantidad} unidades hacia ${proposal.destinoNombre}. El registro ha sido auditado en la bitácora institucional bajo la Ley 172-13.`,
+        text: '🚫 **Operación cancelada y descartada**. Las existencias y saldos institucionales no sufrieron ninguna alteración.',
         time: 'Ahora'
       }
     ]);
+  };
+
+  // Revertir / Deshacer propuesta (Prompt 10.4)
+  const handleRevertProposal = async () => {
+    if (!activeUndo) return;
+    setIsThinking(true);
+    try {
+      const res = await apiClient.revertirPropuestaAsistente(activeUndo.propuestaId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `rev-${Date.now()}`,
+          sender: 'ai',
+          text: `↩️ **Operación revertida exitosamente (Deshacer)**.\n\n` +
+                `- **Contra-movimiento compensatorio:** \`${res.movimientoCorrelativo}\`\n` +
+                `- **Detalle:** ${res.mensaje}\n` +
+                `- **Estado:** Los saldos de existencias han sido restaurados exactamente a sus valores previos y auditados en la bitácora institucional.`,
+          time: 'Ahora'
+        }
+      ]);
+      setActiveUndo(null);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-rev-${Date.now()}`,
+          sender: 'ai',
+          text: `⚠️ **No se pudo revertir la operación**: ${err?.message || 'La ventana de reversión de 5 minutos ha expirado.'}`,
+          time: 'Ahora'
+        }
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  // Subir y analizar fotografía multimodal (Prompt 10.5 & 10.6)
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La fotografía no debe superar los 5 MB de tamaño.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      const base64Clean = base64Data.split(',')[1] || base64Data;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `usr-img-${Date.now()}`,
+          sender: 'user',
+          text: `📷 *[Fotografía adjuntada: ${file.name}]* Analizando equipo o consumible con visión multimodal...`,
+          time: 'Ahora'
+        }
+      ]);
+
+      setIsThinking(true);
+      try {
+        const analisis = await apiClient.analizarFotoRecurso({
+          fotoBase64: base64Clean,
+          mimeType: file.type,
+          observacionesUsuario: input || undefined
+        });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-img-${Date.now()}`,
+            sender: 'ai',
+            text: `### Análisis Visual Multimodal (Gemini Vision)\n` +
+                  `He analizado la fotografía del recurso con un nivel de confianza **${analisis.confianzaAnalisis.toUpperCase()}**:\n\n` +
+                  `- **Nombre sugerido:** **${analisis.nombreSugerido}**\n` +
+                  `- **Categoría sugerida:** ${analisis.categoriaSugerida}\n` +
+                  `- **Tipo de Bien:** ${analisis.tipoEquipo === 'activo_fijo' ? 'Activo Fijo Institucional (Placa EQ)' : 'Consumible / Material Clínico'}\n` +
+                  `- **Marca y Modelo:** \`${analisis.marcaModelo}\`\n` +
+                  `- **SKU Institucional sugerido:** \`${analisis.skuSugerido}\`\n` +
+                  `- **Costo Estimado:** **RD$ ${analisis.costoEstimadoSugeridoDop.toLocaleString('es-DO', { minimumFractionDigits: 2 })}**\n` +
+                  `- **Descripción:** ${analisis.descripcion}`,
+            time: 'Ahora',
+            photoProposal: analisis
+          }
+        ]);
+      } catch (err: any) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-err-${Date.now()}`,
+            sender: 'ai',
+            text: `Disculpa, ocurrió un error procesando la fotografía: ${err?.message || 'Error en motor visual'}.`,
+            time: 'Ahora'
+          }
+        ]);
+      } finally {
+        setIsThinking(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -236,10 +433,10 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
               <h2 className="text-sm font-bold text-slate-900">Asistente IA • SIIA UOD</h2>
               <span className="rounded-full bg-cyan-50 border border-cyan-200 px-2 py-0.5 text-[10px] font-bold text-[#0891B2] flex items-center gap-1">
                 <Sparkles className="h-2.5 w-2.5" />
-                Gemini AI
+                Gemini Vision
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">Orquestado por .NET 10 LTS con Function Calling</p>
+            <p className="text-[11px] text-slate-500">.NET 10 LTS • Acciones con Deshacer y Visión Multimodal</p>
           </div>
         </div>
         <button
@@ -279,6 +476,29 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Barra Flotante de Deshacer (Undo de 5 minutos - Prompt 10.4) */}
+      {activeUndo && (
+        <div className="flex items-center justify-between bg-amber-500 text-white px-4 py-2.5 shadow-md text-xs animate-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 animate-spin shrink-0" />
+            <div>
+              <span className="font-bold">Deshacer disponible:</span>{' '}
+              <span className="font-mono">{activeUndo.movimientoCorrelativo}</span> (
+              {Math.floor(activeUndo.secondsLeft / 60)}:
+              {(activeUndo.secondsLeft % 60).toString().padStart(2, '0')})
+            </div>
+          </div>
+          <button
+            onClick={handleRevertProposal}
+            disabled={isThinking}
+            className="flex items-center gap-1 rounded bg-white px-2.5 py-1 font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer text-[11px]"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-amber-800" />
+            Deshacer
+          </button>
+        </div>
+      )}
 
       {/* Quick Prompts Suggestions */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 bg-white px-4 py-2 text-xs no-scrollbar">
@@ -372,27 +592,51 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
                   <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
                     <button
                       onClick={() => handleConfirmProposal(msg.proposal!)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#3DAA5C] py-2 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs cursor-pointer"
+                      disabled={isThinking}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#3DAA5C] py-2 text-xs font-bold text-white hover:bg-[#2D8246] transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Confirmar Operación
                     </button>
                     <button
-                      onClick={() => {
-                        setMessages((prev) => [
-                          ...prev,
-                          {
-                            id: `canc-${Date.now()}`,
-                            sender: 'ai',
-                            text: 'Operación cancelada por el usuario. Las existencias permanecen sin modificaciones.',
-                            time: 'Ahora'
-                          }
-                        ]);
-                      }}
+                      onClick={() => handleCancelProposal(msg.proposal!.id)}
+                      disabled={isThinking}
                       className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium cursor-pointer"
                     >
                       Cancelar
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Photo Analysis Card with Duplicate Detection (Prompt 10.5 & 10.6) */}
+              {msg.photoProposal && (
+                <div className="mt-3.5 rounded-xl border border-blue-200 bg-blue-50/70 p-3.5 text-slate-800 shadow-xs">
+                  {msg.photoProposal.posibleDuplicado && (
+                    <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-amber-900 flex items-start gap-2">
+                      <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[11px] leading-snug">
+                        <span className="font-bold">Alerta Preventiva de Duplicado (Prompt 10.6):</span> Se detectó una coincidencia con{' '}
+                        <strong className="text-amber-950 font-bold">{msg.photoProposal.recursoSimilarEncontrado}</strong> en el catálogo. Revisa si ya está ingresado antes de crear un nuevo recurso.
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs font-bold text-[#1C3177] mb-2 border-b border-blue-100 pb-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
+                      Ficha Sugerida desde Fotografía
+                    </span>
+                    <span className="text-[10px] bg-blue-100 text-[#1C3177] px-2 py-0.5 rounded-full font-mono">
+                      {msg.photoProposal.skuSugerido}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-slate-700">
+                    <p><span className="text-slate-500 font-medium">Nombre:</span> <strong className="text-slate-900">{msg.photoProposal.nombreSugerido}</strong></p>
+                    <p><span className="text-slate-500 font-medium">Categoría:</span> <span>{msg.photoProposal.categoriaSugerida}</span></p>
+                    <p><span className="text-slate-500 font-medium">Marca/Modelo:</span> <code>{msg.photoProposal.marcaModelo}</code></p>
+                    <p><span className="text-slate-500 font-medium">Costo Estimado:</span> <strong className="text-[#3DAA5C]">RD$ {msg.photoProposal.costoEstimadoSugeridoDop.toLocaleString('es-DO', { minimumFractionDigits: 2 })}</strong></p>
                   </div>
                 </div>
               )}
@@ -409,7 +653,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
         )}
       </div>
 
-      {/* Input Field */}
+      {/* Input Field with Camera & Photo Analysis */}
       <div className="border-t border-slate-100 bg-white p-4">
         <form
           onSubmit={(e) => {
@@ -418,6 +662,24 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           }}
           className="flex items-center gap-2"
         >
+          {/* Botón de Cámara / Subida de Fotografía (Prompt 10.5) */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handlePhotoUpload}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Analizar fotografía de un recurso con Gemini Vision"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#1C3177] transition-colors shadow-xs cursor-pointer shrink-0"
+            aria-label="Subir foto para análisis IA"
+          >
+            <Camera className="h-4 w-4" />
+          </button>
+
           <input
             type="text"
             value={input}
@@ -425,17 +687,18 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
             placeholder={mode === 'tutor' ? 'Pregunta cómo usar una pantalla o proceso...' : 'Consulta existencias, activos o formula órdenes...'}
             className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1C3177] focus:outline-none focus:ring-1 focus:ring-[#1C3177]"
           />
+
           <button
             type="submit"
             disabled={!input.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1C3177] text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#2B4BA0] transition-colors shadow-xs cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1C3177] text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#2B4BA0] transition-colors shadow-xs cursor-pointer shrink-0"
             aria-label="Enviar mensaje al asistente"
           >
             <Send className="h-4 w-4" />
           </button>
         </form>
         <p className="mt-2 text-center text-[10px] text-slate-400">
-          SIIA v1.0 • Acciones de inventario protegidas con auditoría y confirmación.
+          SIIA v1.0 • Acciones con confirmación, reversión (undo) y visión multimodal.
         </p>
       </div>
     </div>

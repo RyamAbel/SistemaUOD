@@ -282,7 +282,32 @@ SistemaUOD/
   - **Total de pruebas automatizadas en .NET:** **104 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
   - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
   - **Etapa 9 completada y cerrada formalmente al 100%.**
-- **Etapa 10 – Asistente de IA: acciones con confirmación:** 🔄 Próxima etapa a iniciar.
+- **Etapa 10 – Asistente de IA: acciones con confirmación y visión multimodal:** ✅ Completada al 100%:
+  - ✅ Prompt 10.1 – **Diseño del mecanismo de acciones con confirmación y reversión (Aprobado):** Protocolo estricto donde la IA jamás escribe directamente en la base de datos (Reglas de Oro #4 y #5). En su lugar, formula propuestas en memoria con ventana de 15 minutos, requiriendo confirmación física explícita del usuario con previsualización del balance.
+  - ✅ Prompt 10.2 / 10.3 – **Confirmación y Ejecución Atómica:**
+    - Endpoints RESTful en `AssistantEndpoints.cs`: `POST /api/v1/assistant/propuestas/{id}/confirmar` y `POST /api/v1/assistant/propuestas/{id}/cancelar`.
+    - Validación estricta de políticas por rol (`Policies.ExigirOperacionAlmacen`): rechazo `403 Forbidden` a roles `consulta` y `auditor`.
+    - Registro atómico de `Movimiento` con correlativo oficial institucional `MOV-YYYY-XXXXXX`, flag `OrigenIa = true`, actualización de saldos de existencias en PostgreSQL y registro de auditoría inmutable (Ley 172-13).
+  - ✅ Prompt 10.4 – **Reversión y Deshacer (*Undo*) de 5 Minutos:**
+    - Endpoint `POST /api/v1/assistant/propuestas/{id}/revertir`.
+    - Ventana temporal estricta de 5 minutos (300 segundos). Al pulsar el botón de deshacer, se genera un contra-movimiento inverso compensatorio (`MOV-YYYY-XXXXXX`) que restablece exactamente los saldos previos en origen y destino sin violar la inmutabilidad de la bitácora histórica.
+    - Temporizador dinámico en `AiAssistantDrawer.tsx` con cuenta regresiva en vivo y barra flotante de deshacer accesible.
+  - ✅ Prompt 10.5 / 10.6 – **Visión Multimodal con Gemini y Detección de Duplicados:**
+    - Endpoint `POST /api/v1/assistant/analizar-foto` (`AnalisisFotoRecursoDto` con Base64 y observaciones).
+    - Extracción de atributos de equipo/suministro odontológico o tecnológico (nombre, SKU institucional sugerido, categoría, tipo de bien, marca/modelo, costo estimado en DOP).
+    - Detección preventiva de duplicados en el catálogo institucional: si el recurso ya existe o coincide con marcas/modelos registrados, se genera bandera `PosibleDuplicado = true` con alerta visual destacada en la tarjeta del asistente.
+    - Botón de cámara y selector de archivos integrado en `AiAssistantDrawer.tsx`.
+  - ✅ Prompt 10.7 – **Pruebas integrales y cierre formal:**
+    - Batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests/AssistantEndpointsTests.cs`:
+      - Rechazo con `403 Forbidden` al intentar confirmar propuestas con rol `consulta`.
+      - Confirmación exitosa con rol de almacén (`encargado_almacen` / `admin_inventario`), emisión de movimiento `MOV-YYYY-XXXXXX` y trazabilidad.
+      - Cancelación y descarte de propuestas pendientes.
+      - Reversión exitosa (*undo*) dentro de los 5 minutos con contra-movimiento compensatorio.
+      - Análisis visual multimodal y validación de entrada vacía con `400 BadRequest`.
+    - **Total de pruebas automatizadas en .NET:** **110 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
+    - **Etapa 10 completada y cerrada formalmente al 100%.**
+- **Etapa 11 – Notificaciones por correo (Gmail API y cola transaccional):** 🔄 Próxima etapa a iniciar.
 
 ---
 

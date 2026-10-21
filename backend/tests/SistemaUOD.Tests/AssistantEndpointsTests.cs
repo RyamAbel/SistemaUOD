@@ -181,4 +181,148 @@ public class AssistantEndpointsTests : IClassFixture<CustomWebApplicationFactory
         Assert.True(consumo.PresupuestoMensualDop > 0);
         Assert.NotEmpty(consumo.AvisoPoliticaPrivacidad);
     }
+
+    // ==========================================
+    // Pruebas de Etapa 10: Confirmación, Reversión y Visión Multimodal
+    // ==========================================
+
+    [Fact]
+    public async Task ConfirmarPropuesta_RolConsulta_Retorna403Forbidden()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/propuestas/PROP-TEST-999/confirmar", role: "consulta");
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConfirmarPropuesta_RolOperadorAlmacen_PropuestaValida_Retorna200Ok_ConMovimientoOficial()
+    {
+        var client = _factory.CreateClient();
+
+        // 1. Crear propuesta mediante consulta asistida
+        var chatReq = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        chatReq.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "Traslada 3 unidades a Rectoría para equipamiento de oficina",
+            Mode = "operativo"
+        });
+
+        var chatRes = await client.SendAsync(chatReq);
+        Assert.Equal(HttpStatusCode.OK, chatRes.StatusCode);
+        var chatData = await chatRes.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(chatData?.Propuesta);
+
+        var propuestaId = chatData.Propuesta.Id;
+
+        // 2. Confirmar propuesta con rol operador_almacen
+        var confReq = CrearPeticion(HttpMethod.Post, $"/api/v1/assistant/propuestas/{propuestaId}/confirmar", role: "encargado_almacen");
+        var confRes = await client.SendAsync(confReq);
+
+        Assert.Equal(HttpStatusCode.OK, confRes.StatusCode);
+        var resultado = await confRes.Content.ReadFromJsonAsync<ResultadoConfirmacionPropuestaDto>();
+        Assert.NotNull(resultado);
+        Assert.True(resultado.Exitoso);
+        Assert.StartsWith("MOV-", resultado.MovimientoCorrelativo);
+        Assert.NotNull(resultado.MovimientoId);
+        Assert.True(resultado.EsReversible);
+        Assert.False(resultado.Revertido);
+    }
+
+    [Fact]
+    public async Task CancelarPropuesta_DescartaPropuestaPendiente_Retorna200Ok()
+    {
+        var client = _factory.CreateClient();
+
+        // 1. Crear propuesta
+        var chatReq = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        chatReq.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "Traslada 2 unidades a Rectoría",
+            Mode = "operativo"
+        });
+
+        var chatRes = await client.SendAsync(chatReq);
+        var chatData = await chatRes.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(chatData?.Propuesta);
+
+        // 2. Cancelar propuesta
+        var cancReq = CrearPeticion(HttpMethod.Post, $"/api/v1/assistant/propuestas/{chatData.Propuesta.Id}/cancelar", role: "admin_inventario");
+        var cancRes = await client.SendAsync(cancReq);
+
+        Assert.Equal(HttpStatusCode.OK, cancRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevertirPropuesta_DentroVentana5Minutos_GeneraContraMovimientoInverso()
+    {
+        var client = _factory.CreateClient();
+
+        // 1. Crear propuesta
+        var chatReq = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        chatReq.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "Traslada 1 unidad a Rectoría para prueba de reversión",
+            Mode = "operativo"
+        });
+
+        var chatRes = await client.SendAsync(chatReq);
+        var chatData = await chatRes.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(chatData?.Propuesta);
+
+        // 2. Confirmar propuesta
+        var confReq = CrearPeticion(HttpMethod.Post, $"/api/v1/assistant/propuestas/{chatData.Propuesta.Id}/confirmar", role: "encargado_almacen");
+        var confRes = await client.SendAsync(confReq);
+        Assert.Equal(HttpStatusCode.OK, confRes.StatusCode);
+
+        // 3. Revertir propuesta (Undo de 5 minutos)
+        var revReq = CrearPeticion(HttpMethod.Post, $"/api/v1/assistant/propuestas/{chatData.Propuesta.Id}/revertir", role: "encargado_almacen");
+        var revRes = await client.SendAsync(revReq);
+
+        Assert.Equal(HttpStatusCode.OK, revRes.StatusCode);
+        var revData = await revRes.Content.ReadFromJsonAsync<ResultadoConfirmacionPropuestaDto>();
+        Assert.NotNull(revData);
+        Assert.True(revData.Exitoso);
+        Assert.True(revData.Revertido);
+        Assert.False(revData.EsReversible);
+        Assert.StartsWith("MOV-", revData.MovimientoCorrelativo);
+    }
+
+    [Fact]
+    public async Task AnalizarFotoRecurso_ConImagenValida_RetornaPropuestaFichaTecnica()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/analizar-foto", role: "admin_inventario");
+        request.Content = JsonContent.Create(new AnalisisFotoRecursoDto
+        {
+            FotoBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            MimeType = "image/png",
+            ObservacionesUsuario = "Equipo de cómputo laptop para laboratorio"
+        });
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var data = await response.Content.ReadFromJsonAsync<PropuestaRecursoDesdeFotoDto>();
+        Assert.NotNull(data);
+        Assert.False(string.IsNullOrWhiteSpace(data.NombreSugerido));
+        Assert.StartsWith("UOD-", data.SkuSugerido);
+        Assert.Equal("alta", data.ConfianzaAnalisis);
+    }
+
+    [Fact]
+    public async Task AnalizarFotoRecurso_SinFotoBase64_Retorna400BadRequest()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/analizar-foto", role: "admin_inventario");
+        request.Content = JsonContent.Create(new AnalisisFotoRecursoDto
+        {
+            FotoBase64 = "",
+            MimeType = "image/png"
+        });
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

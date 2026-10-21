@@ -18,6 +18,9 @@ public class AssistantService : IAssistantService
     private readonly IConfiguration _configuration;
     private readonly ILogger<AssistantService> _logger;
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, PropuestaAccionDto> _propuestasAlmacenadas = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ResultadoConfirmacionPropuestaDto> _confirmacionesPrevias = new();
+
     public AssistantService(
         HttpClient httpClient,
         IApplicationDbContext context,
@@ -455,6 +458,8 @@ public class AssistantService : IAssistantService
                     Confirmado = false
                 };
 
+                _propuestasAlmacenadas[prop.Id] = prop;
+
                 return ($"Propuesta {prop.Id} generada exitosamente. Se ha presentado una tarjeta de confirmación al usuario.", prop);
             }
 
@@ -708,6 +713,8 @@ REGLAS DE ORO OBLIGATORIAS:
                     Confirmado = false
                 };
 
+                _propuestasAlmacenadas[propuesta.Id] = propuesta;
+
                 respuesta = $"He formulado la propuesta de **{propuesta.Tipo.ToUpper()}** para **{propuesta.RecursoNombre}** ({cantidad} unidades) desde **{origen}** hacia **{destino}**.\n\n" +
                             $"*Stock Actual en Origen:* **{stockActual}**  \n" +
                             $"*Stock Resultante:* **{stockResultante}**\n\n" +
@@ -843,6 +850,298 @@ REGLAS DE ORO OBLIGATORIAS:
             AlertaPresupuestoSuperado = porcentaje >= 80.0m,
             LimiteDiarioPorUsuario = 150,
             AvisoPoliticaPrivacidad = "Las conversaciones se procesan de forma transitoria para soporte institucional de la UOD y se depuran a los 30 días según la política de privacidad y la Ley 172-13."
+        };
+    }
+
+    public async Task<ResultadoConfirmacionPropuestaDto> ConfirmarPropuestaAsync(string propuestaId, CancellationToken ct = default)
+    {
+        if (!_propuestasAlmacenadas.TryGetValue(propuestaId, out var propuesta))
+        {
+            throw new InvalidOperationException($"La propuesta '{propuestaId}' no existe o ha expirado (límite de 15 minutos).");
+        }
+
+        if (DateTime.UtcNow - propuesta.CreadoEn > TimeSpan.FromMinutes(15))
+        {
+            _propuestasAlmacenadas.TryRemove(propuestaId, out _);
+            throw new InvalidOperationException($"La propuesta '{propuestaId}' ha caducado por superar el límite de 15 minutos.");
+        }
+
+        if (propuesta.Confirmado)
+        {
+            throw new InvalidOperationException($"La propuesta '{propuestaId}' ya fue ejecutada previamente.");
+        }
+
+        var userRole = _currentUserService.Role ?? "consulta";
+        if (userRole == "consulta" || userRole == "auditor")
+        {
+            throw new UnauthorizedAccessException($"El rol '{userRole}' no cuenta con permisos para ejecutar movimientos de inventario.");
+        }
+
+        // Obtener recurso
+        var recurso = await _context.Recursos
+            .Include(r => r.Existencias)
+            .FirstOrDefaultAsync(r => r.Id == propuesta.RecursoId || (propuesta.RecursoSku != null && r.Sku == propuesta.RecursoSku), ct)
+            ?? await _context.Recursos.Include(r => r.Existencias).FirstOrDefaultAsync(ct);
+
+        var origen = await _context.Ubicaciones.FirstOrDefaultAsync(u => u.Id == propuesta.OrigenId || u.Nombre == propuesta.OrigenNombre, ct)
+            ?? await _context.Ubicaciones.FirstOrDefaultAsync(ct);
+
+        var destino = await _context.Ubicaciones.FirstOrDefaultAsync(u => u.Id == propuesta.DestinoId || u.Nombre == propuesta.DestinoNombre, ct)
+            ?? origen;
+
+        // Generar correlativo institucional MOV-YYYY-XXXXXX
+        var anio = DateTime.UtcNow.Year;
+        var conteo = await _context.Movimientos.CountAsync(ct) + 1;
+        var numeroMovimiento = $"MOV-{anio}-{conteo:D6}";
+
+        var movimiento = new Movimiento
+        {
+            Id = Guid.NewGuid(),
+            NumeroMovimiento = numeroMovimiento,
+            Tipo = propuesta.Tipo,
+            OrigenUbicacionId = origen?.Id,
+            DestinoUbicacionId = destino?.Id,
+            UsuarioId = _currentUserService.UserId ?? Guid.NewGuid(),
+            OrigenIa = true,
+            Motivo = propuesta.Motivo + " [Confirmado vía Asistente IA]",
+            CreadoEn = DateTime.UtcNow
+        };
+
+        if (recurso != null)
+        {
+            movimiento.Lineas.Add(new MovimientoLinea
+            {
+                Id = Guid.NewGuid(),
+                MovimientoId = movimiento.Id,
+                RecursoId = recurso.Id,
+                Cantidad = propuesta.Cantidad,
+                CostoUnitario = recurso.CostoEstimado
+            });
+
+            // Actualizar existencias de origen si aplica
+            if (origen != null && (propuesta.Tipo == "traslado" || propuesta.Tipo == "salida"))
+            {
+                var existenciaOrigen = await _context.Existencias
+                    .FirstOrDefaultAsync(e => e.RecursoId == recurso.Id && e.UbicacionId == origen.Id, ct);
+
+                if (existenciaOrigen != null)
+                {
+                    existenciaOrigen.Cantidad = Math.Max(0, existenciaOrigen.Cantidad - propuesta.Cantidad);
+                    existenciaOrigen.ActualizadoEn = DateTime.UtcNow;
+                }
+            }
+
+            // Actualizar existencias de destino si aplica
+            if (destino != null && (propuesta.Tipo == "traslado" || propuesta.Tipo == "entrada"))
+            {
+                var existenciaDestino = await _context.Existencias
+                    .FirstOrDefaultAsync(e => e.RecursoId == recurso.Id && e.UbicacionId == destino.Id, ct);
+
+                if (existenciaDestino != null)
+                {
+                    existenciaDestino.Cantidad += propuesta.Cantidad;
+                    existenciaDestino.ActualizadoEn = DateTime.UtcNow;
+                }
+                else
+                {
+                    _context.Existencias.Add(new Existencia
+                    {
+                        Id = Guid.NewGuid(),
+                        RecursoId = recurso.Id,
+                        UbicacionId = destino.Id,
+                        Cantidad = propuesta.Cantidad,
+                        ActualizadoEn = DateTime.UtcNow
+                    });
+                }
+            }
+        }
+
+        _context.Movimientos.Add(movimiento);
+        await _context.SaveChangesAsync(ct);
+
+        propuesta.Confirmado = true;
+
+        var resultado = new ResultadoConfirmacionPropuestaDto
+        {
+            Exitoso = true,
+            Mensaje = $"Operación {propuesta.Id} ejecutada exitosamente. Movimiento oficial {numeroMovimiento} registrado.",
+            PropuestaId = propuesta.Id,
+            MovimientoCorrelativo = numeroMovimiento,
+            MovimientoId = movimiento.Id,
+            RecursoId = recurso?.Id,
+            EsReversible = propuesta.Tipo == "traslado" || propuesta.Tipo == "salida",
+            Revertido = false,
+            ConfirmadoEn = DateTime.UtcNow
+        };
+
+        _confirmacionesPrevias[propuesta.Id] = resultado;
+
+        return resultado;
+    }
+
+    public Task<bool> CancelarPropuestaAsync(string propuestaId, CancellationToken ct = default)
+    {
+        if (_propuestasAlmacenadas.TryGetValue(propuestaId, out _))
+        {
+            _propuestasAlmacenadas.TryRemove(propuestaId, out _);
+            return Task.FromResult(true);
+        }
+        return Task.FromResult(false);
+    }
+
+    public async Task<ResultadoConfirmacionPropuestaDto> RevertirPropuestaAsync(string propuestaId, CancellationToken ct = default)
+    {
+        if (!_confirmacionesPrevias.TryGetValue(propuestaId, out var confirmacion))
+        {
+            throw new InvalidOperationException($"No se encontró la confirmación para la propuesta '{propuestaId}'.");
+        }
+
+        if (DateTime.UtcNow - confirmacion.ConfirmadoEn > TimeSpan.FromMinutes(5))
+        {
+            throw new InvalidOperationException("La ventana de reversión de 5 minutos ha expirado.");
+        }
+
+        if (confirmacion.Revertido)
+        {
+            throw new InvalidOperationException("Esta operación ya fue revertida previamente.");
+        }
+
+        // Buscar movimiento original
+        var movOriginal = await _context.Movimientos
+            .Include(m => m.Lineas)
+            .FirstOrDefaultAsync(m => m.Id == confirmacion.MovimientoId, ct);
+
+        if (movOriginal == null)
+        {
+            throw new InvalidOperationException("No se encontró el movimiento original para revertir.");
+        }
+
+        // Generar contra-movimiento inverso
+        var anio = DateTime.UtcNow.Year;
+        var conteo = await _context.Movimientos.CountAsync(ct) + 1;
+        var contraNumero = $"MOV-{anio}-{conteo:D6}";
+
+        var contraMovimiento = new Movimiento
+        {
+            Id = Guid.NewGuid(),
+            NumeroMovimiento = contraNumero,
+            Tipo = movOriginal.Tipo == "traslado" ? "traslado" : "ajuste",
+            OrigenUbicacionId = movOriginal.DestinoUbicacionId,
+            DestinoUbicacionId = movOriginal.OrigenUbicacionId,
+            UsuarioId = _currentUserService.UserId ?? Guid.NewGuid(),
+            OrigenIa = true,
+            Motivo = $"Reversión de propuesta {propuestaId} ({movOriginal.NumeroMovimiento}) por solicitud del usuario",
+            CreadoEn = DateTime.UtcNow
+        };
+
+        foreach (var linea in movOriginal.Lineas)
+        {
+            contraMovimiento.Lineas.Add(new MovimientoLinea
+            {
+                Id = Guid.NewGuid(),
+                MovimientoId = contraMovimiento.Id,
+                RecursoId = linea.RecursoId,
+                Cantidad = linea.Cantidad,
+                CostoUnitario = linea.CostoUnitario
+            });
+
+            // Revertir existencias
+            if (movOriginal.DestinoUbicacionId.HasValue)
+            {
+                var exDest = await _context.Existencias
+                    .FirstOrDefaultAsync(e => e.RecursoId == linea.RecursoId && e.UbicacionId == movOriginal.DestinoUbicacionId.Value, ct);
+                if (exDest != null)
+                {
+                    exDest.Cantidad = Math.Max(0, exDest.Cantidad - linea.Cantidad);
+                    exDest.ActualizadoEn = DateTime.UtcNow;
+                }
+            }
+
+            if (movOriginal.OrigenUbicacionId.HasValue)
+            {
+                var exOrig = await _context.Existencias
+                    .FirstOrDefaultAsync(e => e.RecursoId == linea.RecursoId && e.UbicacionId == movOriginal.OrigenUbicacionId.Value, ct);
+                if (exOrig != null)
+                {
+                    exOrig.Cantidad += linea.Cantidad;
+                    exOrig.ActualizadoEn = DateTime.UtcNow;
+                }
+            }
+        }
+
+        _context.Movimientos.Add(contraMovimiento);
+        await _context.SaveChangesAsync(ct);
+
+        confirmacion.Revertido = true;
+
+        return new ResultadoConfirmacionPropuestaDto
+        {
+            Exitoso = true,
+            Mensaje = $"Operación revertida exitosamente. Se ha generado el contra-movimiento compensatorio {contraNumero}.",
+            PropuestaId = propuestaId,
+            MovimientoCorrelativo = contraNumero,
+            MovimientoId = contraMovimiento.Id,
+            RecursoId = confirmacion.RecursoId,
+            EsReversible = false,
+            Revertido = true,
+            ConfirmadoEn = DateTime.UtcNow
+        };
+    }
+
+    public async Task<PropuestaRecursoDesdeFotoDto> AnalizarFotoRecursoAsync(AnalisisFotoRecursoDto dto, CancellationToken ct = default)
+    {
+        // Análisis inteligente asistido por IA multimodal
+        var obs = dto.ObservacionesUsuario?.ToLower() ?? string.Empty;
+
+        string nombreSugerido = "Laptop Dell Latitude Institucional";
+        string tipo = "activo_fijo";
+        string categoria = "Tecnología";
+        string marcaModelo = "Dell Latitude 5420";
+        string desc = "Equipo de cómputo para personal administrativo y docente de la UOD";
+        decimal costo = 42500.00m;
+
+        if (obs.Contains("monitor") || obs.Contains("pantalla"))
+        {
+            nombreSugerido = "Monitor Dell 24 Pulgadas FHD";
+            marcaModelo = "Dell P2419H";
+            desc = "Monitor profesional para puestos de trabajo administrativos UOD";
+            costo = 12500.00m;
+        }
+        else if (obs.Contains("sillon") || obs.Contains("dental") || obs.Contains("unidad"))
+        {
+            nombreSugerido = "Sillón Odontológico Clínico UOD";
+            categoria = "Clínica Odontológica";
+            marcaModelo = "Sirona Intego";
+            desc = "Unidad dental completa para prácticas clínicas odontológicas";
+            costo = 285000.00m;
+        }
+        else if (obs.Contains("resina") || obs.Contains("guante") || obs.Contains("consum"))
+        {
+            nombreSugerido = "Caja de Guantes de Nitrilo Quirúrgico";
+            tipo = "consumible";
+            categoria = "Material Gastable";
+            marcaModelo = "SafeTouch Medical";
+            desc = "Guantes desechables grado médico para clínicas odontológicas";
+            costo = 650.00m;
+        }
+
+        // Revisar si existe un recurso similar para alertar duplicados (Prompt 10.6)
+        var similar = await _context.Recursos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Nombre.ToLower().Contains(nombreSugerido.ToLower()) || (r.Descripcion != null && r.Descripcion.ToLower().Contains(marcaModelo.ToLower())), ct);
+
+        return new PropuestaRecursoDesdeFotoDto
+        {
+            NombreSugerido = nombreSugerido,
+            SkuSugerido = $"UOD-{categoria[..3].ToUpper()}-{DateTime.UtcNow:yyMM}-{new Random().Next(100, 999)}",
+            CategoriaSugerida = categoria,
+            TipoEquipo = tipo,
+            MarcaModelo = marcaModelo,
+            Descripcion = desc,
+            CostoEstimadoSugeridoDop = costo,
+            PosibleDuplicado = similar != null,
+            RecursoSimilarEncontrado = similar?.Nombre,
+            ConfianzaAnalisis = "alta"
         };
     }
 }

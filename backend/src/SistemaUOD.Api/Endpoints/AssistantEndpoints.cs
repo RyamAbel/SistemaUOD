@@ -76,6 +76,107 @@ public static class AssistantEndpoints
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden);
 
+        // --- Etapa 10: Acciones con confirmación, reversión (undo) y visión multimodal ---
+
+        group.MapPost("/propuestas/{id}/confirmar", async (
+            string id,
+            IAssistantService assistantService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await assistantService.ConfirmarPropuestaAsync(id, ct);
+                return Results.Ok(resultado);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Acceso no autorizado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Error al confirmar propuesta",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirOperacionAlmacen)
+        .WithName("ConfirmarPropuestaAsistente")
+        .WithSummary("Confirma y ejecuta atómicamente una propuesta de movimiento formulada por la IA (Prompt 10.3)")
+        .Produces<ResultadoConfirmacionPropuestaDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/propuestas/{id}/cancelar", async (
+            string id,
+            IAssistantService assistantService,
+            CancellationToken ct) =>
+        {
+            var exitoso = await assistantService.CancelarPropuestaAsync(id, ct);
+            return Results.Ok(new { exitoso, mensaje = exitoso ? "Propuesta cancelada y descartada." : "Propuesta no encontrada." });
+        })
+        .WithName("CancelarPropuestaAsistente")
+        .WithSummary("Cancela y descarta una propuesta de movimiento pendiente formulada por la IA")
+        .Produces(StatusCodes.Status200OK);
+
+        group.MapPost("/propuestas/{id}/revertir", async (
+            string id,
+            IAssistantService assistantService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await assistantService.RevertirPropuestaAsync(id, ct);
+                return Results.Ok(resultado);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Acceso no autorizado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "No se puede revertir la propuesta",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirOperacionAlmacen)
+        .WithName("RevertirPropuestaAsistente")
+        .WithSummary("Revierte una propuesta ejecutada dentro de la ventana de 5 minutos mediante contra-movimiento inverso (Prompt 10.4)")
+        .Produces<ResultadoConfirmacionPropuestaDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        group.MapPost("/analizar-foto", async (
+            [FromBody] AnalisisFotoRecursoDto request,
+            IAssistantService assistantService,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.FotoBase64))
+            {
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Imagen requerida",
+                    Detail = "Debe proporcionar una imagen o fotografía codificada en Base64.",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            var propuesta = await assistantService.AnalizarFotoRecursoAsync(request, ct);
+            return Results.Ok(propuesta);
+        })
+        .WithName("AnalizarFotoRecurso")
+        .WithSummary("Analiza una fotografía de un equipo o consumible mediante visión multimodal y genera propuesta de ficha técnica (Prompt 10.5 / 10.6)")
+        .Produces<PropuestaRecursoDesdeFotoDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
         return app;
     }
 }

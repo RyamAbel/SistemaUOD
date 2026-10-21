@@ -1538,7 +1538,7 @@ export const apiClient = {
   },
 
   // ==========================================
-  // Asistente de IA SIIA (Etapa 9 - Prompt 9.3/9.6)
+  // Asistente de IA SIIA (Etapa 9 & 10 - Prompts 9.3 a 10.6)
   // ==========================================
   enviarMensajeAsistente: async (dto: ChatRequestDto): Promise<ChatResponseDto> => {
     return request<ChatResponseDto>('assistant/chat', {
@@ -1549,6 +1549,35 @@ export const apiClient = {
 
   obtenerInfoAsistente: async (): Promise<any> => {
     return request<any>('assistant/info');
+  },
+
+  obtenerConsumoAsistente: async (): Promise<any> => {
+    return request<any>('assistant/consumo');
+  },
+
+  confirmarPropuestaAsistente: async (propuestaId: string): Promise<ResultadoConfirmacionPropuestaDto> => {
+    return request<ResultadoConfirmacionPropuestaDto>(`assistant/propuestas/${propuestaId}/confirmar`, {
+      method: 'POST'
+    });
+  },
+
+  cancelarPropuestaAsistente: async (propuestaId: string): Promise<{ exitoso: boolean; mensaje: string }> => {
+    return request<{ exitoso: boolean; mensaje: string }>(`assistant/propuestas/${propuestaId}/cancelar`, {
+      method: 'POST'
+    });
+  },
+
+  revertirPropuestaAsistente: async (propuestaId: string): Promise<ResultadoConfirmacionPropuestaDto> => {
+    return request<ResultadoConfirmacionPropuestaDto>(`assistant/propuestas/${propuestaId}/revertir`, {
+      method: 'POST'
+    });
+  },
+
+  analizarFotoRecurso: async (dto: AnalisisFotoRecursoDto): Promise<PropuestaRecursoDesdeFotoDto> => {
+    return request<PropuestaRecursoDesdeFotoDto>('assistant/analizar-foto', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
   }
 };
 
@@ -1594,6 +1623,40 @@ export interface ChatResponseDto {
   isLiveGemini: boolean;
   costoEstimadoDop: number;
 }
+
+export interface ResultadoConfirmacionPropuestaDto {
+  exitoso: boolean;
+  mensaje: string;
+  propuestaId: string;
+  movimientoCorrelativo?: string;
+  movimientoId?: string;
+  recursoId?: string;
+  activoId?: string;
+  placaInstitucional?: string;
+  esReversible: boolean;
+  revertido: boolean;
+  confirmadoEn: string;
+}
+
+export interface AnalisisFotoRecursoDto {
+  fotoBase64: string;
+  mimeType?: string;
+  observacionesUsuario?: string;
+}
+
+export interface PropuestaRecursoDesdeFotoDto {
+  nombreSugerido: string;
+  skuSugerido?: string;
+  categoriaSugerida: string;
+  tipoEquipo: string;
+  marcaModelo: string;
+  descripcion: string;
+  costoEstimadoSugeridoDop: number;
+  posibleDuplicado: boolean;
+  recursoSimilarEncontrado?: string;
+  confianzaAnalisis: string;
+}
+
 
 
 
