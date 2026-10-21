@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using SistemaUOD.Application.Common.Interfaces;
 using SistemaUOD.Application.DTOs;
+using SistemaUOD.Domain.Enums;
 
 namespace SistemaUOD.Api.Endpoints;
 
@@ -16,6 +17,7 @@ public static class MeEndpoints
         group.MapGet("/", async (
             ICurrentUserService currentUser,
             IApplicationDbContext dbContext,
+            IHostEnvironment env,
             CancellationToken ct) =>
         {
             var userId = currentUser.UserId;
@@ -33,6 +35,22 @@ public static class MeEndpoints
 
             if (perfil == null)
             {
+                if (env.IsDevelopment() && userId == Guid.Parse("00000000-0000-0000-0000-000000000001"))
+                {
+                    return Results.Ok(new PerfilDto
+                    {
+                        Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                        Correo = "admin@uod.edu.do",
+                        NombreCompleto = "Administrador UOD (Desarrollo)",
+                        Rol = RolesUsuario.SuperAdmin,
+                        Departamento = "Tecnología e Información",
+                        Activo = true,
+                        CreadoEn = DateTime.UtcNow,
+                        ActualizadoEn = DateTime.UtcNow,
+                        Permisos = ["usuarios:gestionar", "recursos:crear", "recursos:editar", "movimientos:crear", "ia:usar"]
+                    });
+                }
+
                 return Results.Problem(
                     statusCode: StatusCodes.Status403Forbidden,
                     title: "Acceso denegado",

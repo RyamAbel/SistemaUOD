@@ -118,6 +118,40 @@ if (app.Environment.IsDevelopment())
 app.UseCors(PoliticaCorsFrontend);
 app.UseRateLimiter();
 app.UseAuthentication();
+
+if (app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        // En desarrollo local, si no hay un token de Supabase autenticado, inyectar el usuario institucional de desarrollo
+        if (context.User?.Identity?.IsAuthenticated != true)
+        {
+            var authHeader = context.Request.Headers.Authorization.ToString();
+            bool esDevToken = authHeader.StartsWith("Bearer dev-token") ||
+                              authHeader == "Bearer null" ||
+                              authHeader == "Bearer undefined" ||
+                              context.Request.Headers.ContainsKey("X-Dev-Bypass");
+
+            if (esDevToken)
+            {
+                var identity = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, "00000000-0000-0000-0000-000000000001"),
+                    new Claim("sub", "00000000-0000-0000-0000-000000000001"),
+                    new Claim(ClaimTypes.Email, "admin@uod.edu.do"),
+                    new Claim(ClaimTypes.Role, RolesUsuario.SuperAdmin),
+                    new Claim("role", RolesUsuario.SuperAdmin),
+                    new Claim(ClaimTypes.Name, "Administrador UOD")
+                }, "DevAuthScheme");
+
+                context.User = new ClaimsPrincipal(identity);
+            }
+        }
+
+        await next();
+    });
+}
+
 app.UseAuthorization();
 
 // 8. Endpoints de la API (/api/v1)

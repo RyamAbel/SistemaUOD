@@ -48,9 +48,9 @@ class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  // 1. Obtener token de Supabase Auth
+  // 1. Obtener token de Supabase Auth (o dev-token en desarrollo local)
   const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+  const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -774,7 +774,7 @@ export const apiClient = {
     formData.append('esPrincipal', esPrincipal.toString());
 
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
     const url = `${API_BASE_URL.replace(/\/+$/, '')}/recursos/${recursoId}/fotos`;
 
     const headers: Record<string, string> = {};
@@ -942,7 +942,7 @@ export const apiClient = {
 
     const qs = query.toString();
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
     const url = `${API_BASE_URL.replace(/\/+$/, '')}/movimientos/exportar${qs ? `?${qs}` : ''}`;
 
     const headers: Record<string, string> = {};
