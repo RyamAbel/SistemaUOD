@@ -193,3 +193,16 @@ public class DuplicarRecursoDto
     public bool CopiarFotos { get; set; } = true;
     public bool CopiarCodigos { get; set; } = false;
 }
+
+public class ActualizarStockMinimoDto
+{
+    [Range(0, 1000000, ErrorMessage = "El stock mínimo no puede ser negativo.")]
+    public int StockMinimo { get; set; } = 0;
+
+    [Range(0, 1000000, ErrorMessage = "El stock máximo no puede ser negativo.")]
+    public int? StockMaximo { get; set; }
+
+    [Range(0, 1000000, ErrorMessage = "El punto de reorden no puede ser negativo.")]
+    public int? PuntoReorden { get; set; }
+}
+

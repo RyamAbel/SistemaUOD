@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useId } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ArrowLeftRight,
   ArrowDownLeft,
@@ -29,7 +29,10 @@ import {
   Eye,
   RefreshCw,
   X,
-  UserCheck
+  UserCheck,
+  Download,
+  FileSpreadsheet,
+  Filter
 } from 'lucide-react';
 import {
   apiClient,
@@ -172,14 +175,19 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
   const [guardando, setGuardando] = useState(false);
   const [movimientoExitoso, setMovimientoExitoso] = useState<MovimientoDto | null>(null);
 
-  // 6. Historial de Movimientos
+  // 6. Historial de Movimientos y Bitácora
   const [historialMovimientos, setHistorialMovimientos] = useState<MovimientoDto[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [historialTipoFiltro, setHistorialTipoFiltro] = useState<string>('todos');
+  const [historialUbicacionFiltro, setHistorialUbicacionFiltro] = useState<string>('');
+  const [historialFechaDesde, setHistorialFechaDesde] = useState<string>('');
+  const [historialFechaHasta, setHistorialFechaHasta] = useState<string>('');
   const [historialBusqueda, setHistorialBusqueda] = useState<string>('');
   const [historialPage, setHistorialPage] = useState<number>(1);
+  const [historialTotalPages, setHistorialTotalPages] = useState<number>(1);
   const [historialTotalCount, setHistorialTotalCount] = useState<number>(0);
   const [selectedHistorialMov, setSelectedHistorialMov] = useState<MovimientoDto | null>(null);
+  const [exportandoCsv, setExportandoCsv] = useState(false);
 
   // 7. Escáner de Códigos
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -205,6 +213,66 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     };
     cargarUbicaciones();
   }, []);
+
+  // Cargar historial de movimientos filtrable
+  const cargarHistorial = useCallback(async (page: number = 1) => {
+    setLoadingHistorial(true);
+    try {
+      const res = await apiClient.listarMovimientos({
+        pageIndex: page,
+        pageSize: 15,
+        search: historialBusqueda.trim() || undefined,
+        tipo: historialTipoFiltro !== 'todos' ? historialTipoFiltro : undefined,
+        ubicacionId: historialUbicacionFiltro || undefined,
+        fechaDesde: historialFechaDesde ? new Date(historialFechaDesde).toISOString() : undefined,
+        fechaHasta: historialFechaHasta ? new Date(historialFechaHasta + 'T23:59:59').toISOString() : undefined,
+        sortBy: 'creadoEn',
+        isDescending: true
+      });
+      setHistorialMovimientos(res.items);
+      setHistorialPage(res.pageIndex);
+      setHistorialTotalPages(res.totalPages);
+      setHistorialTotalCount(res.totalCount);
+    } catch (err) {
+      console.error('Error cargando historial de movimientos:', err);
+    } finally {
+      setLoadingHistorial(false);
+    }
+  }, [historialBusqueda, historialTipoFiltro, historialUbicacionFiltro, historialFechaDesde, historialFechaHasta]);
+
+  // Ejecutar carga de historial al cambiar de pestaña o variar filtros
+  useEffect(() => {
+    if (activeTab === 'historial') {
+      cargarHistorial(1);
+    }
+  }, [activeTab, historialTipoFiltro, historialUbicacionFiltro, historialFechaDesde, historialFechaHasta, cargarHistorial]);
+
+  // Exportar a CSV con BOM UTF-8
+  const handleExportarCsv = async () => {
+    setExportandoCsv(true);
+    try {
+      await apiClient.exportarMovimientosCsv({
+        search: historialBusqueda.trim() || undefined,
+        tipo: historialTipoFiltro !== 'todos' ? historialTipoFiltro : undefined,
+        ubicacionId: historialUbicacionFiltro || undefined,
+        fechaDesde: historialFechaDesde ? new Date(historialFechaDesde).toISOString() : undefined,
+        fechaHasta: historialFechaHasta ? new Date(historialFechaHasta + 'T23:59:59').toISOString() : undefined
+      });
+      showToast('Bitácora de movimientos descargada exitosamente en formato CSV.');
+    } catch (err: any) {
+      showToast(err.message || 'Error al exportar movimientos a CSV');
+    } finally {
+      setExportandoCsv(false);
+    }
+  };
+
+  const handleLimpiarFiltrosHistorial = () => {
+    setHistorialBusqueda('');
+    setHistorialTipoFiltro('todos');
+    setHistorialUbicacionFiltro('');
+    setHistorialFechaDesde('');
+    setHistorialFechaHasta('');
+  };
 
   // Búsqueda de recursos con debounce para el selector
   useEffect(() => {
@@ -262,32 +330,6 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     consultarExistencias();
   }, [selectedRecurso, origenUbicacionId, tipo]);
 
-  // Cargar historial de movimientos
-  const cargarHistorial = async (page: number = 1) => {
-    setLoadingHistorial(true);
-    try {
-      const filtros: any = {
-        pageIndex: page,
-        pageSize: 15,
-        search: historialBusqueda ? historialBusqueda.trim() : undefined,
-        tipo: historialTipoFiltro !== 'todos' ? historialTipoFiltro : undefined
-      };
-      const res = await apiClient.listarMovimientos(filtros);
-      setHistorialMovimientos(res.items);
-      setHistorialTotalCount(res.totalCount);
-      setHistorialPage(page);
-    } catch (err) {
-      console.error('Error al cargar historial de movimientos:', err);
-    } finally {
-      setLoadingHistorial(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'historial') {
-      cargarHistorial(1);
-    }
-  }, [activeTab, historialTipoFiltro]);
 
   // Validaciones del Paso 1
   const paso1Valido = useMemo(() => {
@@ -1223,37 +1265,117 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
       {/* 3. Pestaña HISTORIAL: Bitácora de Movimientos Pasados */}
       {activeTab === 'historial' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
-          {/* Barra de Filtros */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Header de la Bitácora y Botón Exportar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-[#1C3177]" />
+                Bitácora Transaccional Inmutable (Ley 172-13)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Historial cronológico de todos los movimientos y ajustes asentados en el inventario institucional.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportarCsv}
+                disabled={exportandoCsv || loadingHistorial}
+                className="px-3.5 py-2 bg-emerald-50 text-[#2D8246] hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-60"
+                title="Descargar movimientos filtrados en formato CSV compatible con Microsoft Excel"
+              >
+                {exportandoCsv ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#2D8246]" />
+                ) : (
+                  <Download className="w-4 h-4 text-[#2D8246]" />
+                )}
+                <span>{exportandoCsv ? 'Exportando...' : 'Exportar CSV'}</span>
+              </button>
+
+              {(historialBusqueda || historialTipoFiltro !== 'todos' || historialUbicacionFiltro || historialFechaDesde || historialFechaHasta) && (
+                <button
+                  type="button"
+                  onClick={handleLimpiarFiltrosHistorial}
+                  className="px-3 py-2 text-slate-500 hover:text-slate-800 text-xs font-medium transition-colors"
+                >
+                  Limpiar Filtros
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Barra de Filtros Combinables */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+            {/* Input de Búsqueda */}
+            <div className="relative md:col-span-4">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={historialBusqueda}
                 onChange={e => setHistorialBusqueda(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && cargarHistorial(1)}
-                placeholder="Buscar por correlativo MOV, motivo o artículo..."
-                className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                placeholder="Buscar por correlativo MOV, motivo..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
               />
             </div>
 
-            {/* Chips de filtro por tipo */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              {['todos', 'entrada', 'salida', 'traslado', 'ajuste', 'baja'].map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setHistorialTipoFiltro(t)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
-                    historialTipoFiltro === t
-                      ? 'bg-[#1C3177] text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+            {/* Selector de Ubicación */}
+            <div className="md:col-span-3">
+              <select
+                value={historialUbicacionFiltro}
+                onChange={e => setHistorialUbicacionFiltro(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+              >
+                <option value="">Todas las ubicaciones...</option>
+                {ubicaciones.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} ({u.codigo})
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {/* Rango de Fechas */}
+            <div className="md:col-span-5 flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={historialFechaDesde}
+                  onChange={e => setHistorialFechaDesde(e.target.value)}
+                  title="Fecha inicial"
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-700 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                />
+              </div>
+              <span className="text-slate-400 text-xs">a</span>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={historialFechaHasta}
+                  onChange={e => setHistorialFechaHasta(e.target.value)}
+                  title="Fecha final"
+                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-700 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Chips de filtro por tipo de movimiento */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {['todos', 'entrada', 'salida', 'traslado', 'ajuste', 'devolucion', 'baja'].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setHistorialTipoFiltro(t)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
+                  historialTipoFiltro === t
+                    ? 'bg-[#1C3177] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
 
           {/* Tabla de Historial */}
@@ -1268,71 +1390,99 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
               <p className="text-xs font-medium">No se encontraron movimientos registrados con los filtros aplicados.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto border border-slate-200 rounded-xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                  <tr>
-                    <th className="py-2.5 px-3">Correlativo</th>
-                    <th className="py-2.5 px-3">Tipo</th>
-                    <th className="py-2.5 px-3">Ruta</th>
-                    <th className="py-2.5 px-3">Líneas / Uds</th>
-                    <th className="py-2.5 px-3">Total DOP</th>
-                    <th className="py-2.5 px-3">Responsable</th>
-                    <th className="py-2.5 px-3">Fecha</th>
-                    <th className="py-2.5 px-3 text-right">Detalle</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {historialMovimientos.map(m => {
-                    const cfg = TIPOS_CONFIG[m.tipo] || TIPOS_CONFIG.traslado;
-                    return (
-                      <tr key={m.id} className="hover:bg-slate-50/60">
-                        <td className="py-3 px-3 font-mono font-bold text-[#1C3177]">
-                          {m.numeroMovimiento}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.bgLight} ${cfg.textColor}`}>
-                            {cfg.icon}
-                            <span className="capitalize">{m.tipo}</span>
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-slate-600">
-                          {m.origenUbicacionNombre || 'Externo'} → {m.destinoUbicacionNombre || 'Externo'}
-                        </td>
-                        <td className="py-3 px-3 font-semibold text-slate-900">
-                          {m.totalLineas} artículos ({m.totalUnidades} uds)
-                        </td>
-                        <td className="py-3 px-3 font-bold text-[#2D8246]">
-                          ${m.costoTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-3 px-3 text-slate-700">
-                          {m.usuarioNombre}
-                        </td>
-                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
-                          {new Date(m.creadoEn).toLocaleDateString('es-DO', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedHistorialMov(m)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
-                            title="Ver detalle de líneas"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Correlativo</th>
+                      <th className="py-2.5 px-3">Tipo</th>
+                      <th className="py-2.5 px-3">Ruta</th>
+                      <th className="py-2.5 px-3">Líneas / Uds</th>
+                      <th className="py-2.5 px-3">Total DOP</th>
+                      <th className="py-2.5 px-3">Responsable</th>
+                      <th className="py-2.5 px-3">Fecha</th>
+                      <th className="py-2.5 px-3 text-right">Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historialMovimientos.map(m => {
+                      const cfg = TIPOS_CONFIG[m.tipo] || TIPOS_CONFIG.traslado;
+                      return (
+                        <tr key={m.id} className="hover:bg-slate-50/60">
+                          <td className="py-3 px-3 font-mono font-bold text-[#1C3177]">
+                            {m.numeroMovimiento}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.bgLight} ${cfg.textColor}`}>
+                              {cfg.icon}
+                              <span className="capitalize">{m.tipo}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-600">
+                            {m.origenUbicacionNombre || 'Externo'} → {m.destinoUbicacionNombre || 'Externo'}
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-slate-900">
+                            {m.totalLineas} artículos ({m.totalUnidades} uds)
+                          </td>
+                          <td className="py-3 px-3 font-bold text-[#2D8246]">
+                            ${m.costoTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            {m.usuarioNombre}
+                          </td>
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                            {new Date(m.creadoEn).toLocaleDateString('es-DO', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedHistorialMov(m)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
+                              title="Ver detalle de líneas"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paginación */}
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-2">
+                <span>Total: {historialTotalCount} movimientos registrados</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={historialPage <= 1}
+                    onClick={() => cargarHistorial(historialPage - 1)}
+                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="font-semibold text-slate-700">
+                    Página {historialPage} de {historialTotalPages || 1}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={historialPage >= historialTotalPages}
+                    onClick={() => cargarHistorial(historialPage + 1)}
+                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

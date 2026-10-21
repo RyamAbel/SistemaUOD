@@ -20,12 +20,19 @@ import {
   Loader2,
   ChevronRight,
   Maximize2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Clock,
+  ArrowLeftRight,
+  ArrowDownLeft,
+  ArrowUpRight,
+  RotateCcw,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   apiClient,
   RecursoDetalleDto,
-  RecursoDto
+  RecursoDto,
+  MovimientoDto
 } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { QrLabelsPrintModal } from './QrLabelsPrintModal';
@@ -50,10 +57,14 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [recurso, setRecurso] = useState<RecursoDetalleDto | null>(null);
   const [activePhotoUrl, setActivePhotoUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'existencias' | 'series' | 'codigos'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'existencias' | 'series' | 'codigos' | 'timeline'>('general');
 
   // Modal para imprimir etiquetas
   const [printModalOpen, setPrintModalOpen] = useState(false);
+
+  // Línea de tiempo de movimientos del recurso (Prompt 7.5)
+  const [timelineMovimientos, setTimelineMovimientos] = useState<MovimientoDto[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   useEffect(() => {
     if (isOpen && recursoId) {
@@ -63,6 +74,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
       setActivePhotoUrl(null);
       setError(null);
       setActiveTab('general');
+      setTimelineMovimientos([]);
     }
   }, [isOpen, recursoId]);
 
@@ -78,10 +90,30 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
       } else {
         setActivePhotoUrl(null);
       }
+
+      // Cargar historial de movimientos que involucran a este recurso
+      cargarTimeline(id);
     } catch (err: any) {
       setError(err.message || 'No se pudo obtener el detalle del recurso.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cargarTimeline = async (id: string) => {
+    setLoadingTimeline(true);
+    try {
+      const res = await apiClient.listarMovimientos({
+        recursoId: id,
+        pageSize: 50,
+        sortBy: 'creadoEn',
+        isDescending: true
+      });
+      setTimelineMovimientos(res.items);
+    } catch (err) {
+      console.error('Error cargando línea de tiempo del recurso:', err);
+    } finally {
+      setLoadingTimeline(false);
     }
   };
 
@@ -227,6 +259,22 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                 }`}
               >
                 <span>Códigos y QR</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={`py-3 border-b-2 transition-colors flex items-center space-x-1.5 ${
+                  activeTab === 'timeline'
+                    ? 'border-[#1C3177] text-[#1C3177]'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Línea de Tiempo</span>
+                {timelineMovimientos.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px]">
+                    {timelineMovimientos.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -565,6 +613,117 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* TAB 5: LÍNEA DE TIEMPO Y TRAZABILIDAD (Prompt 7.5) */}
+              {activeTab === 'timeline' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-[#1C3177]" />
+                        Trazabilidad Cronológica de Movimientos
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Historial auditado de entradas, traslados internos, despachos y ajustes de este recurso.
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {timelineMovimientos.length} registro(s)
+                    </span>
+                  </div>
+
+                  {loadingTimeline ? (
+                    <div className="py-12 text-center text-slate-400 space-y-2">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#1C3177]" />
+                      <p className="text-xs font-medium">Cargando eventos de la línea de tiempo...</p>
+                    </div>
+                  ) : timelineMovimientos.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl space-y-2">
+                      <Clock className="w-8 h-8 mx-auto stroke-1" />
+                      <p className="text-xs font-medium">Este recurso no registra movimientos ni transferencias aún.</p>
+                      <p className="text-[11px] text-slate-400">Las existencias iniciales provienen del inventario base institucional.</p>
+                    </div>
+                  ) : (
+                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
+                      {timelineMovimientos.map((m) => {
+                        const lineaRecurso = m.lineas?.find((l) => l.recursoId === recurso.id);
+                        const cantidad = lineaRecurso ? lineaRecurso.cantidad : m.totalUnidades;
+                        const esPositivo = m.tipo === 'entrada' || m.tipo === 'devolucion';
+
+                        return (
+                          <div key={m.id} className="relative group">
+                            {/* Punto / Indicador en la línea de tiempo */}
+                            <div className={`absolute -left-6 top-1.5 w-5 h-5 rounded-full border-2 border-white shadow-xs flex items-center justify-center text-[10px] ${
+                              m.tipo === 'entrada' ? 'bg-[#3DAA5C] text-white' :
+                              m.tipo === 'salida' || m.tipo === 'baja' ? 'bg-red-500 text-white' :
+                              m.tipo === 'traslado' ? 'bg-[#1C3177] text-white' :
+                              'bg-amber-500 text-white'
+                            }`}>
+                              {m.tipo === 'entrada' ? <ArrowDownLeft className="w-3 h-3" /> :
+                               m.tipo === 'salida' ? <ArrowUpRight className="w-3 h-3" /> :
+                               m.tipo === 'traslado' ? <ArrowLeftRight className="w-3 h-3" /> :
+                               <RotateCcw className="w-3 h-3" />}
+                            </div>
+
+                            {/* Tarjeta del evento */}
+                            <div className="bg-slate-50/70 group-hover:bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 transition-colors">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-[#1C3177]">
+                                    {m.numeroMovimiento}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                                    m.tipo === 'entrada' ? 'bg-emerald-100 text-[#2D8246]' :
+                                    m.tipo === 'salida' || m.tipo === 'baja' ? 'bg-red-100 text-red-700' :
+                                    m.tipo === 'traslado' ? 'bg-blue-100 text-[#1C3177]' :
+                                    'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {m.tipo}
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-slate-500">
+                                  {new Date(m.creadoEn).toLocaleDateString('es-DO', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Ruta:</span>
+                                  <span className="font-semibold text-slate-800">
+                                    {m.origenUbicacionNombre || 'Externo'} → {m.destinoUbicacionNombre || 'Externo'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Cantidad Afectada:</span>
+                                  <span className={`font-bold ${esPositivo ? 'text-[#3DAA5C]' : 'text-slate-800'}`}>
+                                    {esPositivo ? `+${cantidad}` : cantidad} {recurso.unidadMedida}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Responsable:</span>
+                                  <span className="text-slate-700 font-medium truncate block">
+                                    {m.usuarioNombre}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 italic">
+                                "{m.motivo}"
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

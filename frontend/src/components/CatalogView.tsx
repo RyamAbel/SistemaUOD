@@ -28,7 +28,8 @@ import {
   Edit2,
   Copy,
   Printer,
-  Camera
+  Camera,
+  Loader2
 } from 'lucide-react';
 import {
   apiClient,
@@ -123,6 +124,51 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   const [detailResourceId, setDetailResourceId] = useState<string | null>(null);
   const [batchPrintModalOpen, setBatchPrintModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
+
+  // 9. Modal de edición rápida de umbrales de stock RF-12 (Prompt 7.5)
+  const [stockModalItem, setStockModalItem] = useState<RecursoDto | null>(null);
+  const [editStockMinimo, setEditStockMinimo] = useState<number>(0);
+  const [editStockMaximo, setEditStockMaximo] = useState<number | ''>('');
+  const [editPuntoReorden, setEditPuntoReorden] = useState<number | ''>('');
+  const [guardandoStock, setGuardandoStock] = useState(false);
+
+  const handleOpenStockModal = (recurso: RecursoDto) => {
+    setStockModalItem(recurso);
+    setEditStockMinimo(recurso.stockMinimo);
+    setEditStockMaximo(recurso.stockMaximo ?? '');
+    setEditPuntoReorden(recurso.puntoReorden ?? '');
+  };
+
+  const handleGuardarStock = async () => {
+    if (!stockModalItem) return;
+    setGuardandoStock(true);
+    try {
+      const actualizado = await apiClient.actualizarUmbralesStock(stockModalItem.id, {
+        stockMinimo: Number(editStockMinimo) || 0,
+        stockMaximo: editStockMaximo !== '' ? Number(editStockMaximo) : null,
+        puntoReorden: editPuntoReorden !== '' ? Number(editPuntoReorden) : null
+      });
+      showToast(`Umbrales RF-12 actualizados exitosamente para ${stockModalItem.sku}.`);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((r) =>
+          r.id === stockModalItem.id
+            ? {
+                ...r,
+                stockMinimo: actualizado.stockMinimo,
+                stockMaximo: actualizado.stockMaximo,
+                puntoReorden: actualizado.puntoReorden
+              }
+            : r
+        )
+      }));
+      setStockModalItem(null);
+    } catch (err: any) {
+      showToast(err.message || 'Error al actualizar umbrales de stock', 'error');
+    } finally {
+      setGuardandoStock(false);
+    }
+  };
 
   const handleOpenDetail = (id: string) => {
     setDetailResourceId(id);
@@ -871,20 +917,51 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                             </span>
                           </td>
 
-                          {/* Existencias */}
+                          {/* Existencias e Indicadores de Stock */}
                           <td className="py-3 px-3 text-center">
-                            <span
-                              className={`font-bold ${
-                                recurso.stockActual === 0
-                                  ? 'text-rose-600'
-                                  : isLowStock
-                                  ? 'text-amber-600'
-                                  : 'text-slate-800'
-                              }`}
-                            >
-                              {recurso.stockActual}
-                            </span>
-                            <span className="text-[10px] text-slate-400 ml-1">{recurso.unidadMedida}</span>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span
+                                className={`font-extrabold ${
+                                  recurso.stockActual === 0
+                                    ? 'text-rose-600'
+                                    : isLowStock
+                                    ? 'text-amber-600'
+                                    : 'text-slate-800'
+                                }`}
+                              >
+                                {recurso.stockActual}
+                              </span>
+                              <span className="text-[10px] text-slate-400">{recurso.unidadMedida}</span>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenStockModal(recurso)}
+                                  title={`Ajustar umbrales RF-12 (Mín: ${recurso.stockMinimo}${recurso.puntoReorden ? `, Reorden: ${recurso.puntoReorden}` : ''}${recurso.stockMaximo ? `, Máx: ${recurso.stockMaximo}` : ''})`}
+                                  className="p-1 rounded text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
+                                >
+                                  <SlidersHorizontal className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="mt-0.5">
+                              {recurso.stockActual === 0 ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700">
+                                  Agotado
+                                </span>
+                              ) : isLowStock ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700">
+                                  Stock Bajo (Mín: {recurso.stockMinimo})
+                                </span>
+                              ) : recurso.puntoReorden && recurso.stockActual <= recurso.puntoReorden ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                  Punto Reorden ({recurso.puntoReorden})
+                                </span>
+                              ) : (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-50 text-[#2D8246]">
+                                  En Stock
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Costo Estimado */}
@@ -1050,12 +1127,27 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                           {recurso.nombre}
                         </h3>
 
-                        {/* Existencias y Costo */}
-                        <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center justify-between text-xs">
+                        {/* Existencias y Costo con Indicador de Stock */}
+                        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100 flex items-center justify-between text-xs">
                           <div>
-                            <span className="text-[10px] text-slate-500 block">Stock Actual</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-slate-500 block">Stock Actual</span>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenStockModal(recurso);
+                                  }}
+                                  title="Ajustar umbrales RF-12"
+                                  className="p-0.5 text-slate-400 hover:text-[#1C3177]"
+                                >
+                                  <SlidersHorizontal className="w-2.5 h-2.5" />
+                                </button>
+                              )}
+                            </div>
                             <span
-                              className={`font-bold ${
+                              className={`font-extrabold ${
                                 recurso.stockActual === 0
                                   ? 'text-rose-600'
                                   : isLowStock
@@ -1065,6 +1157,25 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                             >
                               {recurso.stockActual} {recurso.unidadMedida}
                             </span>
+                            <div className="mt-0.5">
+                              {recurso.stockActual === 0 ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[8px] font-bold bg-rose-100 text-rose-700">
+                                  Agotado
+                                </span>
+                              ) : isLowStock ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[8px] font-bold bg-amber-100 text-amber-700">
+                                  Bajo (Mín: {recurso.stockMinimo})
+                                </span>
+                              ) : recurso.puntoReorden && recurso.stockActual <= recurso.puntoReorden ? (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[8px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                  Reorden ({recurso.puntoReorden})
+                                </span>
+                              ) : (
+                                <span className="inline-block px-1.5 py-0.2 rounded-full text-[8px] font-bold bg-emerald-50 text-[#2D8246]">
+                                  En Stock
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="text-right">
                             <span className="text-[10px] text-slate-500 block">Costo Est.</span>
@@ -1338,6 +1449,123 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           setDrawerOpen(true);
         }}
       />
+
+      {/* Modal Ajuste Rápido de Umbrales de Stock RF-12 (Prompt 7.5) */}
+      {stockModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#1C3177] flex items-center justify-center">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Ajustar Umbrales de Stock (RF-12)
+                  </h3>
+                  <span className="text-[11px] font-mono text-[#1C3177] font-semibold">
+                    {stockModalItem.sku} • {stockModalItem.nombre}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStockModalItem(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-blue-900 text-[11px] space-y-1">
+                <span className="font-bold block">Reglas de Reabastecimiento Automático:</span>
+                <p className="text-slate-600">
+                  El sistema generará alertas preventivas cuando las existencias disponibles caigan por debajo del stock mínimo o alcancen el punto de reorden.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Stock Mínimo (Alerta de escasez) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editStockMinimo}
+                  onChange={(e) => setEditStockMinimo(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  Existencias mínimas tolerables antes de considerarse en déficit crítico.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Punto de Reorden (Sugerencia de compra)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editPuntoReorden}
+                  onChange={(e) => setEditPuntoReorden(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="Ej: 10 (Opcional)"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  Nivel de existencias que dispara la solicitud de reposición al departamento de compras.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Stock Máximo (Capacidad tope)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editStockMaximo}
+                  onChange={(e) => setEditStockMaximo(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="Ej: 100 (Opcional)"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  Capacidad máxima para evitar sobreinventario y costos innecesarios de almacenamiento.
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStockModalItem(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={guardandoStock}
+                onClick={handleGuardarStock}
+                className="px-5 py-2 rounded-xl bg-[#1C3177] hover:bg-[#2B4BA0] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-60"
+              >
+                {guardandoStock ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Guardar Umbrales</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

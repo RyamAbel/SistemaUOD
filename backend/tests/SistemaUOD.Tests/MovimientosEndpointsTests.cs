@@ -370,4 +370,43 @@ public class MovimientosEndpointsTests : IClassFixture<CustomWebApplicationFacto
         Assert.NotNull(result);
         Assert.Equal(1, result.PageIndex);
     }
+
+    [Fact]
+    public async Task ExportarMovimientos_RetornaCsvConCabeceraYContentDisposition()
+    {
+        await InicializarDatosPruebaAsync();
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Get, "/api/v1/movimientos/exportar", role: "auditor");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/csv", response.Content.Headers.ContentType?.MediaType);
+        var csvContent = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Correlativo,Tipo,Ubicacion Origen,Ubicacion Destino", csvContent);
+    }
+
+    [Fact]
+    public async Task ActualizarStockMinimo_ConRolPermitido_ActualizaUmbralesExitosamente()
+    {
+        var (recId, _, _) = await InicializarDatosPruebaAsync();
+        var client = _factory.CreateClient();
+
+        var request = CrearPeticion(HttpMethod.Patch, $"/api/v1/recursos/{recId}/stock-minimo", role: "admin_inventario");
+        request.Content = JsonContent.Create(new ActualizarStockMinimoDto
+        {
+            StockMinimo = 15,
+            StockMaximo = 100,
+            PuntoReorden = 25
+        });
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var recurso = await response.Content.ReadFromJsonAsync<RecursoDto>();
+        Assert.NotNull(recurso);
+        Assert.Equal(15, recurso.StockMinimo);
+        Assert.Equal(100, recurso.StockMaximo);
+        Assert.Equal(25, recurso.PuntoReorden);
+    }
 }

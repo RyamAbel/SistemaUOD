@@ -121,6 +121,46 @@ public static class MovimientosEndpoints
         .WithName("ObtenerMovimientoPorId")
         .WithSummary("Obtiene el detalle completo de un movimiento institucional con todas sus líneas");
 
+        // 5. Exportar movimientos filtrados a formato CSV (BOM UTF-8 institucional)
+        group.MapGet("/exportar", async (
+            [FromQuery] string? tipo,
+            [FromQuery] Guid? ubicacionId,
+            [FromQuery] Guid? recursoId,
+            [FromQuery] Guid? usuarioId,
+            [FromQuery] DateTime? fechaDesde,
+            [FromQuery] DateTime? fechaHasta,
+            [FromQuery] string? search,
+            IMovimientoService movimientoService,
+            CancellationToken ct) =>
+        {
+            var filtros = new MovimientoFiltrosDto
+            {
+                Tipo = tipo,
+                UbicacionId = ubicacionId,
+                RecursoId = recursoId,
+                UsuarioId = usuarioId,
+                FechaDesde = fechaDesde,
+                FechaHasta = fechaHasta,
+                Search = search,
+                PageIndex = 1,
+                PageSize = 5000
+            };
+
+            var resultado = await movimientoService.ListarMovimientosAsync(filtros, ct);
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Correlativo,Tipo,Ubicacion Origen,Ubicacion Destino,Responsable,Total Lineas,Total Unidades,Costo Total DOP,Fecha UTC,Motivo,Comprobante");
+
+            foreach (var m in resultado.Items)
+            {
+                sb.AppendLine($"\"{m.NumeroMovimiento}\",\"{m.Tipo}\",\"{m.OrigenUbicacionNombre ?? "Externo"}\",\"{m.DestinoUbicacionNombre ?? "Externo"}\",\"{m.UsuarioNombre}\",{m.TotalLineas},{m.TotalUnidades},{m.CostoTotal:F2},\"{m.CreadoEn:yyyy-MM-dd HH:mm:ss}\",\"{m.Motivo.Replace("\"", "\"\"")}\",\"{m.ComprobanteUrl ?? ""}\"");
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+            return Results.File(bytes, "text/csv; charset=utf-8", $"movimientos_siia_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+        })
+        .WithName("ExportarMovimientosCsv")
+        .WithSummary("Exporta los movimientos filtrados a un archivo CSV compatible con Excel");
+
         return app;
     }
 }

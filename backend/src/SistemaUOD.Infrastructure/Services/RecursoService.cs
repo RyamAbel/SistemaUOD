@@ -356,6 +356,20 @@ public class RecursoService : IRecursoService
         return (await ObtenerPorIdAsync(id, ct))!;
     }
 
+    public async Task<RecursoDto?> ActualizarUmbralesStockAsync(Guid id, ActualizarStockMinimoDto dto, CancellationToken ct = default)
+    {
+        var recurso = await _context.Recursos.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (recurso == null) return null;
+
+        recurso.StockMinimo = dto.StockMinimo;
+        recurso.StockMaximo = dto.StockMaximo;
+        recurso.PuntoReorden = dto.PuntoReorden;
+        recurso.ActualizadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+        return (await ObtenerPorIdAsync(id, ct))!;
+    }
+
     public async Task<RecursoDto> DuplicarAsync(Guid id, DuplicarRecursoDto dto, CancellationToken ct = default)
     {
         var origen = await _context.Recursos

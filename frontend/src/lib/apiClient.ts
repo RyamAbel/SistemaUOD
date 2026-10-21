@@ -731,6 +731,16 @@ export const apiClient = {
     });
   },
 
+  actualizarUmbralesStock: async (
+    id: string,
+    dto: { stockMinimo: number; stockMaximo?: number | null; puntoReorden?: number | null }
+  ): Promise<RecursoDto> => {
+    return request<RecursoDto>(`recursos/${id}/stock-minimo`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto)
+    });
+  },
+
   duplicarRecurso: async (id: string, dto: DuplicarRecursoDto): Promise<RecursoDto> => {
     return request<RecursoDto>(`recursos/${id}/duplicar`, {
       method: 'POST',
@@ -918,6 +928,40 @@ export const apiClient = {
 
   obtenerMovimientoPorId: async (id: string): Promise<MovimientoDto> => {
     return request<MovimientoDto>(`movimientos/${id}`);
+  },
+
+  exportarMovimientosCsv: async (filtros: Partial<MovimientoFiltrosDto> = {}): Promise<void> => {
+    const query = new URLSearchParams();
+    if (filtros.tipo) query.append('tipo', filtros.tipo);
+    if (filtros.ubicacionId) query.append('ubicacionId', filtros.ubicacionId);
+    if (filtros.recursoId) query.append('recursoId', filtros.recursoId);
+    if (filtros.usuarioId) query.append('usuarioId', filtros.usuarioId);
+    if (filtros.fechaDesde) query.append('fechaDesde', filtros.fechaDesde);
+    if (filtros.fechaHasta) query.append('fechaHasta', filtros.fechaHasta);
+    if (filtros.search) query.append('search', filtros.search);
+
+    const qs = query.toString();
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const url = `${API_BASE_URL.replace(/\/+$/, '')}/movimientos/exportar${qs ? `?${qs}` : ''}`;
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Error al exportar movimientos: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `movimientos_siia_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
   }
 };
 

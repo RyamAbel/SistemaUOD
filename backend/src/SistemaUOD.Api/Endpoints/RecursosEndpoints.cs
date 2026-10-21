@@ -139,6 +139,27 @@ public static class RecursosEndpoints
         .WithName("ActualizarRecurso")
         .WithSummary("Actualiza los datos técnicos, stock mínimo y costo de un recurso existente");
 
+        // 4b. Actualizar únicamente umbrales de stock mínimo y reorden (RF-12)
+        group.MapPatch("/{id:guid}/stock-minimo", async (
+            Guid id,
+            [FromBody] ActualizarStockMinimoDto dto,
+            IRecursoService recursoService,
+            CancellationToken ct) =>
+        {
+            var actualizado = await recursoService.ActualizarUmbralesStockAsync(id, dto, ct);
+            if (actualizado == null)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Recurso no encontrado",
+                    detail: $"No se encontró ningún recurso registrado con el ID '{id}'.");
+            }
+            return Results.Ok(actualizado);
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("ActualizarStockMinimo")
+        .WithSummary("Actualiza los umbrales de stock mínimo, stock máximo y punto de reorden RF-12");
+
         // 5. Duplicar recurso existente
         group.MapPost("/{id:guid}/duplicar", async (
             Guid id,

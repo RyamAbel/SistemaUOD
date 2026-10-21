@@ -200,8 +200,14 @@ SistemaUOD/
       - *Paso 3 (Impacto en existencias):* Simulación transaccional previa vía `apiClient.previsualizarMovimiento` que muestra tabla de balance (*Stock Actual*, *Operación*, *Stock Resultante*), bloqueo estricto si hay saldo negativo y confirmación atómica con retroalimentación toast y visualización del correlativo institucional generado (`MOV-YYYY-000001`).
     - Pestaña de bitácora e historial con filtros rápidos por tipo, búsqueda de texto y modal drawer de detalle de líneas.
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
+  - ✅ Prompt 7.5: **Historial y línea de tiempo**:
+    - *Historial de movimientos filtrable y exportación CSV:* Filtros combinables por correlativo/búsqueda, tipo, ubicación institucional y rango de fechas (desde/hasta). Endpoint `GET /api/v1/movimientos/exportar` que genera archivo CSV con BOM UTF-8 y codificación compatible con Microsoft Excel en español. Paginación y control de estados en `MovementsView.tsx`.
+    - *Stock mínimo editable por recurso con indicadores visuales:* Endpoint `PATCH /api/v1/recursos/{id}/stock-minimo` protegido con `Policies.ExigirGestionInventario` para actualizar umbrales de stock mínimo, stock máximo y punto de reorden RF-12. Modal accesible "Ajustar Umbrales de Stock (RF-12)" en `CatalogView.tsx` e indicadores visuales de estado en tiempo real en tabla y tarjetas ("En Stock", "Stock Bajo", "Punto Reorden", "Agotado").
+    - *Línea de tiempo del recurso:* Pestaña interactiva "Línea de Tiempo" en la ficha técnica (`ResourceDetailModal.tsx`) que despliega la trazabilidad cronológica vertical de transferencias, entradas y consumos que involucran al recurso, con correlativo institucional, tipo, deltas de cantidad ($\pm$), responsable y motivo.
+    - Batería de 64 pruebas automatizadas superadas al 100% en `SistemaUOD.Tests` (0 fallos).
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build`).
 - **Próximo paso:**
-  - **Prompt 7.5 – Historial y línea de tiempo:** Agregar el historial de movimientos filtrable (por recurso, ubicación, persona, tipo y fechas) con exportación a CSV/Excel, el stock mínimo editable por recurso con indicadores visuales en el catálogo (en stock, bajo, agotado) y la línea de tiempo del recurso en su ficha.
+  - **Prompt 7.6 – Pruebas y cierre formal de la Etapa 7:** Prueba de extremo a extremo de todo el ciclo de existencias y movimientos, verificación de consistencia transaccional y actualización formal de la memoria del proyecto.
 
 
 
