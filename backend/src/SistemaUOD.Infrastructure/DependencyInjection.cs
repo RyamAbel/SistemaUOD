@@ -34,8 +34,8 @@ public static class DependencyInjection
             }
             else
             {
-                // Fallback de configuración para entorno de desarrollo o inicialización
-                options.UseNpgsql(connectionString ?? "Host=localhost;Database=siia_db");
+                // Fallback con base de datos en memoria para desarrollo local sin credenciales de PostgreSQL
+                options.UseInMemoryDatabase("SistemaUOD_DevDb");
             }
         });
 
