@@ -1,0 +1,59 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace SistemaUOD.Application.DTOs;
+
+public class ChatMessageDto
+{
+    [Required]
+    public string Role { get; set; } = "user"; // "user", "model", "system"
+
+    [Required]
+    public string Text { get; set; } = string.Empty;
+
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+}
+
+public class ChatRequestDto
+{
+    [Required(ErrorMessage = "El mensaje del usuario es obligatorio.")]
+    [MinLength(1, ErrorMessage = "El mensaje no puede estar vacío.")]
+    public string Message { get; set; } = string.Empty;
+
+    public List<ChatMessageDto> History { get; set; } = new();
+
+    public string Mode { get; set; } = "operativo"; // "operativo" o "tutor"
+
+    public string? PantallaActual { get; set; } // "catalogo", "activos", "movimientos", "dashboard", etc.
+}
+
+public class PropuestaAccionDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty; // "traslado", "salida", "entrada", "descargo", "mantenimiento"
+    public Guid? RecursoId { get; set; }
+    public string RecursoNombre { get; set; } = string.Empty;
+    public string? RecursoSku { get; set; }
+    public Guid? ActivoId { get; set; }
+    public string? PlacaInstitucional { get; set; }
+    public int Cantidad { get; set; } = 1;
+    public Guid? OrigenId { get; set; }
+    public string? OrigenNombre { get; set; }
+    public Guid? DestinoId { get; set; }
+    public string? DestinoNombre { get; set; }
+    public int? StockActualOrigen { get; set; }
+    public int? StockNuevoOrigen { get; set; }
+    public string Motivo { get; set; } = string.Empty;
+    public string? DictamenTecnico { get; set; }
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public bool Confirmado { get; set; } = false;
+}
+
+public class ChatResponseDto
+{
+    public string Text { get; set; } = string.Empty;
+    public string Mode { get; set; } = "operativo";
+    public List<string> ToolCallsEjecutadas { get; set; } = new();
+    public PropuestaAccionDto? Propuesta { get; set; }
+    public bool IsLiveGemini { get; set; } = true;
+    public decimal CostoEstimadoDop { get; set; } = 0.00m;
+}

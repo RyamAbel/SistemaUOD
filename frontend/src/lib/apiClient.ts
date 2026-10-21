@@ -1535,8 +1535,65 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(dto)
     });
+  },
+
+  // ==========================================
+  // Asistente de IA SIIA (Etapa 9 - Prompt 9.3/9.6)
+  // ==========================================
+  enviarMensajeAsistente: async (dto: ChatRequestDto): Promise<ChatResponseDto> => {
+    return request<ChatResponseDto>('assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  obtenerInfoAsistente: async (): Promise<any> => {
+    return request<any>('assistant/info');
   }
 };
+
+export interface ChatMessageDto {
+  role: 'user' | 'model' | 'system';
+  text: string;
+  timestamp?: string;
+}
+
+export interface ChatRequestDto {
+  message: string;
+  history?: ChatMessageDto[];
+  mode?: 'operativo' | 'tutor';
+  pantallaActual?: string;
+}
+
+export interface PropuestaAccionDto {
+  id: string;
+  tipo: string;
+  recursoId?: string;
+  recursoNombre: string;
+  recursoSku?: string;
+  activoId?: string;
+  placaInstitucional?: string;
+  cantidad: number;
+  origenId?: string;
+  origenNombre?: string;
+  destinoId?: string;
+  destinoNombre?: string;
+  stockActualOrigen?: number;
+  stockNuevoOrigen?: number;
+  motivo: string;
+  dictamenTecnico?: string;
+  creadoEn: string;
+  confirmado: boolean;
+}
+
+export interface ChatResponseDto {
+  text: string;
+  mode: string;
+  toolCallsEjecutadas: string[];
+  propuesta?: PropuestaAccionDto | null;
+  isLiveGemini: boolean;
+  costoEstimadoDop: number;
+}
 
 
 
