@@ -45,6 +45,10 @@ export interface ActivoTI {
   ubicacion_nombre: string;
   responsable: string;
   categoria_nombre?: string;
+  costo_adquisicion?: number | null;
+  factura_url?: string | null;
+  factura_nombre?: string | null;
+  foto_url?: string | null;
   notas: string | null;
 }
 

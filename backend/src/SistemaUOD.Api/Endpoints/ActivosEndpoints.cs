@@ -89,11 +89,10 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("CrearActivo")
         .WithSummary("Registra un nuevo activo físico o serie institucional");
 
-        // 5. Actualizar activo físico (ExigirGestionInventario)
+        // 5. Actualizar activo físico (Cualquier operador registrado)
         group.MapPut("/{id:guid}", async (
             Guid id,
             [FromBody] ActualizarActivoSerieDto dto,
@@ -120,7 +119,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("ActualizarActivo")
         .WithSummary("Actualiza los datos de un activo físico institucional");
 
@@ -151,7 +149,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("CambiarEstadoActivo")
         .WithSummary("Modifica el estado operativo de un activo físico (operativo, mantenimiento, etc.)");
 
@@ -175,7 +172,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("DarDeBajaActivo")
         .WithSummary("Da de baja definitiva o temporal a un activo físico");
 
@@ -206,7 +202,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("TrasladarActivo")
         .WithSummary("Traslada un activo físico a otra ubicación institucional con emisión de acta formal");
 
@@ -237,7 +232,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("AsignarCustodioActivo")
         .WithSummary("Asigna formalmente un custodio o responsable a un bien institucional");
 
@@ -290,7 +284,6 @@ public static class ActivosEndpoints
                     detail: ex.Message);
             }
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("ProcesarBajaPatrimonialActivo")
         .WithSummary("Da de baja definitiva un activo emitiendo formalmente su acta oficial de descargo");
 
@@ -315,6 +308,65 @@ public static class ActivosEndpoints
         })
         .WithName("ObtenerActaDescargoActivo")
         .WithSummary("Genera y obtiene el acta oficial de descargo patrimonial de un bien dado de baja");
+
+        // 13. Subir factura del activo (PDF o imagen hasta 10 MB)
+        group.MapPost("/{id:guid}/factura", async (
+            Guid id,
+            IFormFile archivo,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            if (archivo is null || archivo.Length == 0)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Archivo requerido",
+                    detail: "Debe seleccionar un archivo válido de factura (PDF o imagen).");
+            }
+
+            try
+            {
+                await using var stream = archivo.OpenReadStream();
+                var resultado = await activoService.SubirFacturaAsync(
+                    id,
+                    stream,
+                    archivo.FileName,
+                    archivo.ContentType,
+                    archivo.Length,
+                    ct);
+
+                return Results.Ok(resultado);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Error al subir factura",
+                    detail: ex.Message);
+            }
+        })
+        .DisableAntiforgery()
+        .WithName("SubirFacturaActivo")
+        .WithSummary("Sube la factura real del activo en formato PDF o imagen (hasta 10 MB)");
+
+        // 14. Obtener historial de cambios del activo
+        group.MapGet("/{id:guid}/historial", async (
+            Guid id,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            var historial = await activoService.ObtenerHistorialCambiosAsync(id, ct);
+            return Results.Ok(historial);
+        })
+        .WithName("ObtenerHistorialActivo")
+        .WithSummary("Obtiene la bitácora cronológica de modificaciones de un activo físico con valores anteriores y nuevos");
 
         return app;
     }

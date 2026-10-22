@@ -169,6 +169,9 @@ public class ActivoSerie
     public Guid? ProveedorId { get; set; }
     public DateOnly? FechaAdquisicion { get; set; }
     public DateOnly? GarantiaVence { get; set; }
+    public decimal? CostoAdquisicion { get; set; }
+    public string? FacturaUrl { get; set; }
+    public string? FacturaNombre { get; set; }
     public string? Notas { get; set; }
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;

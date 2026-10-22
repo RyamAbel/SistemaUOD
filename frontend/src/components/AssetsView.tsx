@@ -21,7 +21,8 @@ import {
   FileText,
   Calculator,
   Wrench,
-  AlertOctagon
+  AlertOctagon,
+  Pencil
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
 import { apiClient, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto } from '@/lib/apiClient';
@@ -31,6 +32,7 @@ import { DepreciationModal } from './DepreciationModal';
 import { MaintenanceModal } from './MaintenanceModal';
 import { DecommissionAssetModal } from './DecommissionAssetModal';
 import { ActaDescargoModal } from './ActaDescargoModal';
+import { EditAssetModal } from './EditAssetModal';
 
 export const AssetsView: React.FC = () => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
@@ -40,6 +42,7 @@ export const AssetsView: React.FC = () => {
   const [selectedUbicacion, setSelectedUbicacion] = useState<string>('todas');
   const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas'>('tabla');
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
+  const [activoParaEditar, setActivoParaEditar] = useState<ActivoTI | null>(null);
   const [activoParaTrasladar, setActivoParaTrasladar] = useState<ActivoTI | null>(null);
   const [actaVisualizada, setActaVisualizada] = useState<ActaEntregaRecepcionDto | null>(null);
   const [activoParaDepreciacion, setActivoParaDepreciacion] = useState<ActivoTI | null>(null);
@@ -257,6 +260,46 @@ export const AssetsView: React.FC = () => {
     setActivoParaBaja(null);
     if (res.actaDescargo) {
       setActaDescargoVisualizada(res.actaDescargo);
+    }
+  };
+
+  const handleActivoActualizado = (actActualizado: any) => {
+    setActivos(prev => prev.map(a => {
+      if (a.id === actActualizado.id) {
+        return {
+          ...a,
+          placa_institucional: actActualizado.placaInstitucional || a.placa_institucional,
+          numero_serie: actActualizado.numeroSerie || a.numero_serie,
+          recurso_nombre: actActualizado.recursoNombre || a.recurso_nombre,
+          categoria_nombre: actActualizado.categoriaNombre || a.categoria_nombre,
+          ubicacion_id: actActualizado.ubicacionId || a.ubicacion_id,
+          ubicacion_nombre: actActualizado.ubicacionNombre || a.ubicacion_nombre,
+          responsable: actActualizado.responsableNombre || a.responsable,
+          estado: (actActualizado.estado === 'dado_de_baja' ? 'dado_de_baja' : actActualizado.estado === 'danado' ? 'danado' : actActualizado.estado === 'disponible' ? 'disponible' : 'en_uso') as any,
+          costo_adquisicion: actActualizado.costoAdquisicion,
+          factura_url: actActualizado.facturaUrl,
+          factura_nombre: actActualizado.facturaNombre,
+          notas: actActualizado.notas || a.notas
+        };
+      }
+      return a;
+    }));
+    if (selectedActivo && selectedActivo.id === actActualizado.id) {
+      setSelectedActivo(prev => prev ? {
+        ...prev,
+        placa_institucional: actActualizado.placaInstitucional || prev.placa_institucional,
+        numero_serie: actActualizado.numeroSerie || prev.numero_serie,
+        recurso_nombre: actActualizado.recursoNombre || prev.recurso_nombre,
+        categoria_nombre: actActualizado.categoriaNombre || prev.categoria_nombre,
+        ubicacion_id: actActualizado.ubicacionId || prev.ubicacion_id,
+        ubicacion_nombre: actActualizado.ubicacionNombre || prev.ubicacion_nombre,
+        responsable: actActualizado.responsableNombre || prev.responsable,
+        estado: (actActualizado.estado === 'dado_de_baja' ? 'dado_de_baja' : actActualizado.estado === 'danado' ? 'danado' : actActualizado.estado === 'disponible' ? 'disponible' : 'en_uso') as any,
+        costo_adquisicion: actActualizado.costoAdquisicion,
+        factura_url: actActualizado.facturaUrl,
+        factura_nombre: actActualizado.facturaNombre,
+        notas: actActualizado.notas || prev.notas
+      } : null);
     }
   };
 
@@ -489,6 +532,16 @@ export const AssetsView: React.FC = () => {
                           <button
                             onClick={e => {
                               e.stopPropagation();
+                              setActivoParaEditar(activo);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-[#1C3177] hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Editar activo (datos, fotos, QR y factura)"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
                               setActivoParaTrasladar(activo);
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
@@ -569,6 +622,16 @@ export const AssetsView: React.FC = () => {
                   {activo.placa_institucional}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActivoParaEditar(activo);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-[#1C3177] hover:bg-blue-50 transition-colors cursor-pointer"
+                    title="Editar activo (datos, fotos, QR y factura)"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     onClick={e => {
                       e.stopPropagation();
@@ -693,6 +756,17 @@ export const AssetsView: React.FC = () => {
                   onClick={() => {
                     const act = selectedActivo;
                     setSelectedActivo(null);
+                    setActivoParaEditar(act);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-[#1C3177] text-white hover:bg-[#2B4BA0] transition-colors cursor-pointer shadow-xs"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar Activo
+                </button>
+                <button
+                  onClick={() => {
+                    const act = selectedActivo;
+                    setSelectedActivo(null);
                     setActivoParaTrasladar(act);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-blue-50 text-[#1C3177] hover:bg-blue-100 transition-colors cursor-pointer"
@@ -811,6 +885,16 @@ export const AssetsView: React.FC = () => {
         <ActaDescargoModal
           acta={actaDescargoVisualizada}
           onClose={() => setActaDescargoVisualizada(null)}
+        />
+      )}
+
+      {/* Modal de Edición Completa de Activo */}
+      {activoParaEditar && (
+        <EditAssetModal
+          activoId={activoParaEditar.id}
+          isOpen={!!activoParaEditar}
+          onClose={() => setActivoParaEditar(null)}
+          onSaved={handleActivoActualizado}
         />
       )}
     </div>

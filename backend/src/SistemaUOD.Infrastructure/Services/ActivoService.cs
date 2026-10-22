@@ -10,11 +10,16 @@ public class ActivoService : IActivoService
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IStorageService? _storageService;
 
-    public ActivoService(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public ActivoService(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IStorageService? storageService = null)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _storageService = storageService;
     }
 
     public async Task<PagedResult<ActivoSerieDto>> ListarActivosAsync(ActivoFiltrosDto filtros, CancellationToken ct = default)
@@ -23,6 +28,8 @@ public class ActivoService : IActivoService
             .AsNoTracking()
             .Include(a => a.Recurso)
                 .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
             .Include(a => a.Ubicacion)
             .Include(a => a.Responsable)
             .Include(a => a.Proveedor)
@@ -125,6 +132,12 @@ public class ActivoService : IActivoService
                 FechaAdquisicion = a.FechaAdquisicion,
                 GarantiaVence = a.GarantiaVence,
                 CostoEstimado = a.Recurso.CostoEstimado,
+                CostoAdquisicion = a.CostoAdquisicion,
+                FacturaUrl = a.FacturaUrl,
+                FacturaNombre = a.FacturaNombre,
+                FotoPrincipalUrl = a.Recurso.Fotos.Where(f => f.EsPrincipal).Select(f => f.UrlArchivo).FirstOrDefault()
+                    ?? a.Recurso.Fotos.OrderBy(f => f.Orden).Select(f => f.UrlArchivo).FirstOrDefault(),
+                RecursoDescripcion = a.Recurso.Descripcion,
                 Notas = a.Notas,
                 CreadoEn = a.CreadoEn,
                 ActualizadoEn = a.ActualizadoEn
@@ -148,6 +161,10 @@ public class ActivoService : IActivoService
             .AsNoTracking()
             .Include(a => a.Recurso)
                 .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Codigos)
             .Include(a => a.Ubicacion)
             .Include(a => a.Responsable)
             .Include(a => a.Proveedor)
@@ -159,7 +176,9 @@ public class ActivoService : IActivoService
 
         if (activo == null) return null;
 
-        return MapearDetalle(activo);
+        var detalle = MapearDetalle(activo);
+        detalle.HistorialCambios = await ObtenerHistorialCambiosAsync(activo.Id, ct);
+        return detalle;
     }
 
     public async Task<ActivoSerieDetalleDto?> ObtenerPorPlacaAsync(string placa, CancellationToken ct = default)
@@ -170,6 +189,10 @@ public class ActivoService : IActivoService
             .AsNoTracking()
             .Include(a => a.Recurso)
                 .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Codigos)
             .Include(a => a.Ubicacion)
             .Include(a => a.Responsable)
             .Include(a => a.Proveedor)
@@ -181,7 +204,9 @@ public class ActivoService : IActivoService
 
         if (activo == null) return null;
 
-        return MapearDetalle(activo);
+        var detalle = MapearDetalle(activo);
+        detalle.HistorialCambios = await ObtenerHistorialCambiosAsync(activo.Id, ct);
+        return detalle;
     }
 
     public async Task<ActivoSerieDto> CrearActivoAsync(CrearActivoSerieDto dto, CancellationToken ct = default)
@@ -251,6 +276,9 @@ public class ActivoService : IActivoService
             ProveedorId = dto.ProveedorId,
             FechaAdquisicion = dto.FechaAdquisicion,
             GarantiaVence = dto.GarantiaVence,
+            CostoAdquisicion = dto.CostoAdquisicion,
+            FacturaUrl = dto.FacturaUrl,
+            FacturaNombre = dto.FacturaNombre,
             Notas = dto.Notas?.Trim(),
             CreadoEn = DateTime.UtcNow,
             ActualizadoEn = DateTime.UtcNow
@@ -265,6 +293,7 @@ public class ActivoService : IActivoService
             RecursoId = nuevoActivo.RecursoId,
             RecursoSku = recurso.Sku,
             RecursoNombre = recurso.Nombre,
+            RecursoDescripcion = recurso.Descripcion,
             CategoriaId = recurso.CategoriaId,
             CategoriaNombre = recurso.Categoria.Nombre,
             NumeroSerie = nuevoActivo.NumeroSerie,
@@ -277,6 +306,9 @@ public class ActivoService : IActivoService
             FechaAdquisicion = nuevoActivo.FechaAdquisicion,
             GarantiaVence = nuevoActivo.GarantiaVence,
             CostoEstimado = recurso.CostoEstimado,
+            CostoAdquisicion = nuevoActivo.CostoAdquisicion,
+            FacturaUrl = nuevoActivo.FacturaUrl,
+            FacturaNombre = nuevoActivo.FacturaNombre,
             Notas = nuevoActivo.Notas,
             CreadoEn = nuevoActivo.CreadoEn,
             ActualizadoEn = nuevoActivo.ActualizadoEn
@@ -288,6 +320,8 @@ public class ActivoService : IActivoService
         var activo = await _context.ActivosSerie
             .Include(a => a.Recurso)
                 .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
             .Include(a => a.Ubicacion)
             .Include(a => a.Responsable)
             .Include(a => a.Proveedor)
@@ -298,7 +332,16 @@ public class ActivoService : IActivoService
             throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
         }
 
-        // Validar unicidad de placa institucional
+        // 1. Validar unicidad de serie
+        var serieLimpia = dto.NumeroSerie.Trim();
+        var serieExiste = await _context.ActivosSerie
+            .AnyAsync(a => a.Id != id && a.NumeroSerie.ToLower() == serieLimpia.ToLower(), ct);
+        if (serieExiste)
+        {
+            throw new InvalidOperationException($"Ya existe otro activo registrado con el número de serie '{serieLimpia}'.");
+        }
+
+        // 2. Validar unicidad de placa institucional
         string? placaLimpia = null;
         if (!string.IsNullOrWhiteSpace(dto.PlacaInstitucional))
         {
@@ -312,14 +355,34 @@ public class ActivoService : IActivoService
             }
         }
 
-        // Validar ubicación
+        // 3. Validar ubicación
         var ubicacion = await _context.Ubicaciones.FirstOrDefaultAsync(u => u.Id == dto.UbicacionId, ct);
         if (ubicacion == null)
         {
             throw new InvalidOperationException("La ubicación física especificada no existe.");
         }
 
-        activo.NumeroSerie = dto.NumeroSerie.Trim();
+        // 4. Validar responsable si fue provisto
+        if (dto.ResponsableId.HasValue)
+        {
+            var responsableExiste = await _context.Perfiles.AnyAsync(p => p.Id == dto.ResponsableId.Value, ct);
+            if (!responsableExiste)
+            {
+                throw new InvalidOperationException("El responsable o custodio asignado no existe en el sistema.");
+            }
+        }
+
+        // 5. Validar proveedor si fue provisto
+        if (dto.ProveedorId.HasValue)
+        {
+            var proveedorExiste = await _context.Proveedores.AnyAsync(p => p.Id == dto.ProveedorId.Value, ct);
+            if (!proveedorExiste)
+            {
+                throw new InvalidOperationException("El proveedor especificado no existe en el sistema.");
+            }
+        }
+
+        activo.NumeroSerie = serieLimpia;
         activo.PlacaInstitucional = placaLimpia;
         activo.Estado = dto.Estado.Trim().ToLower();
         activo.UbicacionId = dto.UbicacionId;
@@ -327,8 +390,33 @@ public class ActivoService : IActivoService
         activo.ProveedorId = dto.ProveedorId;
         activo.FechaAdquisicion = dto.FechaAdquisicion;
         activo.GarantiaVence = dto.GarantiaVence;
+        activo.CostoAdquisicion = dto.CostoAdquisicion;
+        if (dto.FacturaUrl != null)
+        {
+            activo.FacturaUrl = dto.FacturaUrl;
+            activo.FacturaNombre = dto.FacturaNombre;
+        }
         activo.Notas = dto.Notas?.Trim();
         activo.ActualizadoEn = DateTime.UtcNow;
+
+        // Modificar recurso vinculado si se enviaron cambios
+        if (!string.IsNullOrWhiteSpace(dto.RecursoNombre))
+        {
+            activo.Recurso.Nombre = dto.RecursoNombre.Trim();
+        }
+        if (dto.RecursoDescripcion != null)
+        {
+            activo.Recurso.Descripcion = dto.RecursoDescripcion.Trim();
+        }
+        if (dto.RecursoCategoriaId.HasValue && dto.RecursoCategoriaId.Value != Guid.Empty)
+        {
+            var catExiste = await _context.Categorias.AnyAsync(c => c.Id == dto.RecursoCategoriaId.Value, ct);
+            if (catExiste)
+            {
+                activo.Recurso.CategoriaId = dto.RecursoCategoriaId.Value;
+            }
+        }
+        activo.Recurso.ActualizadoEn = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(ct);
 
@@ -338,6 +426,7 @@ public class ActivoService : IActivoService
             RecursoId = activo.RecursoId,
             RecursoSku = activo.Recurso.Sku,
             RecursoNombre = activo.Recurso.Nombre,
+            RecursoDescripcion = activo.Recurso.Descripcion,
             CategoriaId = activo.Recurso.CategoriaId,
             CategoriaNombre = activo.Recurso.Categoria.Nombre,
             NumeroSerie = activo.NumeroSerie,
@@ -353,6 +442,11 @@ public class ActivoService : IActivoService
             FechaAdquisicion = activo.FechaAdquisicion,
             GarantiaVence = activo.GarantiaVence,
             CostoEstimado = activo.Recurso.CostoEstimado,
+            CostoAdquisicion = activo.CostoAdquisicion,
+            FacturaUrl = activo.FacturaUrl,
+            FacturaNombre = activo.FacturaNombre,
+            FotoPrincipalUrl = activo.Recurso.Fotos?.FirstOrDefault(f => f.EsPrincipal)?.UrlArchivo
+                ?? activo.Recurso.Fotos?.OrderBy(f => f.Orden).FirstOrDefault()?.UrlArchivo,
             Notas = activo.Notas,
             CreadoEn = activo.CreadoEn,
             ActualizadoEn = activo.ActualizadoEn
@@ -478,6 +572,7 @@ public class ActivoService : IActivoService
             RecursoId = a.RecursoId,
             RecursoSku = a.Recurso.Sku,
             RecursoNombre = a.Recurso.Nombre,
+            RecursoDescripcion = a.Recurso.Descripcion,
             CategoriaId = a.Recurso.CategoriaId,
             CategoriaNombre = a.Recurso.Categoria.Nombre,
             NumeroSerie = a.NumeroSerie,
@@ -493,9 +588,23 @@ public class ActivoService : IActivoService
             FechaAdquisicion = a.FechaAdquisicion,
             GarantiaVence = a.GarantiaVence,
             CostoEstimado = a.Recurso.CostoEstimado,
+            CostoAdquisicion = a.CostoAdquisicion,
+            FacturaUrl = a.FacturaUrl,
+            FacturaNombre = a.FacturaNombre,
+            FotoPrincipalUrl = a.Recurso.Fotos?.FirstOrDefault(f => f.EsPrincipal)?.UrlArchivo
+                ?? a.Recurso.Fotos?.OrderBy(f => f.Orden).FirstOrDefault()?.UrlArchivo,
             Notas = a.Notas,
             CreadoEn = a.CreadoEn,
             ActualizadoEn = a.ActualizadoEn,
+            Fotos = a.Recurso.Fotos?.OrderBy(f => f.Orden).Select(f => new RecursoFotoDto
+            {
+                Id = f.Id,
+                UrlArchivo = f.UrlArchivo,
+                EsPrincipal = f.EsPrincipal,
+                Orden = f.Orden,
+                CreadoEn = f.CreadoEn
+            }).ToList() ?? new List<RecursoFotoDto>(),
+            Codigos = a.Recurso.Codigos?.Select(c => c.Codigo).ToList() ?? new List<string>(),
             HistorialAsignaciones = a.Asignaciones.OrderByDescending(asig => asig.FechaInicio).Select(asig => new ActivoAsignacionHistorialDto
             {
                 Id = asig.Id,
@@ -1015,6 +1124,100 @@ public class ActivoService : IActivoService
         };
     }
 
+    public async Task<ActivoSerieDto> SubirFacturaAsync(
+        Guid id,
+        Stream archivoStream,
+        string nombreArchivo,
+        string contentType,
+        long tamanoBytes,
+        CancellationToken ct = default)
+    {
+        const long maxTamano = 10 * 1024 * 1024;
+        if (tamanoBytes > maxTamano)
+        {
+            throw new InvalidOperationException($"El archivo supera el tamaño máximo permitido de 10 MB ({tamanoBytes / (1024 * 1024.0):F2} MB).");
+        }
+
+        using var ms = new MemoryStream();
+        await archivoStream.CopyToAsync(ms, ct);
+        var bytes = ms.ToArray();
+        if (bytes.Length == 0)
+        {
+            throw new InvalidOperationException("El archivo proporcionado está vacío.");
+        }
+
+        bool esPdf = bytes.Length >= 4 && bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46;
+        bool esPng = bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+        bool esJpg = bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
+        bool esWebp = bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50;
+
+        if (!esPdf && !esPng && !esJpg && !esWebp)
+        {
+            throw new InvalidOperationException("Formato no permitido. Solo se aceptan documentos PDF o imágenes (JPG, PNG, WebP).");
+        }
+
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Proveedor)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        string fileExt = esPdf ? ".pdf" : esPng ? ".png" : esWebp ? ".webp" : ".jpg";
+        string mime = esPdf ? "application/pdf" : esPng ? "image/png" : esWebp ? "image/webp" : "image/jpeg";
+        string storagePath = $"facturas/{activo.Id}/{Guid.NewGuid()}{fileExt}";
+
+        string facturaUrl;
+        if (_storageService != null)
+        {
+            using var uploadStream = new MemoryStream(bytes);
+            facturaUrl = await _storageService.SubirArchivoAsync("documentos-activos", storagePath, uploadStream, mime, ct);
+        }
+        else
+        {
+            facturaUrl = $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+        }
+
+        activo.FacturaUrl = facturaUrl;
+        activo.FacturaNombre = Path.GetFileName(nombreArchivo);
+        activo.ActualizadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+
+        return MapearActivoDto(activo, activo.Ubicacion);
+    }
+
+    public async Task<List<ActivoHistorialCambioDto>> ObtenerHistorialCambiosAsync(Guid id, CancellationToken ct = default)
+    {
+        var idStr = id.ToString();
+        var historial = await _context.BitacoraAuditorias
+            .AsNoTracking()
+            .Include(b => b.Usuario)
+            .Where(b => b.RegistroId == idStr && (b.Entidad == "ActivoSerie" || b.Entidad == "activos_serie"))
+            .OrderByDescending(b => b.CreadoEn)
+            .Select(b => new ActivoHistorialCambioDto
+            {
+                Id = b.Id,
+                Fecha = b.CreadoEn,
+                Accion = b.Accion,
+                UsuarioNombre = b.Usuario != null ? b.Usuario.NombreCompleto : "Sistema",
+                Detalle = $"Acción {b.Accion} por {(b.Usuario != null ? b.Usuario.NombreCompleto : "Sistema")}",
+                ValoresAnteriores = b.ValoresAnteriores,
+                ValoresNuevos = b.ValoresNuevos
+            })
+            .ToListAsync(ct);
+
+        return historial;
+    }
+
     private static ActivoSerieDto MapearActivoDto(ActivoSerie activo, Ubicacion ubicacion)
     {
         return new ActivoSerieDto
@@ -1023,6 +1226,7 @@ public class ActivoService : IActivoService
             RecursoId = activo.RecursoId,
             RecursoSku = activo.Recurso.Sku,
             RecursoNombre = activo.Recurso.Nombre,
+            RecursoDescripcion = activo.Recurso.Descripcion,
             CategoriaId = activo.Recurso.CategoriaId,
             CategoriaNombre = activo.Recurso.Categoria.Nombre,
             NumeroSerie = activo.NumeroSerie,
@@ -1038,6 +1242,11 @@ public class ActivoService : IActivoService
             FechaAdquisicion = activo.FechaAdquisicion,
             GarantiaVence = activo.GarantiaVence,
             CostoEstimado = activo.Recurso.CostoEstimado,
+            CostoAdquisicion = activo.CostoAdquisicion,
+            FacturaUrl = activo.FacturaUrl,
+            FacturaNombre = activo.FacturaNombre,
+            FotoPrincipalUrl = activo.Recurso.Fotos?.FirstOrDefault(f => f.EsPrincipal)?.UrlArchivo
+                ?? activo.Recurso.Fotos?.OrderBy(f => f.Orden).FirstOrDefault()?.UrlArchivo,
             Notas = activo.Notas,
             CreadoEn = activo.CreadoEn,
             ActualizadoEn = activo.ActualizadoEn

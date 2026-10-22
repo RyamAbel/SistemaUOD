@@ -257,6 +257,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ProveedorId).HasColumnName("proveedor_id");
             entity.Property(e => e.FechaAdquisicion).HasColumnName("fecha_adquisicion");
             entity.Property(e => e.GarantiaVence).HasColumnName("garantia_vence");
+            entity.Property(e => e.CostoAdquisicion).HasColumnName("costo_adquisicion");
+            entity.Property(e => e.FacturaUrl).HasColumnName("factura_url");
+            entity.Property(e => e.FacturaNombre).HasColumnName("factura_nombre");
             entity.Property(e => e.Notas).HasColumnName("notas");
             entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
             entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");

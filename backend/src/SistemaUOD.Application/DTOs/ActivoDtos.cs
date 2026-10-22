@@ -24,6 +24,11 @@ public class ActivoSerieDto
     public DateOnly? FechaAdquisicion { get; set; }
     public DateOnly? GarantiaVence { get; set; }
     public decimal CostoEstimado { get; set; }
+    public decimal? CostoAdquisicion { get; set; }
+    public string? FacturaUrl { get; set; }
+    public string? FacturaNombre { get; set; }
+    public string? FotoPrincipalUrl { get; set; }
+    public string? RecursoDescripcion { get; set; }
     public string? Notas { get; set; }
     public DateTime CreadoEn { get; set; }
     public DateTime ActualizadoEn { get; set; }
@@ -31,8 +36,11 @@ public class ActivoSerieDto
 
 public class ActivoSerieDetalleDto : ActivoSerieDto
 {
+    public List<RecursoFotoDto> Fotos { get; set; } = new();
+    public List<string> Codigos { get; set; } = new();
     public List<ActivoAsignacionHistorialDto> HistorialAsignaciones { get; set; } = new();
     public List<ActivoMantenimientoHistorialDto> HistorialMantenimientos { get; set; } = new();
+    public List<ActivoHistorialCambioDto> HistorialCambios { get; set; } = new();
 }
 
 public class ActivoAsignacionHistorialDto
@@ -83,6 +91,9 @@ public class CrearActivoSerieDto
     public Guid? ProveedorId { get; set; }
     public DateOnly? FechaAdquisicion { get; set; }
     public DateOnly? GarantiaVence { get; set; }
+    public decimal? CostoAdquisicion { get; set; }
+    public string? FacturaUrl { get; set; }
+    public string? FacturaNombre { get; set; }
 
     [StringLength(500, ErrorMessage = "Las notas no pueden exceder 500 caracteres.")]
     public string? Notas { get; set; }
@@ -108,9 +119,19 @@ public class ActualizarActivoSerieDto
     public Guid? ProveedorId { get; set; }
     public DateOnly? FechaAdquisicion { get; set; }
     public DateOnly? GarantiaVence { get; set; }
+    public decimal? CostoAdquisicion { get; set; }
+    public string? FacturaUrl { get; set; }
+    public string? FacturaNombre { get; set; }
 
     [StringLength(500, ErrorMessage = "Las notas no pueden exceder 500 caracteres.")]
     public string? Notas { get; set; }
+
+    [StringLength(200, ErrorMessage = "El nombre del recurso no puede exceder 200 caracteres.")]
+    public string? RecursoNombre { get; set; }
+
+    public string? RecursoDescripcion { get; set; }
+
+    public Guid? RecursoCategoriaId { get; set; }
 }
 
 public class CambiarEstadoActivoDto
@@ -247,4 +268,15 @@ public class ResultadoBajaActivoDto
     public string Mensaje { get; set; } = string.Empty;
     public ActivoSerieDto Activo { get; set; } = null!;
     public ActaDescargoPatrimonialDto ActaDescargo { get; set; } = null!;
+}
+
+public class ActivoHistorialCambioDto
+{
+    public Guid Id { get; set; }
+    public DateTime Fecha { get; set; }
+    public string Accion { get; set; } = string.Empty;
+    public string? UsuarioNombre { get; set; }
+    public string? Detalle { get; set; }
+    public string? ValoresAnteriores { get; set; }
+    public string? ValoresNuevos { get; set; }
 }

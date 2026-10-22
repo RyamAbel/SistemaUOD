@@ -518,6 +518,14 @@ export interface PrevisualizarMovimientoResultadoDto {
   errores: string[];
 }
 
+export interface RecursoFotoDto {
+  id: string;
+  urlArchivo: string;
+  esPrincipal: boolean;
+  orden: number;
+  creadoEn: string;
+}
+
 // ==========================================
 // Módulo de Activos Fijos y Series (Prompt 8.1)
 // ==========================================
@@ -526,6 +534,7 @@ export interface ActivoSerieDto {
   recursoId: string;
   recursoSku: string;
   recursoNombre: string;
+  recursoDescripcion?: string | null;
   categoriaId: string;
   categoriaNombre: string;
   numeroSerie: string;
@@ -541,9 +550,23 @@ export interface ActivoSerieDto {
   fechaAdquisicion?: string | null;
   garantiaVence?: string | null;
   costoEstimado: number;
+  costoAdquisicion?: number | null;
+  facturaUrl?: string | null;
+  facturaNombre?: string | null;
+  fotoPrincipalUrl?: string | null;
   notas?: string | null;
   creadoEn: string;
   actualizadoEn: string;
+}
+
+export interface ActivoHistorialCambioDto {
+  id: string;
+  fecha: string;
+  accion: string;
+  usuarioNombre?: string | null;
+  detalle?: string | null;
+  valoresAnteriores?: string | null;
+  valoresNuevos?: string | null;
 }
 
 export interface ActivoAsignacionHistorialDto {
@@ -571,8 +594,11 @@ export interface ActivoMantenimientoHistorialDto {
 }
 
 export interface ActivoSerieDetalleDto extends ActivoSerieDto {
+  fotos?: RecursoFotoDto[];
+  codigos?: string[];
   historialAsignaciones: ActivoAsignacionHistorialDto[];
   historialMantenimientos: ActivoMantenimientoHistorialDto[];
+  historialCambios?: ActivoHistorialCambioDto[];
 }
 
 export interface CrearActivoSerieDto {
@@ -585,6 +611,9 @@ export interface CrearActivoSerieDto {
   proveedorId?: string | null;
   fechaAdquisicion?: string | null;
   garantiaVence?: string | null;
+  costoAdquisicion?: number | null;
+  facturaUrl?: string | null;
+  facturaNombre?: string | null;
   notas?: string | null;
 }
 
@@ -597,7 +626,13 @@ export interface ActualizarActivoSerieDto {
   proveedorId?: string | null;
   fechaAdquisicion?: string | null;
   garantiaVence?: string | null;
+  costoAdquisicion?: number | null;
+  facturaUrl?: string | null;
+  facturaNombre?: string | null;
   notas?: string | null;
+  recursoNombre?: string | null;
+  recursoDescripcion?: string | null;
+  recursoCategoriaId?: string | null;
 }
 
 export interface CambiarEstadoActivoDto {
@@ -1449,6 +1484,19 @@ export const apiClient = {
 
   obtenerActaDescargo: async (id: string): Promise<ActaDescargoPatrimonialDto> => {
     return request<ActaDescargoPatrimonialDto>(`activos/${id}/acta-descargo`);
+  },
+
+  subirFacturaActivo: async (id: string, file: File): Promise<ActivoSerieDto> => {
+    const formData = new FormData();
+    formData.append('archivo', file);
+    return request<ActivoSerieDto>(`activos/${id}/factura`, {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  obtenerHistorialActivo: async (id: string): Promise<ActivoHistorialCambioDto[]> => {
+    return request<ActivoHistorialCambioDto[]>(`activos/${id}/historial`);
   },
 
   // ==========================================
