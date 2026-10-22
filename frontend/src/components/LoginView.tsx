@@ -28,13 +28,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('siia_theme');
-      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initialDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+      // Por defecto modo claro institucional UOD (#F7F9FC)
+      const initialDark = savedTheme === 'dark';
       setIsDark(initialDark);
       if (initialDark) {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
       } else {
         document.documentElement.removeAttribute('data-theme');
+        document.documentElement.classList.remove('dark');
       }
     }
   }, []);
@@ -47,8 +49,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
       localStorage.setItem('siia_theme', newTheme);
       if (nextDark) {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
       } else {
         document.documentElement.removeAttribute('data-theme');
+        document.documentElement.classList.remove('dark');
       }
     }
   };
@@ -101,17 +105,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className={`w-full max-w-5xl rounded-3xl sm:rounded-[36px] p-3 sm:p-4 md:p-5 border shadow-2xl backdrop-blur-2xl relative z-10 transition-colors duration-500 ${
+        className={`w-full max-w-5xl rounded-3xl sm:rounded-[32px] overflow-hidden border shadow-2xl backdrop-blur-2xl relative z-10 transition-colors duration-500 ${
           isDark
-            ? 'bg-[#112240]/95 border-[#1E3A6E] text-white shadow-black/70'
-            : 'bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-900/10'
+            ? 'bg-[#101F33]/95 border-[#1E3A6E] text-white shadow-black/70'
+            : 'bg-white/95 border-slate-200/90 text-slate-800 shadow-2xl shadow-slate-900/10'
         }`}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
           
           {/* ── COLUMNA 1: HERO VISUAL CON CARDS FLOTANTES EN FRAMER MOTION (Paleta Institucional UOD) ── */}
           <div
-            className="order-2 lg:order-1 lg:col-span-7 relative rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 md:p-10 flex flex-col justify-between overflow-hidden min-h-[420px] sm:min-h-[500px] shadow-inner transition-all duration-500 text-white"
+            className="order-2 lg:order-1 lg:col-span-7 relative p-8 sm:p-10 md:p-12 flex flex-col justify-between overflow-hidden min-h-[460px] sm:min-h-[520px] transition-all duration-500 text-white"
             style={{
               background: isDark
                 ? 'linear-gradient(145deg, #091322 0%, #102646 45%, #0B2C22 100%)'
@@ -270,38 +274,33 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
           </div>
 
 
-          {/* ── COLUMNA 2: FORMULARIO DE ACCESO OFICIAL CON GOOGLE OAUTH (Arriba en móvil, derecha en desktop) ── */}
-          <div className="order-1 lg:order-2 lg:col-span-5 flex flex-col justify-between p-4 sm:p-6 md:p-8">
-            <div>
-              {/* Logo institucional UOD */}
-              <div className="mb-6 flex flex-col items-center lg:items-start text-center lg:text-left">
-                {/* Logotipo institucional UOD integrado limpiamente sin recuadro */}
-                <div className="mb-4 flex items-center justify-center lg:justify-start">
-                  <img
-                    src="/uod-logo.png"
-                    alt="Universidad Odontológica Dominicana"
-                    className={`h-16 sm:h-18 w-auto max-w-[230px] object-contain transition-all ${
-                      isDark
-                        ? 'brightness-110 drop-shadow-[0_2px_12px_rgba(255,255,255,0.35)]'
-                        : 'drop-shadow-xs'
-                    }`}
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 text-[#1C3177] dark:text-[#06B6D4] mb-2">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    Portal Institucional
-                  </span>
-                </div>
-
-                <h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Bienvenido de nuevo
-                </h1>
-                <p className={`mt-1.5 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
-                  Inicia sesión con tu correo autorizado de la UOD para acceder al control de inventario y almacén.
-                </p>
+          {/* ── COLUMNA 2: FORMULARIO DE ACCESO OFICIAL CON GOOGLE OAUTH (100% Centrado y Armónico) ── */}
+          <div className="order-1 lg:order-2 lg:col-span-5 flex flex-col justify-center items-center p-6 sm:p-8 md:p-10 my-auto">
+            <div className="w-full max-w-sm flex flex-col items-center text-center">
+              {/* Logo institucional UOD - 100% Centrado e Integrado como PNG transparente sin recuadro */}
+              <div className="mb-4 flex items-center justify-center">
+                <img
+                  src={isDark ? "/uod-logo-dark.png" : "/uod-logo-clean.png"}
+                  alt="Universidad Odontológica Dominicana"
+                  className="h-16 sm:h-20 w-auto max-w-[220px] object-contain select-none transition-all duration-300"
+                />
               </div>
+
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2.5 border ${
+                isDark
+                  ? 'bg-slate-800/80 border-slate-700 text-cyan-300'
+                  : 'bg-blue-50/80 border-blue-200/60 text-[#1C3177]'
+              }`}>
+                <Sparkles className="h-3.5 w-3.5 text-[#3DAA5C]" />
+                <span>Portal Institucional</span>
+              </div>
+
+              <h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Bienvenido de nuevo
+              </h1>
+              <p className={`mt-1.5 text-xs leading-relaxed max-w-xs mx-auto mb-6 ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                Inicia sesión con tu correo autorizado de la UOD para acceder al control de inventario y almacén.
+              </p>
 
               {/* Alerta de Error / Correo no invitado */}
               <AnimatePresence>
@@ -310,7 +309,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                     initial={{ opacity: 0, y: -10, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: -10, height: 0 }}
-                    className={`mb-5 p-4 rounded-2xl border text-xs flex items-start gap-3 relative shadow-xs ${
+                    className={`w-full mb-5 p-4 rounded-2xl border text-xs flex items-start gap-3 relative shadow-xs text-left ${
                       isDark
                         ? 'border-rose-800/80 bg-rose-950/60 text-rose-200'
                         : 'border-rose-200 bg-rose-50 text-rose-800'
@@ -393,8 +392,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
               </motion.button>
 
               {/* Sellos de Seguridad */}
-              <div className="mt-5 space-y-1.5 text-center lg:text-left">
-                <div className={`flex items-center justify-center lg:justify-start gap-1.5 text-[11px] font-semibold ${
+              <div className="mt-5 space-y-1.5 text-center">
+                <div className={`flex items-center justify-center gap-1.5 text-[11px] font-semibold ${
                   isDark ? 'text-slate-300' : 'text-slate-600'
                 }`}>
                   <ShieldCheck className="h-4 w-4 text-[#3DAA5C] shrink-0" />
@@ -404,35 +403,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                   Solo cuentas autorizadas por la Dirección de Tecnología UOD.
                 </p>
               </div>
-            </div>
 
-            {/* Pie de la tarjeta derecha con soporte */}
-            <div className={`mt-8 pt-4 border-t flex items-center justify-between text-[11px] ${
-              isDark ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-400'
-            }`}>
-              <span>SIIA v1.0 UOD</span>
-              <a
-                href="mailto:tecnologia@uod.edu.do?subject=Consulta sobre acceso a SIIA UOD"
-                className={`inline-flex items-center gap-1 font-medium transition-colors ${
-                  isDark ? 'hover:text-cyan-300' : 'hover:text-[#1C3177]'
-                }`}
-              >
-                <span>Soporte TI</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-
-            {/* Acceso a Modo Demostración si está disponible en la página */}
-            {onBypassDemo && (
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-center">
-                <button
-                  onClick={onBypassDemo}
-                  className="text-[11px] text-slate-400 hover:text-[#1C3177] dark:hover:text-cyan-300 transition-colors underline font-medium cursor-pointer"
+              {/* Pie de la tarjeta derecha con soporte */}
+              <div className={`w-full mt-7 pt-4 border-t flex items-center justify-between text-[11px] ${
+                isDark ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-400'
+              }`}>
+                <span>SIIA v1.0 UOD</span>
+                <a
+                  href="mailto:tecnologia@uod.edu.do?subject=Consulta sobre acceso a SIIA UOD"
+                  className={`inline-flex items-center gap-1 font-medium transition-colors ${
+                    isDark ? 'hover:text-cyan-300' : 'hover:text-[#1C3177]'
+                  }`}
                 >
-                  Modo demostración (sin conexión)
-                </button>
+                  <span>Soporte TI</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
-            )}
+
+              {/* Acceso a Modo Demostración si está disponible en la página */}
+              {onBypassDemo && (
+                <div className="w-full mt-3 text-center">
+                  <button
+                    onClick={onBypassDemo}
+                    className="text-[11px] text-slate-400 hover:text-[#1C3177] dark:hover:text-cyan-300 transition-colors underline font-medium cursor-pointer"
+                  >
+                    Modo demostración (sin conexión)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
