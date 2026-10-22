@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SistemaUOD.Api.Endpoints;
 using SistemaUOD.Application.Common.Security;
@@ -230,6 +231,29 @@ app.MapGet("/api/v1/admin/verificacion-politica", () => Results.Ok(new
 .RequireAuthorization(Policies.ExigirSuperAdmin)
 .WithName("VerificarPoliticaSuperAdmin")
 .WithSummary("Endpoint de control para validar la política de rol super_admin");
+
+// Asegurar existencia de columnas de las migraciones 006 y 007
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<SistemaUOD.Infrastructure.Data.ApplicationDbContext>();
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE public.perfiles 
+                ADD COLUMN IF NOT EXISTS cargo TEXT,
+                ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
+            ALTER TABLE public.activos_serie
+                ADD COLUMN IF NOT EXISTS costo_adquisicion NUMERIC(14,2) DEFAULT 0.00,
+                ADD COLUMN IF NOT EXISTS factura_url TEXT,
+                ADD COLUMN IF NOT EXISTS factura_nombre TEXT;
+        ");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Startup] Nota al asegurar columnas en BD: {ex.Message}");
+    }
+}
 
 app.Run();
 
