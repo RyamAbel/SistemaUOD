@@ -29,7 +29,8 @@ import {
   Copy,
   Printer,
   Camera,
-  Loader2
+  Loader2,
+  Layers
 } from 'lucide-react';
 import {
   apiClient,
@@ -38,12 +39,15 @@ import {
   CategoriaDto,
   PagedResult
 } from '@/lib/apiClient';
+import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
 import { useAuth } from '@/context/AuthContext';
 import { ResourceFormDrawer } from './ResourceFormDrawer';
 import { ResourceDetailModal } from './ResourceDetailModal';
 import { QrLabelsPrintModal } from './QrLabelsPrintModal';
 import { CameraScannerModal } from './CameraScannerModal';
 import { ImportResourcesModal } from './ImportResourcesModal';
+import { GroupedAssetsView } from './GroupedAssetsView';
+import { EditAssetModal } from './EditAssetModal';
 
 interface CatalogViewProps {
   articulos?: any[];
@@ -55,17 +59,19 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   const { rol } = useAuth();
   const canManage = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
 
-  // 1. Estado de visualización (Grid vs Tabla) persistido en localStorage
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  // 1. Estado de visualización (Grid vs Tabla vs Agrupado por tipo) persistido en localStorage
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'grouped'>('table');
+  const [activosFisicos, setActivosFisicos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
+  const [activoParaEditar, setActivoParaEditar] = useState<ActivoTI | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('siia_catalog_view_mode') as 'grid' | 'table';
+      const saved = localStorage.getItem('siia_catalog_view_mode') as 'grid' | 'table' | 'grouped';
       if (saved) setViewMode(saved);
     }
   }, []);
 
-  const handleToggleView = (mode: 'grid' | 'table') => {
+  const handleToggleView = (mode: 'grid' | 'table' | 'grouped') => {
     setViewMode(mode);
     if (typeof window !== 'undefined') {
       localStorage.setItem('siia_catalog_view_mode', mode);
@@ -417,7 +423,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
             )}
           </button>
 
-          {/* Toggle Grid/Table */}
+          {/* Toggle Grid/Table/Grouped */}
           <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5">
             <button
               onClick={() => handleToggleView('table')}
@@ -436,6 +442,16 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
               title="Vista en tarjetas con foto"
             >
               <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleToggleView('grouped')}
+              className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                viewMode === 'grouped' ? 'bg-[#1C3177] text-white' : 'text-slate-400 hover:text-slate-700'
+              }`}
+              title="Agrupar por tipo de activo (Laptops, Bocinas, Monitores, etc.)"
+            >
+              <Layers className="h-4 w-4" />
+              <span className="text-[11px] font-bold hidden sm:inline">Agrupar por tipo</span>
             </button>
           </div>
 
@@ -828,6 +844,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                 </button>
               )}
             </div>
+          ) : viewMode === 'grouped' ? (
+            /* VISTA AGRUPADA POR TIPO DE ACTIVO (Idea 1) */
+            <GroupedAssetsView
+              activos={activosFisicos}
+              onEditAsset={(activo) => setActivoParaEditar(activo)}
+              onSelectAsset={(activo) => handleOpenDetail(activo.recurso_id)}
+              ubicacionesDisponibles={categorias.map(c => c.nombre)}
+              initialSearch={search}
+            />
           ) : viewMode === 'table' ? (
             /* VISTA TABLA DENSA (MASTER.md §6d) */
             <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs">
@@ -1250,58 +1275,60 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           )}
 
           {/* Paginación (MASTER.md §6d) */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-200 text-xs text-slate-600">
-            <div>
-              Mostrando{' '}
-              <span className="font-bold text-slate-900">
-                {data.items.length === 0 ? 0 : (data.pageIndex - 1) * data.pageSize + 1}
-              </span>{' '}
-              a{' '}
-              <span className="font-bold text-slate-900">
-                {Math.min(data.pageIndex * data.pageSize, data.totalCount)}
-              </span>{' '}
-              de <span className="font-bold text-slate-900">{data.totalCount}</span> recursos
-            </div>
+          {viewMode !== 'grouped' && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-200 text-xs text-slate-600">
+              <div>
+                Mostrando{' '}
+                <span className="font-bold text-slate-900">
+                  {data.items.length === 0 ? 0 : (data.pageIndex - 1) * data.pageSize + 1}
+                </span>{' '}
+                a{' '}
+                <span className="font-bold text-slate-900">
+                  {Math.min(data.pageIndex * data.pageSize, data.totalCount)}
+                </span>{' '}
+                de <span className="font-bold text-slate-900">{data.totalCount}</span> recursos
+              </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-[11px] text-slate-500">Por página:</label>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPageIndex(1);
-                }}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#1C3177] focus:outline-none"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] text-slate-500">Por página:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPageIndex(1);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#1C3177] focus:outline-none"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
 
-              <div className="flex items-center gap-1 ml-2">
-                <button
-                  disabled={!data.hasPreviousPage}
-                  onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
-                  className="rounded-lg border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-                  aria-label="Página anterior"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="px-2 font-bold text-slate-800">
-                  {data.pageIndex} / {data.totalPages || 1}
-                </span>
-                <button
-                  disabled={!data.hasNextPage}
-                  onClick={() => setPageIndex((p) => p + 1)}
-                  className="rounded-lg border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-                  aria-label="Página siguiente"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-1 ml-2">
+                  <button
+                    disabled={!data.hasPreviousPage}
+                    onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
+                    className="rounded-lg border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="px-2 font-bold text-slate-800">
+                    {data.pageIndex} / {data.totalPages || 1}
+                  </span>
+                  <button
+                    disabled={!data.hasNextPage}
+                    onClick={() => setPageIndex((p) => p + 1)}
+                    className="rounded-lg border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                    aria-label="Página siguiente"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -1588,6 +1615,34 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Edición de Activo Fijo (Idea 2) */}
+      {activoParaEditar && (
+        <EditAssetModal
+          activoId={activoParaEditar.id}
+          isOpen={!!activoParaEditar}
+          onClose={() => setActivoParaEditar(null)}
+          onSaved={(actActualizado) => {
+            setActivosFisicos(prev => prev.map(a => a.id === actActualizado.id ? {
+              ...a,
+              placa_institucional: actActualizado.placaInstitucional || a.placa_institucional,
+              numero_serie: actActualizado.numeroSerie || a.numero_serie,
+              recurso_nombre: actActualizado.recursoNombre || a.recurso_nombre,
+              categoria_nombre: actActualizado.categoriaNombre || a.categoria_nombre,
+              ubicacion_id: actActualizado.ubicacionId || a.ubicacion_id,
+              ubicacion_nombre: actActualizado.ubicacionNombre || a.ubicacion_nombre,
+              responsable: actActualizado.responsableNombre || a.responsable,
+              estado: (actActualizado.estado === 'dado_de_baja' ? 'dado_de_baja' : actActualizado.estado === 'danado' ? 'danado' : actActualizado.estado === 'disponible' ? 'disponible' : 'en_uso') as any,
+              costo_adquisicion: actActualizado.costoAdquisicion,
+              factura_url: actActualizado.facturaUrl,
+              factura_nombre: actActualizado.facturaNombre,
+              notas: actActualizado.notas || a.notas
+            } : a));
+            showToast(`Activo ${actActualizado.placaInstitucional || actActualizado.numeroSerie} actualizado con éxito.`);
+            setActivoParaEditar(null);
+          }}
+        />
       )}
     </div>
   );

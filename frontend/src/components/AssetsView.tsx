@@ -22,7 +22,8 @@ import {
   Calculator,
   Wrench,
   AlertOctagon,
-  Pencil
+  Pencil,
+  Layers
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
 import { apiClient, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto } from '@/lib/apiClient';
@@ -33,6 +34,7 @@ import { MaintenanceModal } from './MaintenanceModal';
 import { DecommissionAssetModal } from './DecommissionAssetModal';
 import { ActaDescargoModal } from './ActaDescargoModal';
 import { EditAssetModal } from './EditAssetModal';
+import { GroupedAssetsView } from './GroupedAssetsView';
 
 export const AssetsView: React.FC = () => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
@@ -40,7 +42,7 @@ export const AssetsView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('todos');
   const [selectedUbicacion, setSelectedUbicacion] = useState<string>('todas');
-  const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas'>('tabla');
+  const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas' | 'agrupado'>('tabla');
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
   const [activoParaEditar, setActivoParaEditar] = useState<ActivoTI | null>(null);
   const [activoParaTrasladar, setActivoParaTrasladar] = useState<ActivoTI | null>(null);
@@ -349,7 +351,7 @@ export const AssetsView: React.FC = () => {
             {exportandoCsv ? 'Generando CSV...' : 'Reporte Fiscal DGII (CSV)'}
           </button>
 
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setViewMode('tabla')}
               className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
@@ -371,6 +373,18 @@ export const AssetsView: React.FC = () => {
             >
               <LayoutGrid className="h-4 w-4" />
               Tarjetas
+            </button>
+            <button
+              onClick={() => setViewMode('agrupado')}
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                viewMode === 'agrupado'
+                  ? 'bg-white text-[#1C3177] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Ver los activos agrupados por tipo (Laptops, Bocinas, Monitores, etc.)"
+            >
+              <Layers className="h-4 w-4" />
+              Agrupado por tipo
             </button>
           </div>
         </div>
@@ -400,79 +414,81 @@ export const AssetsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Barra de Búsqueda y Filtros */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Búsqueda */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por placa (EQ-XX), modelo, serie, custodio..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] transition-all bg-slate-50/50"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+      {/* Barra de Búsqueda y Filtros (Solo para vista de Tabla o Tarjetas) */}
+      {viewMode !== 'agrupado' && (
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Búsqueda */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por placa (EQ-XX), modelo, serie, custodio..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] transition-all bg-slate-50/50"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filtro por Estado */}
+            <div className="relative">
+              <select
+                value={selectedEstado}
+                onChange={e => setSelectedEstado(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
               >
-                ✕
+                <option value="todos">Todos los Estados ({metricas.total})</option>
+                <option value="en_uso">En Uso ({metricas.enUso})</option>
+                <option value="disponible">Disponible ({metricas.disponibles})</option>
+                <option value="danado">Dañado / Inactivo ({metricas.danados})</option>
+              </select>
+            </div>
+
+            {/* Filtro por Ubicación */}
+            <div className="relative">
+              <select
+                value={selectedUbicacion}
+                onChange={e => setSelectedUbicacion(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
+              >
+                <option value="todas">Todas las Ubicaciones ({ubicacionesUnicas.length})</option>
+                {ubicacionesUnicas.map(u => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Resumen de resultados */}
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+            <span>
+              Mostrando <strong>{activosFiltrados.length}</strong> de <strong>{activos.length}</strong> equipos
+            </span>
+            {(search || selectedEstado !== 'todos' || selectedUbicacion !== 'todas') && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setSelectedEstado('todos');
+                  setSelectedUbicacion('todas');
+                }}
+                className="text-[#1C3177] hover:underline font-semibold"
+              >
+                Limpiar filtros
               </button>
             )}
           </div>
-
-          {/* Filtro por Estado */}
-          <div className="relative">
-            <select
-              value={selectedEstado}
-              onChange={e => setSelectedEstado(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
-            >
-              <option value="todos">Todos los Estados ({metricas.total})</option>
-              <option value="en_uso">En Uso ({metricas.enUso})</option>
-              <option value="disponible">Disponible ({metricas.disponibles})</option>
-              <option value="danado">Dañado / Inactivo ({metricas.danados})</option>
-            </select>
-          </div>
-
-          {/* Filtro por Ubicación */}
-          <div className="relative">
-            <select
-              value={selectedUbicacion}
-              onChange={e => setSelectedUbicacion(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
-            >
-              <option value="todas">Todas las Ubicaciones ({ubicacionesUnicas.length})</option>
-              {ubicacionesUnicas.map(u => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
-
-        {/* Resumen de resultados */}
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-          <span>
-            Mostrando <strong>{activosFiltrados.length}</strong> de <strong>{activos.length}</strong> equipos
-          </span>
-          {(search || selectedEstado !== 'todos' || selectedUbicacion !== 'todas') && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setSelectedEstado('todos');
-                setSelectedUbicacion('todas');
-              }}
-              className="text-[#1C3177] hover:underline font-semibold"
-            >
-              Limpiar filtros
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Vista en Tabla */}
       {viewMode === 'tabla' && (
@@ -696,6 +712,18 @@ export const AssetsView: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Vista Agrupada por Tipo de Activo (Idea 1) */}
+      {viewMode === 'agrupado' && (
+        <GroupedAssetsView
+          activos={activos}
+          onEditAsset={activo => setActivoParaEditar(activo)}
+          onSelectAsset={activo => setSelectedActivo(activo)}
+          onTransferAsset={activo => setActivoParaTrasladar(activo)}
+          ubicacionesDisponibles={ubicacionesUnicas}
+          initialSearch={search}
+        />
       )}
 
       {/* Modal de Detalle de Activo Individual */}
