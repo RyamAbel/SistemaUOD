@@ -275,13 +275,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
             <div>
               {/* Logo institucional UOD */}
               <div className="mb-6 flex flex-col items-center lg:items-start text-center lg:text-left">
-                <div className={`mb-4 p-3.5 rounded-2xl border shadow-xs inline-flex items-center justify-center ${
-                  isDark ? 'bg-white/10 border-white/15' : 'bg-white border-slate-200/80'
-                }`}>
+                {/* Logotipo institucional UOD integrado limpiamente sin recuadro */}
+                <div className="mb-4 flex items-center justify-center lg:justify-start">
                   <img
                     src="/uod-logo.png"
                     alt="Universidad Odontológica Dominicana"
-                    className="h-14 sm:h-16 w-auto max-w-[200px] object-contain"
+                    className={`h-16 sm:h-18 w-auto max-w-[230px] object-contain transition-all ${
+                      isDark
+                        ? 'brightness-110 drop-shadow-[0_2px_12px_rgba(255,255,255,0.35)]'
+                        : 'drop-shadow-xs'
+                    }`}
                   />
                 </div>
 
