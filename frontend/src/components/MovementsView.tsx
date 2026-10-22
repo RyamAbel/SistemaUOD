@@ -32,7 +32,15 @@ import {
   UserCheck,
   Download,
   FileSpreadsheet,
-  Filter
+  Filter,
+  Sparkles,
+  Upload,
+  Tag,
+  DollarSign,
+  Box,
+  FileUp,
+  Hash,
+  Check
 } from 'lucide-react';
 import {
   apiClient,
@@ -42,8 +50,11 @@ import {
   PrevisualizarMovimientoResultadoDto,
   RecursoDto,
   UbicacionDto,
+  CategoriaDto,
+  ProveedorDto,
   PagedResult
 } from '@/lib/apiClient';
+import { CATEGORIAS_ORIGINALES, UBICACIONES_ORIGINALES } from '@/lib/inventoryData';
 import { useAuth } from '@/context/AuthContext';
 import { CameraScannerModal } from './CameraScannerModal';
 
@@ -71,7 +82,7 @@ const TIPOS_CONFIG: Record<TipoMovimiento, TipoConfig> = {
   entrada: {
     tipo: 'entrada',
     label: 'Entrada',
-    descripcion: 'Recepción de compras, insumos clínicos o donaciones',
+    descripcion: 'Recepción de compras, insumos institucionales o donaciones',
     color: '#3DAA5C',
     bgLight: 'bg-emerald-50',
     borderColor: 'border-emerald-200',
@@ -81,7 +92,7 @@ const TIPOS_CONFIG: Record<TipoMovimiento, TipoConfig> = {
   salida: {
     tipo: 'salida',
     label: 'Salida / Entrega',
-    descripcion: 'Consumo clínico, entrega a cátedras o departamentos',
+    descripcion: 'Entrega a cátedras, departamentos o personal custodio',
     color: '#1C3177',
     bgLight: 'bg-blue-50',
     borderColor: 'border-blue-200',
@@ -91,7 +102,7 @@ const TIPOS_CONFIG: Record<TipoMovimiento, TipoConfig> = {
   traslado: {
     tipo: 'traslado',
     label: 'Traslado',
-    descripcion: 'Transferencia interna entre almacenes y clínicas UOD',
+    descripcion: 'Transferencia interna entre almacenes y dependencias UOD',
     color: '#D97706',
     bgLight: 'bg-amber-50',
     borderColor: 'border-amber-200',
@@ -121,7 +132,7 @@ const TIPOS_CONFIG: Record<TipoMovimiento, TipoConfig> = {
   baja: {
     tipo: 'baja',
     label: 'Baja / Desecho',
-    descripcion: 'Desincorporación por daño, vencimiento o merma clínica',
+    descripcion: 'Desincorporación por daño, obsolescencia o merma física',
     color: '#DC2626',
     bgLight: 'bg-red-50',
     borderColor: 'border-red-200',
@@ -142,24 +153,62 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
   // 2. Catálogos maestros para selección
   const [ubicaciones, setUbicaciones] = useState<UbicacionDto[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaDto[]>([]);
+  const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
   const [recursosBusqueda, setRecursosBusqueda] = useState<RecursoDto[]>([]);
   const [loadingCatalogos, setLoadingCatalogos] = useState(false);
 
   // 3. Estado del Wizard - Paso 1: Datos Generales
-  const [tipo, setTipo] = useState<TipoMovimiento>('traslado');
+  const [tipo, setTipo] = useState<TipoMovimiento>('entrada');
+  const [caminoEntrada, setCaminoEntrada] = useState<'nuevo' | 'existente'>('existente');
   const [origenUbicacionId, setOrigenUbicacionId] = useState<string>('');
   const [destinoUbicacionId, setDestinoUbicacionId] = useState<string>('');
   const [motivo, setMotivo] = useState<string>('');
   const [comprobanteUrl, setComprobanteUrl] = useState<string>('');
 
+  // Metadatos de Entrada / Factura / Proveedor
+  const [numeroFactura, setNumeroFactura] = useState<string>('');
+  const [archivoFactura, setArchivoFactura] = useState<File | null>(null);
+  const [facturaPreviewUrl, setFacturaPreviewUrl] = useState<string | null>(null);
+  const [proveedorNombre, setProveedorNombre] = useState<string>('');
+  const [proveedorId, setProveedorId] = useState<string>('');
+  const [fechaMovimiento, setFechaMovimiento] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
+  // Camino A: Estado para nuevo recurso inline
+  const [nuevoNombre, setNuevoNombre] = useState<string>('');
+  const [nuevaCategoriaId, setNuevaCategoriaId] = useState<string>('');
+  const [nuevoTipo, setNuevoTipo] = useState<'activo_fijo' | 'consumible'>('activo_fijo');
+  const [nuevoCostoEstimado, setNuevoCostoEstimado] = useState<number>(0);
+  const [nuevoUnidadMedida, setNuevoUnidadMedida] = useState<string>('unidad');
+  const [nuevoFotoFile, setNuevoFotoFile] = useState<File | null>(null);
+  const [nuevoFotoPreview, setNuevoFotoPreview] = useState<string | null>(null);
+  const [nuevasSeriesTexto, setNuevasSeriesTexto] = useState<string>('');
+  const [nuevaCantidadConsumible, setNuevaCantidadConsumible] = useState<number>(1);
+
+  // Camino B: Estado para ingresar múltiples series en recurso existente
+  const [seriesExistenteTexto, setSeriesExistenteTexto] = useState<string>('');
+
   // 4. Estado del Wizard - Paso 2: Líneas de Recursos
-  const [lineas, setLineas] = useState<Array<{
+  interface LineaMovimientoItem {
     tempId: string;
     recurso: RecursoDto;
     cantidad: number;
     costoUnitario: number;
     stockDisponibleOrigen?: number;
-  }>>([]);
+    numerosSerie?: string[];
+    esNuevoRecurso?: boolean;
+    nuevoRecursoPayload?: {
+      sku: string;
+      nombre: string;
+      categoriaId: string;
+      tipo: 'activo_fijo' | 'consumible';
+      costoEstimado: number;
+      unidadMedida: string;
+      fotoFile?: File | null;
+    };
+  }
+
+  const [lineas, setLineas] = useState<LineaMovimientoItem[]>([]);
 
   // Selector temporal para añadir una nueva línea
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,20 +247,37 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Cargar catálogo de ubicaciones
+  // Helper para dividir y sanitizar números de serie
+  const parseSerialNumbers = useCallback((raw: string): string[] => {
+    return raw
+      .split(/[\r\n,;]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }, []);
+
+  // Cargar catálogos maestros
   useEffect(() => {
-    const cargarUbicaciones = async () => {
+    const cargarCatalogos = async () => {
       setLoadingCatalogos(true);
       try {
-        const res = await apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true });
-        setUbicaciones(res.items);
+        const [ubicRes, catRes, provRes] = await Promise.all([
+          apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true }),
+          apiClient.listarCategorias(true).catch(() => []),
+          apiClient.listarProveedores({ pageSize: 100, soloActivos: true }).catch(() => ({ items: [] }))
+        ]);
+        setUbicaciones(ubicRes.items);
+        setCategorias(catRes);
+        setProveedores(provRes.items || []);
+        if (catRes.length > 0) {
+          setNuevaCategoriaId(catRes[0].id);
+        }
       } catch (err) {
-        console.error('Error cargando ubicaciones:', err);
+        console.error('Error cargando catálogos:', err);
       } finally {
         setLoadingCatalogos(false);
       }
     };
-    cargarUbicaciones();
+    cargarCatalogos();
   }, []);
 
   // Cargar historial de movimientos filtrable
@@ -351,16 +417,115 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     return lineas.some(l => l.stockDisponibleOrigen !== undefined && l.cantidad > l.stockDisponibleOrigen);
   }, [lineas, tipo]);
 
-  // Manejo de agregar línea
+  // Manejo Camino A: Agregar nuevo producto / activo al catálogo y a la entrada
+  const handleAgregarNuevoRecurso = () => {
+    if (!nuevoNombre.trim() || nuevoNombre.trim().length < 3) {
+      showToast('El nombre del producto o activo debe tener al menos 3 caracteres.');
+      return;
+    }
+    const catId = nuevaCategoriaId || categorias[0]?.id || CATEGORIAS_ORIGINALES[0]?.id;
+    if (!catId) {
+      showToast('Selecciona una categoría válida.');
+      return;
+    }
+
+    let cantidadFinal = 1;
+    let seriesFinales: string[] = [];
+
+    if (nuevoTipo === 'activo_fijo') {
+      seriesFinales = parseSerialNumbers(nuevasSeriesTexto);
+      if (seriesFinales.length === 0) {
+        showToast('Ingresa al menos un número de serie para el activo individual.');
+        return;
+      }
+      cantidadFinal = seriesFinales.length;
+    } else {
+      cantidadFinal = Math.max(1, nuevaCantidadConsumible);
+    }
+
+    const skuSugerido = `SKU-EQ-${Date.now().toString().slice(-4)}`;
+    const catNombre = categorias.find(c => c.id === catId)?.nombre || 'Tecnología';
+
+    const nuevoRecursoVirtual: RecursoDto = {
+      id: `virtual-${Date.now()}`,
+      sku: skuSugerido,
+      nombre: nuevoNombre.trim(),
+      categoriaId: catId,
+      categoriaNombre: catNombre,
+      tipo: nuevoTipo,
+      unidadMedida: nuevoUnidadMedida || 'unidad',
+      stockMinimo: 1,
+      costoEstimado: nuevoCostoEstimado,
+      activo: true,
+      stockActual: 0,
+      totalFotos: nuevoFotoFile ? 1 : 0,
+      totalActivosSerie: nuevoTipo === 'activo_fijo' ? cantidadFinal : 0,
+      creadoEn: new Date().toISOString(),
+      actualizadoEn: new Date().toISOString(),
+      fotoPrincipalUrl: nuevoFotoPreview
+    };
+
+    setLineas(prev => [
+      ...prev,
+      {
+        tempId: `linea-nueva-${Date.now()}`,
+        recurso: nuevoRecursoVirtual,
+        cantidad: cantidadFinal,
+        costoUnitario: nuevoCostoEstimado,
+        numerosSerie: seriesFinales.length > 0 ? seriesFinales : undefined,
+        esNuevoRecurso: true,
+        nuevoRecursoPayload: {
+          sku: skuSugerido,
+          nombre: nuevoNombre.trim(),
+          categoriaId: catId,
+          tipo: nuevoTipo,
+          costoEstimado: nuevoCostoEstimado,
+          unidadMedida: nuevoUnidadMedida || 'unidad',
+          fotoFile: nuevoFotoFile
+        }
+      }
+    ]);
+
+    // Reset de campos de nuevo recurso
+    setNuevoNombre('');
+    setNuevasSeriesTexto('');
+    setNuevaCantidadConsumible(1);
+    setNuevoCostoEstimado(0);
+    setNuevoFotoFile(null);
+    setNuevoFotoPreview(null);
+    showToast(`Artículo "${nuevoNombre.trim()}" agregado a la lista (+${cantidadFinal} ${cantidadFinal === 1 ? 'unidad' : 'unidades'}).`);
+  };
+
+  // Manejo Camino B / Otros tipos: Agregar línea de recurso existente
   const handleAgregarLinea = () => {
-    if (!selectedRecurso || cantidadLinea <= 0) return;
+    if (!selectedRecurso) return;
+
+    let cant = cantidadLinea;
+    let series: string[] = [];
+
+    if (tipo === 'entrada' && selectedRecurso.tipo === 'activo_fijo') {
+      series = parseSerialNumbers(seriesExistenteTexto);
+      if (series.length === 0) {
+        showToast('Ingresa los números de serie para las unidades del activo.');
+        return;
+      }
+      cant = series.length;
+    } else {
+      if (cant <= 0) return;
+    }
 
     // Verificar si ya existe en la lista
-    const indexExistente = lineas.findIndex(l => l.recurso.id === selectedRecurso.id);
+    const indexExistente = lineas.findIndex(l => l.recurso.id === selectedRecurso.id && !l.esNuevoRecurso);
     if (indexExistente >= 0) {
       const nuevasLineas = [...lineas];
-      nuevasLineas[indexExistente].cantidad += cantidadLinea;
+      nuevasLineas[indexExistente].cantidad += cant;
       nuevasLineas[indexExistente].costoUnitario = costoLinea;
+      if (series.length > 0) {
+        nuevasLineas[indexExistente].numerosSerie = [
+          ...(nuevasLineas[indexExistente].numerosSerie || []),
+          ...series
+        ];
+      }
       setLineas(nuevasLineas);
     } else {
       setLineas(prev => [
@@ -368,9 +533,10 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
         {
           tempId: `linea-${Date.now()}-${Math.random()}`,
           recurso: selectedRecurso,
-          cantidad: cantidadLinea,
+          cantidad: cant,
           costoUnitario: costoLinea,
-          stockDisponibleOrigen: stockDisponibleSeleccionado ?? undefined
+          stockDisponibleOrigen: stockDisponibleSeleccionado ?? undefined,
+          numerosSerie: series.length > 0 ? series : undefined
         }
       ]);
     }
@@ -379,6 +545,8 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     setSelectedRecurso(null);
     setSearchTerm('');
     setCantidadLinea(1);
+    setSeriesExistenteTexto('');
+    showToast(`Línea agregada: +${cant} uds de "${selectedRecurso.nombre}".`);
   };
 
   const handleRemoverLinea = (tempId: string) => {
@@ -391,21 +559,70 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
     setSimulando(true);
     try {
-      const payload: CrearMovimientoDto = {
-        tipo,
-        origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
-        destinoUbicacionId: destinoUbicacionId ? destinoUbicacionId : null,
-        motivo: motivo.trim(),
-        comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
-        lineas: lineas.map(l => ({
-          recursoId: l.recurso.id,
-          cantidad: l.cantidad,
-          costoUnitario: l.costoUnitario
-        }))
-      };
+      const lineasExistentes = lineas.filter(l => !l.esNuevoRecurso);
+      const lineasNuevas = lineas.filter(l => l.esNuevoRecurso);
 
-      const res = await apiClient.previsualizarMovimiento(payload);
-      setSimulacion(res);
+      let lineasPrevSimulacion: any[] = [];
+      let erroresSimulacion: string[] = [];
+      let esValidoSimulacion = true;
+
+      // 1. Simular líneas existentes en el backend
+      if (lineasExistentes.length > 0) {
+        const payload: CrearMovimientoDto = {
+          tipo,
+          origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
+          destinoUbicacionId: destinoUbicacionId ? destinoUbicacionId : null,
+          motivo: motivo.trim(),
+          comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
+          numeroFactura: numeroFactura.trim() || null,
+          facturaUrl: facturaPreviewUrl || null,
+          proveedorId: proveedorId || null,
+          proveedorNombre: proveedorNombre.trim() || null,
+          fechaMovimiento: fechaMovimiento ? new Date(fechaMovimiento).toISOString() : null,
+          lineas: lineasExistentes.map(l => ({
+            recursoId: l.recurso.id,
+            cantidad: l.cantidad,
+            costoUnitario: l.costoUnitario,
+            numerosSerie: l.numerosSerie
+          }))
+        };
+
+        const res = await apiClient.previsualizarMovimiento(payload);
+        lineasPrevSimulacion = [...res.lineas];
+        erroresSimulacion = [...res.errores];
+        esValidoSimulacion = res.esValido;
+      }
+
+      // 2. Para líneas nuevas de Camino A (entrada positiva en destino)
+      if (lineasNuevas.length > 0 && tipo === 'entrada' && destinoUbicacionId) {
+        const destUbi = ubicaciones.find(u => u.id === destinoUbicacionId);
+        lineasNuevas.forEach((ln, idx) => {
+          const series = ln.numerosSerie || [];
+          const placas = series.map((_, i) => `EQ-Sugerida (${i + 1})`);
+          lineasPrevSimulacion.push({
+            recursoId: ln.recurso.id,
+            recursoSku: ln.recurso.sku,
+            recursoNombre: ln.recurso.nombre,
+            ubicacionId: destinoUbicacionId,
+            ubicacionNombre: destUbi?.nombre || 'Ubicación Destino',
+            stockActual: 0,
+            cantidadOperacion: ln.cantidad,
+            stockResultante: ln.cantidad,
+            esValido: true,
+            numerosSerie: series,
+            placasSugeridas: placas
+          });
+        });
+      }
+
+      setSimulacion({
+        tipo,
+        totalLineas: lineas.length,
+        esValido: esValidoSimulacion && erroresSimulacion.length === 0,
+        errores: erroresSimulacion,
+        lineas: lineasPrevSimulacion
+      });
+
       setWizardStep(3);
     } catch (err: any) {
       showToast(err.message || 'Error al simular impacto de existencias');
@@ -420,18 +637,61 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
 
     setGuardando(true);
     try {
+      // 1. Si hay líneas con nuevo recurso (Camino A), crearlos primero en el catálogo
+      const lineasParaEnviar: CrearMovimientoLineaDto[] = [];
+      for (const l of lineas) {
+        if (l.esNuevoRecurso && l.nuevoRecursoPayload) {
+          const payloadRec = l.nuevoRecursoPayload;
+          const nuevoRec = await apiClient.crearRecurso({
+            sku: payloadRec.sku,
+            nombre: payloadRec.nombre,
+            categoriaId: payloadRec.categoriaId,
+            tipo: payloadRec.tipo,
+            unidadMedida: payloadRec.unidadMedida,
+            costoEstimado: payloadRec.costoEstimado,
+            stockMinimo: 1,
+            activo: true
+          });
+
+          // Si seleccionó foto, subirla al recurso creado
+          if (payloadRec.fotoFile) {
+            try {
+              await apiClient.subirFotoRecurso(nuevoRec.id, payloadRec.fotoFile, true);
+            } catch (fotoErr) {
+              console.warn('No se pudo subir la foto del recurso:', fotoErr);
+            }
+          }
+
+          lineasParaEnviar.push({
+            recursoId: nuevoRec.id,
+            cantidad: l.cantidad,
+            costoUnitario: l.costoUnitario,
+            numerosSerie: l.numerosSerie
+          });
+        } else {
+          lineasParaEnviar.push({
+            recursoId: l.recurso.id,
+            cantidad: l.cantidad,
+            costoUnitario: l.costoUnitario,
+            numerosSerie: l.numerosSerie
+          });
+        }
+      }
+
+      // 2. Registrar el movimiento en la API
       const payload: CrearMovimientoDto = {
         tipo,
         origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
         destinoUbicacionId: destinoUbicacionId ? destinoUbicacionId : null,
         motivo: motivo.trim(),
         comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
+        numeroFactura: numeroFactura.trim() || null,
+        facturaUrl: facturaPreviewUrl || null,
+        proveedorId: proveedorId || null,
+        proveedorNombre: proveedorNombre.trim() || null,
+        fechaMovimiento: fechaMovimiento ? new Date(fechaMovimiento).toISOString() : null,
         idempotenciaKey: `MOV-REQ-${Date.now()}`,
-        lineas: lineas.map(l => ({
-          recursoId: l.recurso.id,
-          cantidad: l.cantidad,
-          costoUnitario: l.costoUnitario
-        }))
+        lineas: lineasParaEnviar
       };
 
       const nuevoMov = await apiClient.registrarMovimiento(payload, payload.idempotenciaKey);
@@ -447,14 +707,27 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
   // Reset del formulario para crear otro movimiento
   const handleReiniciarFormulario = () => {
     setWizardStep(1);
-    setTipo('traslado');
+    setTipo('entrada');
+    setCaminoEntrada('existente');
     setOrigenUbicacionId('');
     setDestinoUbicacionId('');
     setMotivo('');
     setComprobanteUrl('');
+    setNumeroFactura('');
+    setArchivoFactura(null);
+    setFacturaPreviewUrl(null);
+    setProveedorNombre('');
+    setProveedorId('');
     setLineas([]);
     setSelectedRecurso(null);
     setSearchTerm('');
+    setSeriesExistenteTexto('');
+    setNuevoNombre('');
+    setNuevasSeriesTexto('');
+    setNuevaCantidadConsumible(1);
+    setNuevoCostoEstimado(0);
+    setNuevoFotoFile(null);
+    setNuevoFotoPreview(null);
     setSimulacion(null);
     setMovimientoExitoso(null);
   };
@@ -687,6 +960,82 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                     })}
                   </div>
 
+                  {/* ENTRADA: Selección de Camino A vs Camino B */}
+                  {tipo === 'entrada' && (
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#3DAA5C]"></span>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                          Selecciona cómo ingresarás este recurso
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Camino A */}
+                        <button
+                          type="button"
+                          onClick={() => setCaminoEntrada('nuevo')}
+                          className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                            caminoEntrada === 'nuevo'
+                              ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-[#3DAA5C] shadow-xs'
+                              : 'bg-white border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-[#2D8246]">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Camino A</span>
+                              </span>
+                              {caminoEntrada === 'nuevo' && (
+                                <CheckCircle2 className="w-4 h-4 text-[#3DAA5C]" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-sm font-bold text-slate-900 block">
+                                Nuevo producto o activo
+                              </span>
+                              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                No existe aún en el catálogo. Crearás su ficha técnica (nombre, categoría, foto, costo) e ingresarás sus unidades iniciales.
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Camino B */}
+                        <button
+                          type="button"
+                          onClick={() => setCaminoEntrada('existente')}
+                          className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                            caminoEntrada === 'existente'
+                              ? 'bg-blue-50/80 border-blue-300 ring-2 ring-[#1C3177] shadow-xs'
+                              : 'bg-white border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-[#1C3177]">
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>Camino B</span>
+                              </span>
+                              {caminoEntrada === 'existente' && (
+                                <CheckCircle2 className="w-4 h-4 text-[#1C3177]" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-sm font-bold text-slate-900 block">
+                                Agregar más unidades de un recurso existente
+                              </span>
+                              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                Busca un bien ya registrado en el catálogo institucional. Podrás ingresar múltiples números de serie o sumar existencias.
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Ubicaciones de Origen y Destino */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     {/* Origen */}
@@ -713,7 +1062,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                       </select>
                       {tipo === 'entrada' && (
                         <span className="text-[10px] text-slate-400 mt-1 block">
-                          No aplica en entradas (provienen de proveedor externo).
+                          No aplica en entradas (provienen de proveedor externo o compra institucional).
                         </span>
                       )}
                     </div>
@@ -748,6 +1097,100 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                     </div>
                   </div>
 
+                  {/* Campos específicos de Entrada: Proveedor, Fecha y Factura */}
+                  {tipo === 'entrada' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      {/* Proveedor */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Proveedor o Suplidor
+                        </label>
+                        <input
+                          type="text"
+                          value={proveedorNombre}
+                          onChange={e => setProveedorNombre(e.target.value)}
+                          placeholder="Ej: Dell Dominicana, TechSupply SRL"
+                          list="proveedores-sugeridos"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                        />
+                        <datalist id="proveedores-sugeridos">
+                          {proveedores.map(p => (
+                            <option key={p.id} value={p.nombreComercial} />
+                          ))}
+                        </datalist>
+                      </div>
+
+                      {/* Fecha de Entrada */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Fecha de Entrada</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={fechaMovimiento}
+                          onChange={e => setFechaMovimiento(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                        />
+                      </div>
+
+                      {/* Número de Factura */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Número de Factura / Conduce</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={numeroFactura}
+                          onChange={e => setNumeroFactura(e.target.value)}
+                          placeholder="Ej: B150000123 / CON-482"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                        />
+                      </div>
+
+                      {/* Factura Adjunta (Opcional) */}
+                      <div className="sm:col-span-3 pt-1">
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Adjuntar Factura o Documento de Compra (PDF o Imagen)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <label className="px-3.5 py-2 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer flex items-center gap-2 text-xs font-bold text-slate-700 transition-colors">
+                            <Upload className="w-4 h-4 text-slate-400" />
+                            <span>{archivoFactura ? archivoFactura.name : 'Subir archivo de factura'}</span>
+                            <input
+                              type="file"
+                              accept="application/pdf,image/*"
+                              className="hidden"
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setArchivoFactura(file);
+                                  setFacturaPreviewUrl(URL.createObjectURL(file));
+                                  if (!numeroFactura) {
+                                    setNumeroFactura(file.name.replace(/\.[^/.]+$/, ''));
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                          {archivoFactura && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setArchivoFactura(null);
+                                setFacturaPreviewUrl(null);
+                              }}
+                              className="text-xs text-red-600 hover:text-red-700 font-bold"
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Motivo y Documento de Soporte */}
                   <div className="space-y-4 pt-2">
                     <div>
@@ -763,26 +1206,28 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                         rows={2}
                         value={motivo}
                         onChange={e => setMotivo(e.target.value)}
-                        placeholder="Ejemplo: Reabastecimiento para jornada de cirugía bucal o recepción de factura B15000123"
+                        placeholder="Ejemplo: Reabastecimiento de suministros institucionales o recepción de compra según Factura B150000123"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
                       />
                     </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                        Documento o Conduce de Respaldo (Opcional)
-                      </label>
-                      <div className="relative">
-                        <FileText className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={comprobanteUrl}
-                          onChange={e => setComprobanteUrl(e.target.value)}
-                          placeholder="Número de conduce, acta de entrega o URL del documento adjunto"
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
-                        />
+                    {tipo !== 'entrada' && (
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Documento o Conduce de Respaldo (Opcional)
+                        </label>
+                        <div className="relative">
+                          <FileText className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={comprobanteUrl}
+                            onChange={e => setComprobanteUrl(e.target.value)}
+                            placeholder="Número de conduce, acta de entrega o URL del documento adjunto"
+                            className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Botón de Avance a Paso 2 */}
@@ -797,7 +1242,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      <span>Siguiente: Agregar Líneas de Recursos</span>
+                      <span>Siguiente: {tipo === 'entrada' && caminoEntrada === 'nuevo' ? 'Registrar Ficha del Bien' : 'Agregar Líneas de Recursos'}</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -807,172 +1252,514 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
               {/* PASO 2: Líneas de Recursos */}
               {wizardStep === 2 && (
                 <div className="space-y-6">
-                  {/* Selector e Inserción de Artículos */}
-                  <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">
-                          2. Selecciona los Recursos y Cantidades
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Escribe el nombre o SKU institucional, o escanea el código físico con la cámara.
-                        </p>
-                      </div>
-
-                      {/* Botón de Escáner QR con Cámara */}
-                      <button
-                        type="button"
-                        onClick={() => setScannerOpen(true)}
-                        className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#1C3177] text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2"
-                      >
-                        <QrCode className="w-4 h-4 text-[#1C3177]" />
-                        <span>Escanear Código / QR</span>
-                      </button>
-                    </div>
-
-                    {/* Buscador predictivo de recursos */}
-                    <div className="relative">
-                      <div className="relative">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={e => {
-                            setSearchTerm(e.target.value);
-                            setSelectedRecurso(null);
-                          }}
-                          placeholder="Buscar por SKU (ej. SKU-EX-001) o nombre del insumo clínico..."
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
-                        />
-                        {buscandoRecursos && (
-                          <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" />
-                        )}
-                      </div>
-
-                      {/* Menú flotante de resultados predictivos */}
-                      {recursosBusqueda.length > 0 && !selectedRecurso && (
-                        <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
-                          {recursosBusqueda.map(r => (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedRecurso(r);
-                                setSearchTerm(`${r.sku} - ${r.nombre}`);
-                              }}
-                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex items-center justify-between text-xs"
-                            >
-                              <div className="space-y-0.5">
-                                <span className="font-bold text-slate-900 block">{r.nombre}</span>
-                                <span className="font-mono text-[11px] text-[#1C3177] font-semibold">{r.sku}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="font-bold text-slate-700 block">Stock: {r.stockActual} {r.unidadMedida}</span>
-                                <span className="text-[10px] text-slate-400">{r.categoriaNombre}</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ficha de Recurso Seleccionado + Input de Cantidad */}
-                    {selectedRecurso && (
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
-                          <div>
-                            <span className="font-bold text-slate-900 text-xs block">{selectedRecurso.nombre}</span>
-                            <span className="font-mono text-[11px] text-[#1C3177]">{selectedRecurso.sku} • {selectedRecurso.categoriaNombre}</span>
-                          </div>
-
-                          {/* Badge de Stock en Ubicación Origen */}
+                  {/* CAMINO A: Formulario de nuevo recurso inline */}
+                  {tipo === 'entrada' && caminoEntrada === 'nuevo' ? (
+                    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-5 shadow-xs">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Stock disponible:</span>
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                              (stockDisponibleSeleccionado ?? 0) > 0
-                                ? 'bg-emerald-100 text-[#2D8246]'
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {stockDisponibleSeleccionado ?? 0} {selectedRecurso.unidadMedida}
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-[#2D8246]">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Camino A</span>
                             </span>
+                            <h3 className="text-sm font-bold text-slate-900">
+                              Registrar Ficha del Nuevo Producto o Activo
+                            </h3>
                           </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Este bien se agregará automáticamente al catálogo de SIIA y a la ubicación de destino seleccionada.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Tipo de Bien: Activo Fijo vs Suministro */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Tipo de Bien Institucional <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setNuevoTipo('activo_fijo')}
+                            className={`p-3.5 rounded-xl border text-left transition-all ${
+                              nuevoTipo === 'activo_fijo'
+                                ? 'bg-blue-50/80 border-blue-300 ring-2 ring-[#1C3177]'
+                                : 'bg-slate-50 border-slate-200 hover:bg-white'
+                            }`}
+                          >
+                            <span className="text-xs font-bold text-slate-900 block">
+                              Activo Fijo Individual
+                            </span>
+                            <span className="text-[11px] text-slate-500 mt-1 block">
+                              Equipos como computadoras, proyectores, bocinas. Cada uno tendrá su número de serie, placa EQ-XXX y QR propio.
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setNuevoTipo('consumible')}
+                            className={`p-3.5 rounded-xl border text-left transition-all ${
+                              nuevoTipo === 'consumible'
+                                ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-[#3DAA5C]'
+                                : 'bg-slate-50 border-slate-200 hover:bg-white'
+                            }`}
+                          >
+                            <span className="text-xs font-bold text-slate-900 block">
+                              Suministro Consumible
+                            </span>
+                            <span className="text-[11px] text-slate-500 mt-1 block">
+                              Materiales de almacén (tóner, resinas, papel, gasas). Se controlan por cantidad global de existencias.
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Datos Básicos: Nombre, Categoría, Costo */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Nombre del Producto o Activo <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={nuevoNombre}
+                            onChange={e => setNuevoNombre(e.target.value)}
+                            placeholder="Ej: Monitor Dell 24 pulgadas UltraSharp P2419H"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                          />
                         </div>
 
-                        {/* Fila de Controles: Cantidad y Costo */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                          <div>
-                            <label className="text-xs font-bold text-slate-700 block mb-1">
-                              Cantidad a operar
-                            </label>
-                            <div className="flex items-center">
-                              <button
-                                type="button"
-                                onClick={() => setCantidadLinea(Math.max(1, cantidadLinea - 1))}
-                                className="px-3 py-2 border border-slate-300 rounded-l-xl bg-white hover:bg-slate-100 text-xs font-bold"
-                              >
-                                -
-                              </button>
-                              <input
-                                type="number"
-                                min={1}
-                                value={cantidadLinea}
-                                onChange={e => setCantidadLinea(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-full text-center py-2 border-y border-slate-300 text-xs font-bold text-slate-900 focus:outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setCantidadLinea(cantidadLinea + 1)}
-                                className="px-3 py-2 border border-slate-300 rounded-r-xl bg-white hover:bg-slate-100 text-xs font-bold"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Categoría <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={nuevaCategoriaId}
+                            onChange={e => setNuevaCategoriaId(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                          >
+                            {categorias.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.nombre}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                          <div>
-                            <label className="text-xs font-bold text-slate-700 block mb-1">
-                              Costo Unitario (DOP)
-                            </label>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Costo Unitario de Adquisición (DOP)
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                             <input
                               type="number"
                               min={0}
                               step={0.01}
-                              value={costoLinea}
-                              onChange={e => setCostoLinea(parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800"
+                              value={nuevoCostoEstimado || ''}
+                              onChange={e => setNuevoCostoEstimado(parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Subir Fotografía del Bien */}
+                        <div className="sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Fotografía del Producto (Opcional)
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <label className="px-3.5 py-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer flex items-center gap-2 text-xs font-bold text-slate-700 transition-colors">
+                              <Upload className="w-4 h-4 text-slate-400" />
+                              <span>{nuevoFotoFile ? nuevoFotoFile.name : 'Seleccionar fotografía'}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setNuevoFotoFile(file);
+                                    setNuevoFotoPreview(URL.createObjectURL(file));
+                                  }
+                                }}
+                              />
+                            </label>
+                            {nuevoFotoPreview && (
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={nuevoFotoPreview}
+                                  alt="Previsualización"
+                                  className="w-9 h-9 rounded-lg object-cover border border-slate-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setNuevoFotoFile(null);
+                                    setNuevoFotoPreview(null);
+                                  }}
+                                  className="text-xs text-red-600 hover:text-red-700 font-bold"
+                                >
+                                  Quitar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Si es Activo Fijo: Carga múltiple de números de serie */}
+                      {nuevoTipo === 'activo_fijo' ? (
+                        <div className="space-y-3 p-4 rounded-xl bg-blue-50/50 border border-blue-200">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                              <Hash className="w-4 h-4 text-[#1C3177]" />
+                              <span>Números de Serie de las Unidades a Ingresar <span className="text-red-500">*</span></span>
+                            </label>
+                            {parseSerialNumbers(nuevasSeriesTexto).length > 0 && (
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#1C3177] text-white">
+                                {parseSerialNumbers(nuevasSeriesTexto).length} {parseSerialNumbers(nuevasSeriesTexto).length === 1 ? 'unidad detectada' : 'unidades detectadas'}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-slate-600">
+                            Escribe o pega los números de serie de cada unidad (uno por línea, o separados por coma o punto y coma). El sistema asignará a cada una su placa consecutiva <strong className="text-[#1C3177]">EQ-XXX</strong> y su código QR propio.
+                          </p>
+
+                          <textarea
+                            rows={3}
+                            value={nuevasSeriesTexto}
+                            onChange={e => setNuevasSeriesTexto(e.target.value)}
+                            placeholder="Ejemplo:&#10;SN-DELL-90112&#10;SN-DELL-90113&#10;SN-DELL-90114"
+                            className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                          />
+
+                          {/* Previsualización en chips de las series detectadas */}
+                          {parseSerialNumbers(nuevasSeriesTexto).length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                Vista previa de unidades individuales ({parseSerialNumbers(nuevasSeriesTexto).length}):
+                              </span>
+                              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                {parseSerialNumbers(nuevasSeriesTexto).map((serie, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-white border border-slate-300 text-slate-800 shadow-2xs"
+                                  >
+                                    <span className="text-slate-400">#{idx + 1}</span>
+                                    <span>{serie}</span>
+                                    <span className="text-[#3DAA5C]">→ Placa EQ-XXX</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* Si es Consumible: Cantidad y Unidad de Medida */
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Cantidad Inicial a Ingresar <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={nuevaCantidadConsumible}
+                              onChange={e => setNuevaCantidadConsumible(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white"
                             />
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={handleAgregarLinea}
-                            className="w-full py-2 bg-[#3DAA5C] hover:bg-[#2D8246] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span>Añadir a la Lista</span>
-                          </button>
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Unidad de Medida
+                            </label>
+                            <select
+                              value={nuevoUnidadMedida}
+                              onChange={e => setNuevoUnidadMedida(e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 bg-white"
+                            >
+                              <option value="unidad">Unidades (uds)</option>
+                              <option value="caja">Cajas</option>
+                              <option value="paquete">Paquetes</option>
+                              <option value="frasco">Frascos / Botellas</option>
+                              <option value="resma">Resmas</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={handleAgregarNuevoRecurso}
+                          className="px-5 py-2.5 bg-[#3DAA5C] hover:bg-[#2D8246] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Agregar Artículo a la Entrada</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* CAMINO B o MOVIMIENTO NORMAL: Selector de recurso existente */
+                    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {tipo === 'entrada' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-[#1C3177]">
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>Camino B</span>
+                              </span>
+                            )}
+                            <h3 className="text-sm font-bold text-slate-900">
+                              2. Selecciona el Recurso y Cantidades
+                            </h3>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Escribe el nombre o SKU institucional, o escanea el código físico con la cámara.
+                          </p>
                         </div>
 
-                        {/* Advertencia Inmediata de Stock Insuficiente */}
-                        {tipo !== 'entrada' &&
-                          stockDisponibleSeleccionado !== null &&
-                          cantidadLinea > stockDisponibleSeleccionado && (
-                            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold">
-                              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                              <span>
-                                ⚠️ Advertencia inmediata: La cantidad ({cantidadLinea}) supera las existencias disponibles ({stockDisponibleSeleccionado}).
+                        {/* Botón de Escáner QR con Cámara */}
+                        <button
+                          type="button"
+                          onClick={() => setScannerOpen(true)}
+                          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#1C3177] text-xs font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2"
+                        >
+                          <QrCode className="w-4 h-4 text-[#1C3177]" />
+                          <span>Escanear Código / QR</span>
+                        </button>
+                      </div>
+
+                      {/* Buscador predictivo de recursos */}
+                      <div className="relative">
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={e => {
+                              setSearchTerm(e.target.value);
+                              setSelectedRecurso(null);
+                            }}
+                            placeholder="Buscar por SKU (ej. SKU-EX-001) o nombre del recurso..."
+                            className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
+                          />
+                          {buscandoRecursos && (
+                            <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" />
+                          )}
+                        </div>
+
+                        {/* Menú flotante de resultados predictivos */}
+                        {recursosBusqueda.length > 0 && !selectedRecurso && (
+                          <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
+                            {recursosBusqueda.map(r => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedRecurso(r);
+                                  setSearchTerm(`${r.sku} - ${r.nombre}`);
+                                }}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex items-center justify-between text-xs"
+                              >
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-slate-900 block">{r.nombre}</span>
+                                  <span className="font-mono text-[11px] text-[#1C3177] font-semibold">{r.sku}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-bold text-slate-700 block">Stock: {r.stockActual} {r.unidadMedida}</span>
+                                  <span className="text-[10px] text-slate-400">{r.categoriaNombre} • {r.tipo === 'activo_fijo' ? 'Activo Fijo' : 'Consumible'}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Ficha de Recurso Seleccionado + Input de Cantidad / Series */}
+                      {selectedRecurso && (
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
+                            <div>
+                              <span className="font-bold text-slate-900 text-xs block">{selectedRecurso.nombre}</span>
+                              <span className="font-mono text-[11px] text-[#1C3177]">
+                                {selectedRecurso.sku} • {selectedRecurso.categoriaNombre} •{' '}
+                                <span className={selectedRecurso.tipo === 'activo_fijo' ? 'text-indigo-600 font-bold' : 'text-emerald-600 font-bold'}>
+                                  {selectedRecurso.tipo === 'activo_fijo' ? 'Activo Fijo Individual' : 'Suministro Consumible'}
+                                </span>
                               </span>
                             </div>
+
+                            {/* Badge de Stock */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500">
+                                {tipo === 'entrada' ? 'Stock global:' : 'Stock disponible origen:'}
+                              </span>
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                (stockDisponibleSeleccionado ?? 0) > 0
+                                  ? 'bg-emerald-100 text-[#2D8246]'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {stockDisponibleSeleccionado ?? 0} {selectedRecurso.unidadMedida}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Si es ENTRADA y el recurso es ACTIVO FIJO: Input de múltiples series */}
+                          {tipo === 'entrada' && selectedRecurso.tipo === 'activo_fijo' ? (
+                            <div className="space-y-3 p-3.5 rounded-xl bg-blue-50/60 border border-blue-200">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                  <Hash className="w-4 h-4 text-[#1C3177]" />
+                                  <span>Números de serie de las unidades a ingresar</span>
+                                </label>
+                                {parseSerialNumbers(seriesExistenteTexto).length > 0 && (
+                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#1C3177] text-white">
+                                    {parseSerialNumbers(seriesExistenteTexto).length} unidades físicas detectadas
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-slate-600">
+                                Pega o escribe los números de serie (uno por línea o separados por coma). Cada unidad recibirá automáticamente su placa correlativa <strong className="text-[#1C3177]">EQ-XXX</strong> y su código QR.
+                              </p>
+
+                              <textarea
+                                rows={3}
+                                value={seriesExistenteTexto}
+                                onChange={e => setSeriesExistenteTexto(e.target.value)}
+                                placeholder="Ej:&#10;SN-HP-4011&#10;SN-HP-4012&#10;SN-HP-4013"
+                                className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
+                              />
+
+                              {parseSerialNumbers(seriesExistenteTexto).length > 0 && (
+                                <div className="space-y-1.5 pt-1">
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                    Vista previa ({parseSerialNumbers(seriesExistenteTexto).length} unidades):
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                    {parseSerialNumbers(seriesExistenteTexto).map((s, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-white border border-slate-300 text-slate-800"
+                                      >
+                                        <span className="text-slate-400">#{idx + 1}</span>
+                                        <span>{s}</span>
+                                        <span className="text-[#3DAA5C]">→ Placa EQ-XXX</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 items-end">
+                                <div>
+                                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                                    Costo Unitario (DOP)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    value={costoLinea}
+                                    onChange={e => setCostoLinea(parseFloat(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 bg-white"
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={handleAgregarLinea}
+                                  className="w-full py-2 bg-[#1C3177] hover:bg-[#2B4BA0] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  <span>Añadir {parseSerialNumbers(seriesExistenteTexto).length || ''} Unidades Físicas</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Modo Estándar: Cantidad y Costo */
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">
+                                  Cantidad a operar
+                                </label>
+                                <div className="flex items-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCantidadLinea(Math.max(1, cantidadLinea - 1))}
+                                    className="px-3 py-2 border border-slate-300 rounded-l-xl bg-white hover:bg-slate-100 text-xs font-bold"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={cantidadLinea}
+                                    onChange={e => setCantidadLinea(Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="w-full text-center py-2 border-y border-slate-300 text-xs font-bold text-slate-900 focus:outline-none bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setCantidadLinea(cantidadLinea + 1)}
+                                    className="px-3 py-2 border border-slate-300 rounded-r-xl bg-white hover:bg-slate-100 text-xs font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">
+                                  Costo Unitario (DOP)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  value={costoLinea}
+                                  onChange={e => setCostoLinea(parseFloat(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 bg-white"
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={handleAgregarLinea}
+                                className="w-full py-2 bg-[#3DAA5C] hover:bg-[#2D8246] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span>Añadir a la Lista</span>
+                              </button>
+                            </div>
                           )}
-                      </div>
-                    )}
-                  </div>
+
+                          {/* Advertencia Inmediata de Stock Insuficiente */}
+                          {tipo !== 'entrada' &&
+                            stockDisponibleSeleccionado !== null &&
+                            cantidadLinea > stockDisponibleSeleccionado && (
+                              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold">
+                                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                                <span>
+                                  ⚠️ Advertencia inmediata: La cantidad ({cantidadLinea}) supera las existencias disponibles ({stockDisponibleSeleccionado}).
+                                </span>
+                              </div>
+                            )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Tabla de Líneas Añadidas */}
                   <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Líneas Agregadas ({lineas.length})
+                        Líneas Agregadas a la Operación ({lineas.length})
                       </h4>
                       {lineas.length > 0 && (
                         <button
@@ -995,11 +1782,11 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                         <table className="w-full text-left text-xs">
                           <thead className="border-b border-slate-200 text-slate-500 font-semibold bg-slate-50/50">
                             <tr>
-                              <th className="py-2.5 px-3">Recurso / SKU</th>
+                              <th className="py-2.5 px-3">Recurso / Bien</th>
                               <th className="py-2.5 px-3">Cantidad</th>
                               <th className="py-2.5 px-3">Costo Unit.</th>
                               <th className="py-2.5 px-3">Subtotal</th>
-                              <th className="py-2.5 px-3 text-center">Estado Stock</th>
+                              <th className="py-2.5 px-3 text-center">Tipo / Estado</th>
                               <th className="py-2.5 px-3 text-right">Acción</th>
                             </tr>
                           </thead>
@@ -1013,8 +1800,31 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                               return (
                                 <tr key={l.tempId} className="hover:bg-slate-50/60">
                                   <td className="py-3 px-3">
-                                    <span className="font-bold text-slate-900 block">{l.recurso.nombre}</span>
-                                    <span className="font-mono text-[11px] text-[#1C3177]">{l.recurso.sku}</span>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-900 block">{l.recurso.nombre}</span>
+                                        {l.esNuevoRecurso && (
+                                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-[#2D8246]">
+                                            Nuevo en catálogo
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="font-mono text-[11px] text-[#1C3177]">{l.recurso.sku} • {l.recurso.categoriaNombre}</span>
+
+                                      {/* Series asociadas si existen */}
+                                      {l.numerosSerie && l.numerosSerie.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 pt-1">
+                                          {l.numerosSerie.map((s, si) => (
+                                            <span
+                                              key={si}
+                                              className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-[10px] font-mono text-[#1C3177] border border-blue-200"
+                                            >
+                                              SN: {s}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="py-3 px-3 font-bold text-slate-900">
                                     {l.cantidad} {l.recurso.unidadMedida}
@@ -1034,7 +1844,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                                     ) : (
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#2D8246]">
                                         <CheckCircle2 className="w-3 h-3" />
-                                        Disponible
+                                        {tipo === 'entrada' ? 'Ingreso Válido' : 'Disponible'}
                                       </span>
                                     )}
                                   </td>
@@ -1140,20 +1950,32 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                       <span className="font-bold text-slate-900 uppercase">{tipo}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Origen:</span>
+                      <span className="text-slate-500 block">
+                        {tipo === 'entrada' ? 'Destino UOD:' : 'Origen:'}
+                      </span>
                       <span className="font-bold text-slate-900">
-                        {ubicaciones.find(u => u.id === origenUbicacionId)?.nombre || 'Externo / Proveedor'}
+                        {tipo === 'entrada'
+                          ? (ubicaciones.find(u => u.id === destinoUbicacionId)?.nombre || 'Destino UOD')
+                          : (ubicaciones.find(u => u.id === origenUbicacionId)?.nombre || 'Externo / Proveedor')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Destino:</span>
+                      <span className="text-slate-500 block">
+                        {tipo === 'entrada' ? 'Proveedor / Suplidor:' : 'Destino:'}
+                      </span>
                       <span className="font-bold text-slate-900">
-                        {ubicaciones.find(u => u.id === destinoUbicacionId)?.nombre || 'Consumo / Descarte'}
+                        {tipo === 'entrada'
+                          ? (proveedorNombre || 'Proveedor Externo')
+                          : (ubicaciones.find(u => u.id === destinoUbicacionId)?.nombre || 'Consumo / Descarte')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Motivo:</span>
-                      <span className="font-bold text-slate-900 line-clamp-1">{motivo}</span>
+                      <span className="text-slate-500 block">
+                        {tipo === 'entrada' && numeroFactura ? 'Factura / Fecha:' : 'Motivo:'}
+                      </span>
+                      <span className="font-bold text-slate-900 line-clamp-1">
+                        {tipo === 'entrada' && numeroFactura ? `${numeroFactura} (${fechaMovimiento})` : motivo}
+                      </span>
                     </div>
                   </div>
 
@@ -1218,6 +2040,55 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                           </table>
                         </div>
                       )}
+
+                      {/* Tarjeta de Unidades Físicas / Activos Individuales a Registrar */}
+                      {simulacion.lineas.some(l => l.numerosSerie && l.numerosSerie.length > 0) && (
+                        <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-[#1C3177]" />
+                              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                Unidades Físicas que se Registrarán con Placa UOD y Código QR
+                              </h4>
+                            </div>
+                            <span className="text-[11px] font-bold text-[#1C3177]">
+                              {simulacion.lineas.reduce((acc, l) => acc + (l.numerosSerie?.length || 0), 0)} unidades individuales
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                            {simulacion.lineas.flatMap(l =>
+                              (l.numerosSerie || []).map((serie, sIdx) => {
+                                const placa = l.placasSugeridas?.[sIdx] || 'EQ-Consecutiva';
+                                return (
+                                  <div
+                                    key={`${l.recursoId}-${sIdx}`}
+                                    className="p-3 bg-white rounded-xl border border-slate-200 text-xs space-y-1 shadow-2xs"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-[#1C3177] font-mono text-[11px]">
+                                        {placa}
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-[#2D8246] font-bold text-[10px]">
+                                        QR Listo
+                                      </span>
+                                    </div>
+                                    <div className="font-semibold text-slate-800 truncate" title={l.recursoNombre}>
+                                      {l.recursoNombre}
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-500">
+                                      Serie: <span className="font-bold text-slate-700">{serie}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400">
+                                      Destino: {ubicaciones.find(u => u.id === destinoUbicacionId)?.nombre || 'UOD'}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1250,7 +2121,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                       ) : (
                         <>
                           <ShieldCheck className="w-4 h-4" />
-                          <span>Confirmar y Ejecutar Movimiento</span>
+                          <span>Confirmar y Ejecutar {tipo === 'entrada' ? 'Entrada' : 'Movimiento'}</span>
                         </>
                       )}
                     </button>

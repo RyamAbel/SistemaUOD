@@ -54,6 +54,8 @@ public class CrearMovimientoLineaDto
 
     [Range(0, 10000000, ErrorMessage = "El costo unitario debe ser mayor o igual a cero.")]
     public decimal CostoUnitario { get; set; } = 0.00m;
+
+    public List<string>? NumerosSerie { get; set; } = new();
 }
 
 public class CrearMovimientoDto
@@ -71,6 +73,11 @@ public class CrearMovimientoDto
     public string Motivo { get; set; } = string.Empty;
 
     public string? ComprobanteUrl { get; set; }
+    public string? FacturaUrl { get; set; }
+    public string? NumeroFactura { get; set; }
+    public Guid? ProveedorId { get; set; }
+    public string? ProveedorNombre { get; set; }
+    public DateTime? FechaMovimiento { get; set; }
     public bool OrigenIa { get; set; } = false;
     public string? IdempotenciaKey { get; set; }
 
@@ -108,6 +115,8 @@ public class PrevisualizarMovimientoLineaDto
     public int StockResultante { get; set; }
     public bool EsValido => StockResultante >= 0;
     public string? MensajeError { get; set; }
+    public List<string> NumerosSerie { get; set; } = new();
+    public List<string> PlacasSugeridas { get; set; } = new();
 }
 
 public class PrevisualizarMovimientoResultadoDto

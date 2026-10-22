@@ -468,6 +468,7 @@ export interface CrearMovimientoLineaDto {
   loteId?: string | null;
   cantidad: number;
   costoUnitario?: number;
+  numerosSerie?: string[];
 }
 
 export interface CrearMovimientoDto {
@@ -476,6 +477,11 @@ export interface CrearMovimientoDto {
   destinoUbicacionId?: string | null;
   motivo: string;
   comprobanteUrl?: string | null;
+  facturaUrl?: string | null;
+  numeroFactura?: string | null;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  fechaMovimiento?: string | null;
   origenIa?: boolean;
   idempotenciaKey?: string;
   lineas: CrearMovimientoLineaDto[];
@@ -508,6 +514,8 @@ export interface PrevisualizarMovimientoLineaDto {
   stockResultante: number;
   esValido: boolean;
   mensajeError?: string | null;
+  numerosSerie?: string[];
+  placasSugeridas?: string[];
 }
 
 export interface PrevisualizarMovimientoResultadoDto {

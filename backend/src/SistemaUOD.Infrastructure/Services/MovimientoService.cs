@@ -194,6 +194,66 @@ public class MovimientoService : IMovimientoService
                 lineasEntidad.Add(lineaEntidad);
             }
 
+            // Si es entrada y contiene números de serie para activos físicos, registrar las unidades en ActivosSerie
+            if (dto.Tipo.Equals("entrada", StringComparison.OrdinalIgnoreCase) && dto.DestinoUbicacionId.HasValue)
+            {
+                var placasExistentes = await _db.ActivosSerie
+                    .Where(a => a.PlacaInstitucional != null && a.PlacaInstitucional.StartsWith("EQ-"))
+                    .Select(a => a.PlacaInstitucional!)
+                    .ToListAsync(ct);
+
+                int maxNumero = 0;
+                foreach (var p in placasExistentes)
+                {
+                    var sub = p.Replace("EQ-", "").Trim();
+                    if (int.TryParse(sub, out var n) && n > maxNumero)
+                    {
+                        maxNumero = n;
+                    }
+                }
+
+                var nuevosActivosSerie = new List<ActivoSerie>();
+                foreach (var linea in dto.Lineas)
+                {
+                    if (linea.NumerosSerie != null && linea.NumerosSerie.Count > 0)
+                    {
+                        var recurso = recursos[linea.RecursoId];
+                        var costo = linea.CostoUnitario > 0 ? linea.CostoUnitario : recurso.CostoEstimado;
+                        foreach (var serie in linea.NumerosSerie)
+                        {
+                            var sLimpio = serie?.Trim();
+                            if (string.IsNullOrWhiteSpace(sLimpio)) continue;
+
+                            maxNumero++;
+                            var nuevaPlaca = $"EQ-{maxNumero:D2}";
+                            var activoSerie = new ActivoSerie
+                            {
+                                Id = Guid.NewGuid(),
+                                RecursoId = linea.RecursoId,
+                                NumeroSerie = sLimpio,
+                                PlacaInstitucional = nuevaPlaca,
+                                Estado = "disponible",
+                                UbicacionId = dto.DestinoUbicacionId.Value,
+                                ProveedorId = dto.ProveedorId,
+                                FechaAdquisicion = dto.FechaMovimiento.HasValue ? DateOnly.FromDateTime(dto.FechaMovimiento.Value) : DateOnly.FromDateTime(DateTime.UtcNow),
+                                CostoAdquisicion = costo,
+                                FacturaUrl = dto.FacturaUrl,
+                                FacturaNombre = dto.NumeroFactura,
+                                Notas = $"Ingresado mediante movimiento {numeroMovimiento}. {dto.Motivo}".Trim(),
+                                CreadoEn = DateTime.UtcNow,
+                                ActualizadoEn = DateTime.UtcNow
+                            };
+                            nuevosActivosSerie.Add(activoSerie);
+                        }
+                    }
+                }
+
+                if (nuevosActivosSerie.Count > 0)
+                {
+                    _db.ActivosSerie.AddRange(nuevosActivosSerie);
+                }
+            }
+
             _db.Movimientos.Add(nuevoMovimiento);
             _db.MovimientosLineas.AddRange(lineasEntidad);
 
@@ -308,7 +368,7 @@ public class MovimientoService : IMovimientoService
                 int stockActual = existencia?.Cantidad ?? 0;
                 int resultante = stockActual + linea.Cantidad;
 
-                resultado.Lineas.Add(new PrevisualizarMovimientoLineaDto
+                var prevDestino = new PrevisualizarMovimientoLineaDto
                 {
                     RecursoId = recurso.Id,
                     RecursoSku = recurso.Sku,
@@ -320,7 +380,36 @@ public class MovimientoService : IMovimientoService
                     StockActual = stockActual,
                     CantidadOperacion = +linea.Cantidad,
                     StockResultante = resultante
-                });
+                };
+
+                if (linea.NumerosSerie != null && linea.NumerosSerie.Count > 0)
+                {
+                    var seriesLimpas = linea.NumerosSerie.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+                    prevDestino.NumerosSerie = seriesLimpas;
+
+                    var maxPlacas = await _db.ActivosSerie
+                        .Where(a => a.PlacaInstitucional != null && a.PlacaInstitucional.StartsWith("EQ-"))
+                        .Select(a => a.PlacaInstitucional!)
+                        .ToListAsync(ct);
+
+                    int maxNumPrev = 0;
+                    foreach (var p in maxPlacas)
+                    {
+                        var parts = p.Split('-');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n > maxNumPrev)
+                        {
+                            maxNumPrev = n;
+                        }
+                    }
+
+                    foreach (var _ in seriesLimpas)
+                    {
+                        maxNumPrev++;
+                        prevDestino.PlacasSugeridas.Add($"EQ-{maxNumPrev:D2}");
+                    }
+                }
+
+                resultado.Lineas.Add(prevDestino);
             }
         }
 
