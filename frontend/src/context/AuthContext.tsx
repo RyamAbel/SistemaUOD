@@ -137,11 +137,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setPerfil(null);
-    setAuthError(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Aviso al cerrar sesión:', err);
+    } finally {
+      setUser(null);
+      setSession(null);
+      setPerfil(null);
+      setAuthError(null);
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace('/');
+      }
+    }
   };
 
   const refreshProfile = async () => {
