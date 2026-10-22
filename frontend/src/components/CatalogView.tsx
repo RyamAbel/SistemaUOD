@@ -43,6 +43,7 @@ import { ResourceFormDrawer } from './ResourceFormDrawer';
 import { ResourceDetailModal } from './ResourceDetailModal';
 import { QrLabelsPrintModal } from './QrLabelsPrintModal';
 import { CameraScannerModal } from './CameraScannerModal';
+import { ImportResourcesModal } from './ImportResourcesModal';
 
 interface CatalogViewProps {
   articulos?: any[];
@@ -124,6 +125,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   const [detailResourceId, setDetailResourceId] = useState<string | null>(null);
   const [batchPrintModalOpen, setBatchPrintModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // 9. Modal de edición rápida de umbrales de stock RF-12 (Prompt 7.5)
   const [stockModalItem, setStockModalItem] = useState<RecursoDto | null>(null);
@@ -465,6 +467,18 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-[#1C3177]' : ''}`} />
           </button>
+
+          {/* Importar CSV Button (Etapa 12) */}
+          {canManage && (
+            <button
+              onClick={() => setImportModalOpen(true)}
+              title="Importación masiva de recursos desde archivo CSV / Excel"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-[#3DAA5C]" />
+              <span className="hidden sm:inline">Importar CSV</span>
+            </button>
+          )}
 
           {/* Nuevo Recurso Button */}
           {canManage && (
@@ -1447,6 +1461,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           setEditingResourceId(null);
           setDuplicatingResource(null);
           setDrawerOpen(true);
+        }}
+      />
+
+      {/* Modal Importación Masiva de Recursos CSV / Excel (Etapa 12) */}
+      <ImportResourcesModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => {
+          fetchRecursos();
         }}
       />
 

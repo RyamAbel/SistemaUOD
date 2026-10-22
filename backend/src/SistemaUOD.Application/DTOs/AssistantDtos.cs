@@ -44,6 +44,8 @@ public class PropuestaAccionDto
     public int? StockNuevoOrigen { get; set; }
     public string Motivo { get; set; } = string.Empty;
     public string? DictamenTecnico { get; set; }
+    public string? ProveedorNombre { get; set; }
+    public decimal? CostoEstimado { get; set; }
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public bool Confirmado { get; set; } = false;
 }

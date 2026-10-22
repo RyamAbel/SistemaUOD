@@ -2,7 +2,7 @@ namespace SistemaUOD.Application.Common.Models;
 
 public class PagedRequest
 {
-    private const int MaxPageSize = 100;
+    private const int MaxPageSize = 1000;
     private int _pageSize = 20;
 
     public int PageIndex { get; set; } = 1;

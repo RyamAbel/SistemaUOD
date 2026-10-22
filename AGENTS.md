@@ -307,7 +307,125 @@ SistemaUOD/
     - **Total de pruebas automatizadas en .NET:** **110 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
     - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas).
     - **Etapa 10 completada y cerrada formalmente al 100%.**
-- **Etapa 11 – Notificaciones por correo (Gmail API y cola transaccional):** 🔄 Próxima etapa a iniciar.
+- **Etapa 11 – Notificaciones por correo (Gmail API y cola transaccional):** ✅ Completada al 100%:
+  - ✅ Prompt 11.1 – **Motor de Alertas y Reglas Configurables:**
+    - Entidades `Alerta`, `ColaCorreo` y `NotificacionPreferencia` mapeadas en `ApplicationDbContext.cs` sin migraciones EF (Database-first con PostgreSQL).
+    - Servicio `AlertaService.cs` implementando las 3 reglas institucionales críticas:
+      1. *Stock bajo / agotado (RF-12):* evaluación frente a stock mínimo y punto de reorden con severidades `urgente`, `advertencia` e `info`.
+      2. *Lotes clínicos por vencer:* control sanitario a 30 días y retiro inmediato de insumos vencidos.
+      3. *Mantenimientos técnicos TI:* avisos preventivos a 7 días y alertas de servicios vencidos.
+      - Lógica anti-duplicados estricta: previene saturación descartando alertas redundantes para recursos que ya tienen avisos abiertos.
+    - Endpoints RESTful Minimal APIs (`AlertasEndpoints.cs`): `GET /api/v1/alertas`, `GET /api/v1/alertas/resumen`, `GET /api/v1/alertas/conteo-no-leidas`, `POST /api/v1/alertas/evaluar`, `PATCH /api/v1/alertas/{id}/leida`, `POST /api/v1/alertas/marcar-todas-leidas` y `DELETE /api/v1/alertas/{id}`.
+  - ✅ Prompt 11.2 – **Notificaciones en Vivo en la Aplicación (Frontend):**
+    - Campana interactiva en `Navbar.tsx` con contador en vivo, polling periódico y dropdown con visualización de severidades (`#EF4444`, `#F59E0B`, `#1C3177`), marcado rápido de leídas y enlace a la vista completa.
+    - Componente institucional `AlertsView.tsx`: Centro de Alertas y Notificaciones con 4 KPIs de balance, filtros multivariables (estado, severidad, tipo), disparador manual de evaluación de reglas, marcado masivo, eliminación y modal de preferencias.
+    - Pestaña 'Centro de Alertas' integrada en la navegación lateral de `Sidebar.tsx` con badges dinámicos.
+  - ✅ Prompt 11.3 & 11.4 – **Abstracción de Correo, Plantillas HTML UOD y Cola Transaccional:**
+    - Interfaz abstracta `IEmailSender` desacoplada: soporte transparente para SMTP / Gmail API y modo Mock seguro para desarrollo y pruebas locales.
+    - Generador de plantillas HTML institucionales `EmailTemplateService.cs`: diseño con membrete oficial de la Universidad Odontológica Dominicana, colores institucionales (`#1C3177`, `#3DAA5C`), tablas de datos y botones accesibles para stock bajo, vencimiento de lotes clínicos, mantenimientos y traslados con acta oficial.
+    - Servicio en segundo plano `EmailQueueBackgroundService.cs` (`BackgroundService`): procesamiento periódico de la tabla `cola_correos`, reintentos exponenciales automáticos (hasta 3 intentos) y auditoría de errores en `UltimoError`.
+    - Endpoints administrativos de gestión de cola (`CorreosEndpoints.cs`): `GET /api/v1/correos/cola`, `GET /api/v1/correos/cola/estadisticas`, `POST /api/v1/correos/cola/{id}/reintentar` y `POST /api/v1/correos/cola/procesar`.
+  - ✅ Prompt 11.5 – **Preferencias de Usuario y Tarea Programada Diaria:**
+    - Endpoints `GET /api/v1/notificaciones/preferencias` y `PUT /api/v1/notificaciones/preferencias` por usuario autenticado.
+    - Servicio programado periódico `ScheduledInventoryAlertService.cs` (`BackgroundService`) que evalúa el inventario automáticamente y genera alertas/correos de forma periódica.
+  - ✅ Prompt 11.6 – **Pruebas Automatizadas y Cierre Formal:**
+    - Batería de pruebas automatizadas en `SistemaUOD.Tests` (`AlertasEndpointsTests.cs` y `CorreosEndpointsTests.cs`):
+      - Paginación y conteo rápido de no leídas.
+      - Disparo y anti-duplicados del motor de reglas.
+      - Permisos de seguridad y rechazo `403 Forbidden` a roles sin privilegio.
+      - Guardado y recuperación de preferencias de notificación.
+      - Encolamiento transaccional, reintento manual y procesamiento en lote por el worker.
+      - Validación de la estructura HTML UOD de todas las plantillas de correo.
+    - **Total de pruebas automatizadas en .NET:** **125 pruebas superadas al 100% (0 fallos)** en `SistemaUOD.Tests`.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas sin errores).
+    - **Etapa 11 completada y cerrada formalmente al 100%.**
+- **Etapa 12 – Compras, recepción y órdenes (sin pagos) / Inventario físico / Importación Excel:** ✅ Completada al 100%:
+  - ✅ Prompt 12.1: **Backend Compras y Recepción (órdenes sin pagos)**:
+    - Entidades `OrdenCompra` y `OrdenCompraLinea` mapeadas en `Entities.cs` y `ApplicationDbContext.cs`.
+    - DTOs `CompraDtos.cs` con validaciones de cantidades positivas, precios y fechas estimadas.
+    - Servicio `CompraService.cs` con numeración secuencial correlativa institucional `OC-YYYY-XXXXXX`, flujo de estados estricto (`borrador` -> `aprobada` -> `enviada` -> `recibida_parcial`/`recibida_total` o `cancelada`).
+    - Recepción de mercancía transaccional atómica: valida cantidades pendientes, genera movimiento oficial tipo `entrada` vía `IMovimientoService`, crea lotes con fecha de vencimiento y actualiza automáticamente los saldos y estados de la orden.
+    - Integración con sugerencias de compra automáticas basadas en el algoritmo RF-12 (`StockTotal - StockReservado <= StockMinimo`).
+    - Endpoints RESTful completos en `ComprasEndpoints.cs` con autorización por rol (`Policies.ExigirGestionInventario`).
+  - ✅ Prompt 12.2: **Frontend Compras y Recepción**:
+    - Componente interactivo `PurchaseOrdersView.tsx` con 4 tarjetas de métricas en cabecera (Órdenes Activas, Mercancía Pendiente, Recibidas este Mes, Inversión Comprometida DOP).
+    - Modal de creación de órdenes con selector de proveedor, fecha estimada, motivo, líneas de recursos y botón de prellenado automático a partir de alertas de stock bajo (RF-12).
+    - Modal de recepción de mercancía por líneas con selector de ubicación destino, número de lote, fecha de vencimiento y soporte para entregas parciales o totales.
+    - Modal de visualización imprimible optimizado para formato físico con membrete institucional UOD y firmas de autorización.
+    - Pestaña "Órdenes de Compra" integrada en `SuppliersView.tsx` y permisos dinámicos en `Sidebar.tsx`.
+  - ✅ Prompt 12.3: **Backend Inventario Físico y Conteos**:
+    - Entidades `ConteoFisico` y `ConteoFisicoLinea` con columna calculada PostgreSQL `diferencia` (`GENERATED ALWAYS AS (cantidad_fisica - cantidad_sistema) STORED`) mapeada en EF Core como `ValueGeneratedOnAddOrUpdate()`.
+    - Servicio `ConteoFisicoService.cs` con precarga opcional de stock existente por ubicación, soporte de sincronización por lotes para modo offline, e incremento continuo por escaneo de códigos de barra o QR.
+    - Proceso de conciliación transaccional: calcula discrepancias y genera automáticamente movimientos de inventario tipo `ajuste` (`diferencia > 0` ingresa a destino, `diferencia < 0` descuenta de origen) con auditoría inmutable (Ley 172-13).
+    - Endpoints RESTful completos en `ConteosFisicosEndpoints.cs` (`GET`, `POST`, `PUT /lineas`, `POST /escanear`, `POST /conciliar`, `POST /cancelar`).
+  - ✅ Prompt 12.4: **Frontend Inventario Físico y Auditoría**:
+    - Componente interactivo `PhysicalAuditView.tsx` integrado en la barra de navegación lateral (`Sidebar.tsx`) bajo la ruta `/auditoria-fisica`.
+    - Selector institucional de ubicación y control de sesión de conteo activa sincronizada en vivo con la API y persistida en `localStorage` para tolerancia a desconexiones.
+    - Integración de escáner con cámara PWA (`CameraScannerModal.tsx`) para incremento instantáneo de conteo al detectar etiquetas físicas.
+    - Auditoría patrimonial en vivo para los 341 equipos tecnológicos institucionales con verificación de placa (`EQ-XX`), estado físico y custodio asignado.
+    - Modal de conciliación con tabla de balance (*Stock Teórico*, *Conteo Físico*, *Discrepancia*), motivo obligatorio y aplicación atómica con toast y badge de éxito.
+  - ✅ Prompt 12.5: **Importación masiva desde Excel / CSV**:
+    - DTOs `ImportacionDtos.cs`, interfaz `IImportacionService.cs` y servicio `ImportacionService.cs` con generación de plantilla CSV oficial codificada en UTF-8 BOM, validación exhaustiva de campos requeridos, detección de duplicados en catálogo y creación en lote de recursos con auto-creación de categorías faltantes.
+    - Endpoints RESTful en `ImportacionEndpoints.cs` (`GET /api/v1/importacion/plantilla-csv`, `POST /api/v1/importacion/validar`, `POST /api/v1/importacion/ejecutar`).
+    - Componente interactivo `ImportResourcesModal.tsx` con descarga de plantilla con un clic, zona Drag & Drop para archivos CSV/Excel, análisis de cabeceras tolerante a comas o punto y coma, tabla de previsualización con badges de estado (Válido / Error) y filtro rápido, aviso de duplicados y alta masiva con barra de progreso.
+    - Botón de acceso directo «Importar CSV» integrado en la barra de herramientas de `CatalogView.tsx` protegido con permisos de gestión de inventario.
+  - ✅ Prompt 12.6: **Pruebas automatizadas y cierre formal de la Etapa 12**:
+    - Batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests` superada al 100%: **143 pruebas ejecutadas, 143 aprobadas, 0 fallos**.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas sin errores).
+    - **Etapa 12 completada y cerrada formalmente al 100%.**
+- **Etapa 13 – Notificaciones, reportes ejecutivos e inteligencia analítica:** ✅ Completada al 100%:
+  - ✅ Prompt 13.1: **Expansión del Asistente de IA (Mantenimientos, Compras y Conteos)**:
+    - Incorporación de nuevas declaraciones de herramientas y esquemas OpenAPI para Gemini API: `consultar_mantenimientos`, `consultar_ordenes_compra`, `consultar_conteos_fisicos` y `preparar_propuesta_compra`.
+    - Motor de contingencia heurístico local ampliado en `AssistantService.cs` para soporte offline ante fallos de red o límites de cuota de la API de IA.
+    - Soporte ampliado para propuestas de acción interactiva con confirmación obligatoria previa (`orden_compra`) con persistencia en borrador y auditoría inmutable automática (Ley 172-13).
+    - DTOs ampliados en `AssistantDtos.cs` con `ProveedorNombre` y `CostoEstimado`. Batería de pruebas en `AssistantEndpointsTests.cs` (18/18 pruebas aprobadas).
+  - ✅ Prompt 13.2: **Backend de Reportes Ejecutivos y Analítica Patrimonial**:
+    - DTOs `ReporteDtos.cs` (`ResumenEjecutivoDto`, `RotacionConsumibleItemDto`, `DistribucionParqueTiDto`, `ReporteOrdenesProveedorDto`).
+    - Interfaz `IReporteService.cs` y servicio `ReporteService.cs` con consolidación en tiempo real de:
+      - 4 KPIs ejecutivos institucionales (Total activos físicos, desglose operativo en uso / almacén / mantenimiento / baja, stock consumibles y exactitud de inventario).
+      - Cálculo de depreciación contable según DGII Categoría 2 (25% anual, vida útil de 48 meses, valor residual 5% conforme al Código Tributario Dominicano).
+      - Análisis de rotación de consumibles institucionales con tasa de giro y costo total consumido en DOP.
+      - Distribución y participación porcentual del parque tecnológico UOD por categoría institucional.
+      - Desempeño y tasa de cumplimiento por proveedor de suministros tecnológicos.
+      - Exportación de balance patrimonial en formato CSV codificado con UTF-8 BOM compatible con Microsoft Excel en español.
+    - Endpoints RESTful en `ReportesEndpoints.cs` (`GET /api/v1/reportes/resumen-ejecutivo`, `GET /api/v1/reportes/rotacion-consumibles`, `GET /api/v1/reportes/distribucion-parque-ti`, `GET /api/v1/reportes/proveedores`, `GET /api/v1/reportes/exportar-patrimonial-csv`).
+    - Batería de 6 pruebas de integración dedicadas en `ReportesEndpointsTests.cs` aprobadas al 100%.
+  - ✅ Prompt 13.3: **Frontend de Reportes Ejecutivos e Inteligencia Analítica**:
+    - Componente interactivo `ReportsView.tsx` conectado a los endpoints en vivo de la API mediante `apiClient.ts` con manejo de estados de carga, reintentos y tolerancia a fallos.
+    - 4 Tarjetas KPI ejecutivas con paleta institucional UOD (`#1C3177`, `#3DAA5C`, `#06B6D4`, `#F7F9FC`).
+    - 5 Subpestañas organizadas:
+      - *Resumen Patrimonial y Fiscal:* Balance contable DGII Cat. 2, barra multisegmento de operatividad física y botón de exportación CSV.
+      - *Distribución Parque TI:* Tabla y barras de participación de los 341 equipos por categoría tecnológica del levantamiento 2026.
+      - *Rotación de Consumibles:* Monitoreo de stock actual, salidas, rotación y costo consumido en DOP con barra de búsqueda reactiva.
+      - *Proveedores y Órdenes:* Historial de órdenes de compra, efectividad de entrega y volumen contratado en DOP.
+      - *Auditoría y Exactitud:* Índice de concordancia del inventario físico y método de cálculo de discrepancias.
+    - Integración directa con el Asistente IA mediante sugerencias de preguntas rápidas sobre presupuesto, órdenes de compra y alertas de stock.
+    - Botón de descarga con un clic de reporte patrimonial en CSV (`apiClient.exportarReportePatrimonialCsv()`).
+  - ✅ Prompt 13.4: **Pruebas automatizadas y cierre formal de la Etapa 13**:
+    - Batería de pruebas automatizadas en `backend/tests/SistemaUOD.Tests` superada al 100%: **152 pruebas ejecutadas, 152 aprobadas, 0 fallos**.
+    - Compilación estricta y generación de páginas estáticas en verde en Next.js Turbopack (`npm run build` con 6/6 páginas generadas sin errores).
+    - **Etapa 13 completada y cerrada formalmente al 100%.**
+- **Etapa 14 – Empaquetado Docker y Preparación para Despliegue en Producción:** ✅ Completada al 100%:
+  - ✅ **Dockerfile Backend:** Multi-stage build optimizado para .NET 10 LTS (`mcr.microsoft.com/dotnet/sdk:10.0-noble` y `mcr.microsoft.com/dotnet/aspnet:10.0-noble`), usuario sin privilegios `app`, variables de entorno de producción y probe de salud `/health`.
+  - ✅ **Dockerfile Frontend:** Multi-stage build optimizado para Next.js 16 con `output: 'standalone'` en `next.config.ts` (reducción de imagen de 1.5 GB a ~150 MB), usuario sin privilegios `nextjs`, compilación con Turbopack y healthcheck integrado en puerto 3000.
+  - ✅ **Docker Compose:** `docker-compose.yml` (entorno local con puertos directos) y `docker-compose.prod.yml` (entorno de producción con gateway Nginx).
+  - ✅ **Gateway Nginx:** Configuración institucional en `nginx/nginx.conf` con compresión Gzip, límites de subida de archivos (25 MB para fotos y Excel), encabezados de seguridad (HSTS, X-Frame-Options, X-Content-Type-Options) y proxy reverso unificado para `/api/` y el frontend web.
+  - ✅ **Configuración y Guía de Operaciones:** Plantilla `.env.docker.example` con todas las variables requeridas y guía exhaustiva [DEPLOYMENT.md](file:///c:/Users/ryam2/Documents/SistemaUOD/SistemaUOD/DEPLOYMENT.md) con arquitectura, requisitos, puesta en marcha, SSL con Let's Encrypt y copias de seguridad.
+  - ✅ **Corrección y Blindaje de Tipos Enum PostgreSQL y Bitácora de Auditoría:**
+    - **Migración 5 (`20261021000005_enum_text_casts.sql` / `005_enum_text_casts.sql`):** Creación de casts implícitos de `text` y `varchar` a los 18 tipos ENUM de PostgreSQL (`estado_recurso`, `tipo_mantenimiento`, `estado_mantenimiento`, etc.) para permitir asignaciones parametrizadas seguras desde EF Core/Npgsql sin error 42804.
+    - **Alineación de Entidad Mantenimiento:** Inclusión de `ActualizadoEn` y `ChecklistCompletado` en `Entities.cs` y mapeo explícito en `ApplicationDbContext.cs` con tipos `.HasColumnType("date")` para `fecha_programada` y `fecha_ejecutada`.
+    - **Seguridad en Auditoría:** Normalización de `UsuarioId` nulo para tokens de desarrollo y verificación de existencia en `perfiles` antes de registrar en `bitacora_auditoria` para evitar violaciones de clave foránea. Validación en vivo completada exitosamente en el navegador.
+  - ✅ **Ajustes de Navegación del Dashboard y Notificaciones en Vivo:**
+    - **Navegación Corregida en Dashboard (`DashboardView.tsx`):** Sustitución de claves en inglés `'locations'`, `'catalog'`, `'movements'` por las claves canónicas tipadas `NavTab` (`'ubicaciones'`, `'catalogo'`, `'movimientos'`), resolviendo el despliegue en blanco al pulsar "Ver las 49 dependencias", "Explorar catálogo completo (113 modelos)" o "Ver historial completo". Además, las 6 tarjetas de métricas KPI se hicieron interactivas con `cursor-pointer`, hover y navegación directa.
+    - **Notificaciones Funcionales en Tiempo Real (`Navbar.tsx`, `Sidebar.tsx`, `Program.cs`):** Autenticación para `dev-token-uod` en `SistemaUOD.Api/Program.cs` para el entorno de desarrollo local, conexión directa con `/api/v1/alertas/conteo-no-leidas` y `/api/v1/alertas`, corrección del operador de conteo nulo, listado con severidades, marcado individual o masivo ("Marcar todas leídas") y reubicación del badge de alertas en la barra lateral al ítem "Centro de Alertas". Validación en vivo en navegador superada.
+  - ✅ **Resolución de Custodios Reales en Activos Fijos TI (Levantamiento UOD 2026):**
+    - **Backend (`ActivoService.cs`, `RecursoService.cs`, `CodigoService.cs`):** Extracción regex automática del custodio registrado en `Notas` (`Responsable: <nombre>`) cuando `ResponsableId` sea nulo (personal sin usuario Supabase activo aún). Soporte para filtrado por custodio en consultas y resolución universal de códigos.
+    - **Frontend (`AssetsView.tsx`, `ResourceDetailModal.tsx`):** Función `resolverCustodioReal(item)` que prioriza `item.responsableNombre`, extrae de `item.notas` o mapea directamente desde `ACTIVOS_ORIGINALES` del levantamiento real de TI UOD (340 equipos con custodio explícito: RYAM, ANDREW, CLAUDIA, ANA CAMAÑO, WINI, NOEMI, etc.). Eliminada la asignación forzada a "Por Asignar", permitiendo búsqueda y filtrado inmediato por nombre de custodio en vivo.
+  - ✅ **Sincronización Exacta de Datos Originales Excel vs Supabase y Corrección de Estados:**
+    - **Auditoría Exhaustiva de Datos:** Comparación de los 341 registros de `Datos/ACTIVOS 2026 TECNOLOGIA.xlsx` contra Supabase PostgreSQL: 341 ítems en Excel vs 341 ítems en BD, alcanzando **0 discrepancias**.
+    - **Corrección de Estado EQ-01:** La Laptop DELL INSPIRON 15 (`EQ-01`, custodio RYAM) se encontraba temporalmente como `disponible` tras pruebas técnicas de mantenimiento; fue restablecida a `en_uso` tal como dicta el Excel original.
+    - **Desbloqueo de Paginación (`PagedModels.cs`):** Se incrementó `MaxPageSize` de 100 a 1000 en el backend, resolviendo el truncamiento que mostraba solo 100 equipos en pantalla en lugar de los 341 reales.
+    - **Métricas y Filtros Dinámicos (`AssetsView.tsx`):** El selector de estados ahora computa dinámicamente: *Todos los Estados (341)*, *En Uso (337)*, *Disponible (1)* (`EQ-05`), *Dañado / Inactivo (3)* (`EQ-153`, `EQ-154`, `EQ-155`). Verificado 100% en vivo en navegador.
 
 ---
 

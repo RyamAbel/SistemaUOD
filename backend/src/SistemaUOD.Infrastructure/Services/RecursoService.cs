@@ -241,7 +241,7 @@ public class RecursoService : IRecursoService
                 UbicacionId = a.UbicacionId,
                 UbicacionNombre = a.Ubicacion.Nombre,
                 ResponsableId = a.ResponsableId,
-                ResponsableNombre = a.Responsable?.NombreCompleto,
+                ResponsableNombre = a.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(a.Notas),
                 ProveedorId = a.ProveedorId,
                 ProveedorNombre = a.Proveedor?.NombreComercial,
                 FechaAdquisicion = a.FechaAdquisicion,
@@ -446,5 +446,12 @@ public class RecursoService : IRecursoService
     public async Task<bool> DesactivarAsync(Guid id, CancellationToken ct = default)
     {
         return await CambiarEstadoAsync(id, false, ct);
+    }
+
+    private static string? ExtraerResponsableDeNotas(string? notas)
+    {
+        if (string.IsNullOrWhiteSpace(notas)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(notas, @"Responsable:\s*([^\r\n;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value) ? match.Groups[1].Value.Trim() : null;
     }
 }

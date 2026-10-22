@@ -34,6 +34,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BitacoraAuditoria> BitacoraAuditorias => Set<BitacoraAuditoria>();
     public DbSet<Alerta> Alertas => Set<Alerta>();
     public DbSet<Invitacion> Invitaciones => Set<Invitacion>();
+    public DbSet<ColaCorreo> ColaCorreos => Set<ColaCorreo>();
+    public DbSet<NotificacionPreferencia> NotificacionesPreferencias => Set<NotificacionPreferencia>();
+    public DbSet<OrdenCompra> OrdenesCompra => Set<OrdenCompra>();
+    public DbSet<OrdenCompraLinea> OrdenesCompraLineas => Set<OrdenCompraLinea>();
+    public DbSet<ConteoFisico> ConteosFisicos => Set<ConteoFisico>();
+    public DbSet<ConteoLinea> ConteosLineas => Set<ConteoLinea>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -373,11 +379,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ProveedorId).HasColumnName("proveedor_id");
             entity.Property(e => e.TecnicoResponsable).HasColumnName("tecnico_responsable");
             entity.Property(e => e.Costo).HasColumnName("costo").HasPrecision(12, 2);
-            entity.Property(e => e.Descripcion).HasColumnName("descripcion").IsRequired();
-            entity.Property(e => e.FechaProgramada).HasColumnName("fecha_programada");
-            entity.Property(e => e.FechaRealizada).HasColumnName("fecha_realizada");
+            entity.Property(e => e.Descripcion).HasColumnName("observaciones");
+            entity.Property(e => e.FechaProgramada).HasColumnName("fecha_programada").HasColumnType("date");
+            entity.Property(e => e.FechaRealizada).HasColumnName("fecha_ejecutada").HasColumnType("date");
             entity.Property(e => e.Estado).HasColumnName("estado").HasColumnType("estado_mantenimiento").IsRequired();
+            entity.Property(e => e.ChecklistCompletado).HasColumnName("checklist_completado").HasColumnType("jsonb");
             entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
+            entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");
 
             entity.HasOne(e => e.ActivoSerie)
                 .WithMany(a => a.Mantenimientos)
@@ -451,6 +459,152 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
             entity.Property(e => e.UsadoEn).HasColumnName("usado_en");
         });
+
+        // 18. Cola de Correos
+        modelBuilder.Entity<ColaCorreo>(entity =>
+        {
+            entity.ToTable("cola_correos");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Destinatario).HasColumnName("destinatario").IsRequired();
+            entity.Property(e => e.Asunto).HasColumnName("asunto").IsRequired();
+            entity.Property(e => e.CuerpoHtml).HasColumnName("cuerpo_html").IsRequired();
+            entity.Property(e => e.Estado).HasColumnName("estado").HasColumnType("estado_correo").IsRequired();
+            entity.Property(e => e.Intentos).HasColumnName("intentos").HasDefaultValue(0);
+            entity.Property(e => e.UltimoError).HasColumnName("ultimo_error");
+            entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
+            entity.Property(e => e.ProcesadoEn).HasColumnName("procesado_en");
+        });
+
+        // 19. Preferencias de Notificación
+        modelBuilder.Entity<NotificacionPreferencia>(entity =>
+        {
+            entity.ToTable("notificaciones_preferencias");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(e => e.RecibirAlertasStock).HasColumnName("recibir_alertas_stock").HasDefaultValue(true);
+            entity.Property(e => e.RecibirAlertasMantenimiento).HasColumnName("recibir_alertas_mantenimiento").HasDefaultValue(true);
+            entity.Property(e => e.RecibirResumenSemanal).HasColumnName("recibir_resumen_semanal").HasDefaultValue(false);
+            entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
+            entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");
+
+            entity.HasOne(e => e.Usuario)
+                .WithMany()
+                .HasForeignKey(e => e.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 20. Órdenes de Compra
+        modelBuilder.Entity<OrdenCompra>(entity =>
+        {
+            entity.ToTable("ordenes_compra");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.NumeroOrden).HasColumnName("numero_orden").IsRequired();
+            entity.Property(e => e.ProveedorId).HasColumnName("proveedor_id").IsRequired();
+            entity.Property(e => e.SolicitanteId).HasColumnName("solicitante_id").IsRequired();
+            entity.Property(e => e.Estado).HasColumnName("estado").HasColumnType("estado_orden_compra").IsRequired();
+            entity.Property(e => e.FechaEmision).HasColumnName("fecha_emision");
+            entity.Property(e => e.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada");
+            entity.Property(e => e.Observaciones).HasColumnName("observaciones");
+            entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
+            entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");
+
+            entity.HasOne(e => e.Proveedor)
+                .WithMany()
+                .HasForeignKey(e => e.ProveedorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Solicitante)
+                .WithMany()
+                .HasForeignKey(e => e.SolicitanteId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // 21. Líneas de Órdenes de Compra
+        modelBuilder.Entity<OrdenCompraLinea>(entity =>
+        {
+            entity.ToTable("ordenes_compra_lineas");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.OrdenId).HasColumnName("orden_id").IsRequired();
+            entity.Property(e => e.RecursoId).HasColumnName("recurso_id").IsRequired();
+            entity.Property(e => e.CantidadSolicitada).HasColumnName("cantidad_solicitada").IsRequired();
+            entity.Property(e => e.CantidadRecibida).HasColumnName("cantidad_recibida").HasDefaultValue(0);
+            entity.Property(e => e.PrecioUnitarioEstimado).HasColumnName("precio_unitario_estimado").HasPrecision(12, 2);
+
+            entity.HasOne(e => e.Orden)
+                .WithMany(o => o.Lineas)
+                .HasForeignKey(e => e.OrdenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Recurso)
+                .WithMany()
+                .HasForeignKey(e => e.RecursoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // 22. Conteos Físicos
+        modelBuilder.Entity<ConteoFisico>(entity =>
+        {
+            entity.ToTable("conteos_fisicos");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UbicacionId).HasColumnName("ubicacion_id").IsRequired();
+            entity.Property(e => e.ResponsableId).HasColumnName("responsable_id").IsRequired();
+            entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio");
+            entity.Property(e => e.FechaCierre).HasColumnName("fecha_cierre");
+            entity.Property(e => e.Estado).HasColumnName("estado").HasColumnType("estado_conteo_fisico").IsRequired();
+            entity.Property(e => e.Observaciones).HasColumnName("observaciones");
+            entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
+
+            entity.HasOne(e => e.Ubicacion)
+                .WithMany()
+                .HasForeignKey(e => e.UbicacionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Responsable)
+                .WithMany()
+                .HasForeignKey(e => e.ResponsableId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // 23. Líneas de Conteo Físico
+        modelBuilder.Entity<ConteoLinea>(entity =>
+        {
+            entity.ToTable("conteos_lineas");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ConteoId).HasColumnName("conteo_id").IsRequired();
+            entity.Property(e => e.RecursoId).HasColumnName("recurso_id").IsRequired();
+            entity.Property(e => e.LoteId).HasColumnName("lote_id");
+            entity.Property(e => e.CantidadSistema).HasColumnName("cantidad_sistema").HasDefaultValue(0);
+            entity.Property(e => e.CantidadFisica).HasColumnName("cantidad_fisica").HasDefaultValue(0);
+            entity.Property(e => e.Diferencia).HasColumnName("diferencia").ValueGeneratedOnAddOrUpdate();
+            entity.Property(e => e.AjusteMovimientoId).HasColumnName("ajuste_movimiento_id");
+            entity.Property(e => e.Notas).HasColumnName("notas");
+
+            entity.HasOne(e => e.Conteo)
+                .WithMany(c => c.Lineas)
+                .HasForeignKey(e => e.ConteoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Recurso)
+                .WithMany()
+                .HasForeignKey(e => e.RecursoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Lote)
+                .WithMany()
+                .HasForeignKey(e => e.LoteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.AjusteMovimiento)
+                .WithMany()
+                .HasForeignKey(e => e.AjusteMovimientoId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -473,6 +627,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
         var entries = ChangeTracker.Entries()
             .Where(e => e.Entity is not BitacoraAuditoria &&
+                        e.Entity is not ColaCorreo &&
                         (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted))
             .ToList();
 
@@ -512,7 +667,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 valoresNuevos = JsonSerializer.Serialize(dictDespues);
             }
 
-            var auditUserId = (userId == Guid.Parse("00000000-0000-0000-0000-000000000001")) ? null : userId;
+            var auditUserId = (userId == null || userId == Guid.Empty || userId == Guid.Parse("00000000-0000-0000-0000-000000000001")) ? null : userId;
+            if (auditUserId.HasValue && !Perfiles.Any(p => p.Id == auditUserId.Value))
+            {
+                auditUserId = null;
+            }
 
             auditList.Add(new BitacoraAuditoria
             {

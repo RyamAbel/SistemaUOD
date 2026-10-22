@@ -275,7 +275,7 @@ public class CodigoService : ICodigoService
                 UbicacionId = activo.UbicacionId,
                 UbicacionNombre = activo.Ubicacion.Nombre,
                 ResponsableId = activo.ResponsableId,
-                ResponsableNombre = activo.Responsable?.NombreCompleto,
+                ResponsableNombre = activo.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(activo.Notas),
                 ProveedorId = activo.ProveedorId,
                 ProveedorNombre = activo.Proveedor?.NombreComercial,
                 FechaAdquisicion = activo.FechaAdquisicion,
@@ -345,5 +345,12 @@ public class CodigoService : ICodigoService
             CreadoEn = r.CreadoEn,
             ActualizadoEn = r.ActualizadoEn
         };
+    }
+
+    private static string? ExtraerResponsableDeNotas(string? notas)
+    {
+        if (string.IsNullOrWhiteSpace(notas)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(notas, @"Responsable:\s*([^\r\n;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value) ? match.Groups[1].Value.Trim() : null;
     }
 }

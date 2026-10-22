@@ -11,7 +11,8 @@ import {
   ShoppingBag,
   ClipboardCheck,
   BarChart3,
-  Settings
+  Settings,
+  Bell
 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +24,7 @@ export type NavTab =
   | 'movimientos'
   | 'activos'
   | 'mantenimiento'
+  | 'alertas'
   | 'compras'
   | 'inventario_fisico'
   | 'reportes'
@@ -49,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'movimientos', label: 'Movimientos', icon: ArrowLeftRight },
     { id: 'activos', label: 'Activos Fijos TI', icon: Box },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
+    { id: 'alertas', label: 'Centro de Alertas', icon: Bell, badge: stockAlertCount },
     { id: 'compras', label: 'Proveedores & Compras', icon: ShoppingBag },
     { id: 'inventario_fisico', label: 'Inventario Físico', icon: ClipboardCheck },
     { id: 'reportes', label: 'Reportes & Análisis', icon: BarChart3 },
@@ -56,13 +59,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const allowedTabsByRol: Record<string, NavTab[]> = {
-    super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
-    admin_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
-    gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'compras', 'inventario_fisico', 'reportes'],
-    encargado_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'inventario_fisico'],
-    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'inventario_fisico'],
-    auditor: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'reportes'],
-    consulta: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'reportes']
+    super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
+    admin_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
+    gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes'],
+    encargado_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'compras', 'inventario_fisico'],
+    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'compras', 'inventario_fisico'],
+    auditor: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'reportes'],
+    consulta: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'reportes']
   };
 
   const allowed = allowedTabsByRol[currentRol] || allowedTabsByRol['super_admin'];
@@ -94,9 +97,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
                     <span>{item.label}</span>
                   </div>
-                  {item.id === 'catalogo' && stockAlertCount > 0 && (
+                  {item.badge !== undefined && item.badge > 0 && (
                     <span className="rounded-full bg-amber-500 text-white px-1.5 py-0.5 text-[9px] font-bold">
-                      {stockAlertCount}
+                      {item.badge > 99 ? '99+' : item.badge}
                     </span>
                   )}
                 </button>

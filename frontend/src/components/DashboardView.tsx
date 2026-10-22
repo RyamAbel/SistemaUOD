@@ -21,12 +21,13 @@ import {
 } from 'lucide-react';
 import { ArticuloItem, MovimientoItem } from '@/lib/initialData';
 import { RESUMEN_INVENTARIO } from '@/lib/inventoryData';
+import { NavTab } from './Sidebar';
 
 interface DashboardViewProps {
   articulos: ArticuloItem[];
   movimientos: MovimientoItem[];
   onOpenAi: () => void;
-  onNavigateTab: (tab: any) => void;
+  onNavigateTab: (tab: NavTab) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -40,69 +41,108 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 6 Top KPI Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Metric 1 */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 relative overflow-hidden shadow-xs hover:border-[#1C3177]/30 transition-all">
+        <div
+          onClick={() => onNavigateTab('activos')}
+          className="rounded-2xl border border-slate-200/80 bg-white p-4 relative overflow-hidden shadow-xs hover:border-[#1C3177]/40 hover:shadow-md transition-all cursor-pointer group"
+          title="Ver todos los activos TI"
+        >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">Total Equipos</span>
-            <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1C3177] flex items-center justify-center border border-blue-100">
+            <span className="font-medium group-hover:text-[#1C3177] transition-colors">Total Equipos</span>
+            <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1C3177] flex items-center justify-center border border-blue-100 group-hover:scale-105 transition-transform">
               <Package className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 tracking-tight">{RESUMEN_INVENTARIO.totalEquipos}</div>
-          <div className="mt-1 text-[11px] text-slate-500">Activos TI levantados</div>
+          <div className="mt-1 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Activos TI levantados</span>
+            <ChevronRight className="h-3 w-3 text-slate-400 group-hover:text-[#1C3177] transition-colors" />
+          </div>
         </div>
 
         {/* Metric 2 */}
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 relative overflow-hidden shadow-xs hover:border-emerald-300 transition-all">
+        <div
+          onClick={() => onNavigateTab('activos')}
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 relative overflow-hidden shadow-xs hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group"
+          title="Ver activos en uso operativo"
+        >
           <div className="flex items-center justify-between text-xs text-[#2D8246] mb-1">
             <span className="font-semibold">En Uso Operativo</span>
-            <div className="h-7 w-7 rounded-lg bg-emerald-100 text-[#2D8246] flex items-center justify-center border border-emerald-200">
+            <div className="h-7 w-7 rounded-lg bg-emerald-100 text-[#2D8246] flex items-center justify-center border border-emerald-200 group-hover:scale-105 transition-transform">
               <CheckCircle2 className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold text-[#2D8246] tracking-tight">{RESUMEN_INVENTARIO.enUso}</div>
-          <div className="mt-1 text-[11px] text-emerald-700 font-medium">98.8% en asignación</div>
+          <div className="mt-1 text-[11px] text-emerald-700 font-medium flex items-center justify-between">
+            <span>98.8% en asignación</span>
+            <ChevronRight className="h-3 w-3 text-[#2D8246]/60 group-hover:text-[#2D8246] transition-colors" />
+          </div>
         </div>
 
         {/* Metric 3 */}
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/30 p-4 relative overflow-hidden shadow-xs hover:border-amber-300 transition-all">
+        <div
+          onClick={() => onNavigateTab('activos')}
+          className="rounded-2xl border border-amber-200 bg-amber-50/30 p-4 relative overflow-hidden shadow-xs hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+          title="Ver equipos disponibles en almacén"
+        >
           <div className="flex items-center justify-between text-xs text-amber-800 mb-1">
             <span className="font-semibold">En Almacén</span>
-            <div className="h-7 w-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200">
+            <div className="h-7 w-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200 group-hover:scale-105 transition-transform">
               <HardDrive className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold text-amber-800 tracking-tight">{RESUMEN_INVENTARIO.enAlmacen}</div>
-          <div className="mt-1 text-[11px] text-slate-600">Disponible reserva</div>
+          <div className="mt-1 text-[11px] text-slate-600 flex items-center justify-between">
+            <span>Disponible reserva</span>
+            <ChevronRight className="h-3 w-3 text-amber-600/60 group-hover:text-amber-700 transition-colors" />
+          </div>
         </div>
 
         {/* Metric 4 */}
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/30 p-4 relative overflow-hidden shadow-xs hover:border-rose-300 transition-all">
+        <div
+          onClick={() => onNavigateTab('mantenimiento')}
+          className="rounded-2xl border border-rose-200 bg-rose-50/30 p-4 relative overflow-hidden shadow-xs hover:border-rose-300 hover:shadow-md transition-all cursor-pointer group"
+          title="Ver equipos en mantenimiento o revisión"
+        >
           <div className="flex items-center justify-between text-xs text-rose-700 mb-1">
             <span className="font-medium">Requieren Revisión</span>
-            <div className="h-7 w-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center border border-rose-200">
+            <div className="h-7 w-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center border border-rose-200 group-hover:scale-105 transition-transform">
               <ShieldAlert className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold text-rose-700 tracking-tight">{RESUMEN_INVENTARIO.danadosOInactivos}</div>
-          <div className="mt-1 text-[11px] text-slate-500">Inactivos / Dañados</div>
+          <div className="mt-1 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Inactivos / Dañados</span>
+            <ChevronRight className="h-3 w-3 text-rose-400 group-hover:text-rose-600 transition-colors" />
+          </div>
         </div>
 
         {/* Metric 5 */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 relative overflow-hidden shadow-xs hover:border-emerald-300 transition-all">
+        <div
+          onClick={() => onNavigateTab('ubicaciones')}
+          className="rounded-2xl border border-slate-200/80 bg-white p-4 relative overflow-hidden shadow-xs hover:border-[#1C3177]/40 hover:shadow-md transition-all cursor-pointer group"
+          title="Ver las dependencias y clínicas UOD"
+        >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">Ubicaciones UOD</span>
-            <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1C3177] flex items-center justify-center border border-blue-100">
+            <span className="font-medium group-hover:text-[#1C3177] transition-colors">Ubicaciones UOD</span>
+            <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1C3177] flex items-center justify-center border border-blue-100 group-hover:scale-105 transition-transform">
               <Building2 className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 tracking-tight">{RESUMEN_INVENTARIO.totalUbicaciones}</div>
-          <div className="mt-1 text-[11px] text-slate-500">Clínicas y dependencias</div>
+          <div className="mt-1 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Clínicas y dependencias</span>
+            <ChevronRight className="h-3 w-3 text-slate-400 group-hover:text-[#1C3177] transition-colors" />
+          </div>
         </div>
 
         {/* Metric 6: AI Prediction Card */}
-        <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50/70 via-white to-blue-50/60 p-4 relative overflow-hidden shadow-xs hover:border-cyan-300 transition-all">
+        <div
+          onClick={onOpenAi}
+          className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50/70 via-white to-blue-50/60 p-4 relative overflow-hidden shadow-xs hover:border-cyan-300 hover:shadow-md transition-all cursor-pointer group"
+          title="Abrir Asistente IA"
+        >
           <div className="flex items-center justify-between text-xs text-[#0891B2] mb-1">
-            <span className="font-bold flex items-center gap-1">
+            <span className="font-bold flex items-center gap-1 group-hover:text-[#06B6D4] transition-colors">
               <Sparkles className="h-3 w-3 text-[#06B6D4]" />
               Auditor IA
             </span>
@@ -113,8 +153,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-sm font-bold text-slate-900 tracking-tight mt-1">
             Levantamiento Verificado
           </div>
-          <div className="mt-1 text-[11px] text-slate-600 font-medium">
-            100% de placas identificadas
+          <div className="mt-1 text-[11px] text-slate-600 font-medium flex items-center justify-between">
+            <span>100% de placas identificadas</span>
+            <ChevronRight className="h-3 w-3 text-[#0891B2]/60 group-hover:text-[#0891B2] transition-colors" />
           </div>
         </div>
       </div>
@@ -212,8 +253,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <button
-            onClick={() => onNavigateTab('locations')}
-            className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-[#1C3177] hover:underline flex items-center justify-between w-full"
+            onClick={() => onNavigateTab('ubicaciones')}
+            className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-[#1C3177] hover:underline flex items-center justify-between w-full cursor-pointer"
           >
             <span>Ver las 49 dependencias</span>
             <ChevronRight className="h-4 w-4" />
@@ -259,8 +300,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <button
-            onClick={() => onNavigateTab('catalog')}
-            className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-[#3DAA5C] hover:underline flex items-center justify-between w-full"
+            onClick={() => onNavigateTab('catalogo')}
+            className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-[#3DAA5C] hover:underline flex items-center justify-between w-full cursor-pointer"
           >
             <span>Explorar catálogo completo (113 modelos)</span>
             <ChevronRight className="h-4 w-4" />
@@ -276,8 +317,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-[11px] text-slate-500">Trazabilidad de equipos y responsables en dependencias UOD.</p>
           </div>
           <button
-            onClick={() => onNavigateTab('movements')}
-            className="text-xs font-bold text-[#1C3177] hover:underline flex items-center gap-1"
+            onClick={() => onNavigateTab('movimientos')}
+            className="text-xs font-bold text-[#1C3177] hover:underline flex items-center gap-1 cursor-pointer"
           >
             Ver historial completo <ChevronRight className="h-3.5 w-3.5" />
           </button>

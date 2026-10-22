@@ -48,12 +48,44 @@ export const AssetsView: React.FC = () => {
   const [actaDescargoVisualizada, setActaDescargoVisualizada] = useState<ActaDescargoPatrimonialDto | null>(null);
   const [exportandoCsv, setExportandoCsv] = useState(false);
 
+  const resolverCustodioReal = (item: {
+    responsableNombre?: string | null;
+    notas?: string | null;
+    placaInstitucional?: string | null;
+    numeroSerie?: string | null;
+    id?: string;
+  }): string => {
+    // 1. Si la API o backend ya proveyó el custodio explícito
+    if (item.responsableNombre && item.responsableNombre.trim() !== '' && item.responsableNombre.toLowerCase() !== 'por asignar') {
+      return item.responsableNombre.trim();
+    }
+    // 2. Extraer de las observaciones/notas del levantamiento ('Responsable: RYAM')
+    if (item.notas && typeof item.notas === 'string') {
+      const match = item.notas.match(/responsable:\s*([^\r\n;|]+)/i);
+      if (match && match[1]?.trim()) {
+        return match[1].trim();
+      }
+    }
+    // 3. Búsqueda en el dataset institucional original UOD 2026 por placa o serial
+    const placa = (item.placaInstitucional || '').trim().toLowerCase();
+    const serial = (item.numeroSerie || '').trim().toLowerCase();
+    const orig = ACTIVOS_ORIGINALES.find(o =>
+      (placa && o.placa_institucional.toLowerCase() === placa) ||
+      (serial && o.numero_serie.toLowerCase() === serial) ||
+      o.id === item.id
+    );
+    if (orig?.responsable && orig.responsable.trim()) {
+      return orig.responsable.trim();
+    }
+    return 'Por Asignar';
+  };
+
   useEffect(() => {
     let montado = true;
     const cargarDesdeApi = async () => {
       try {
         setCargandoApi(true);
-        const res = await apiClient.listarActivos({ pageSize: 400 });
+        const res = await apiClient.listarActivos({ pageSize: 500 });
         if (montado && res.items && res.items.length > 0) {
           const mapeados: ActivoTI[] = res.items.map(item => ({
             id: item.id,
@@ -64,7 +96,7 @@ export const AssetsView: React.FC = () => {
             categoria_nombre: item.categoriaNombre,
             ubicacion_id: item.ubicacionId,
             ubicacion_nombre: item.ubicacionNombre,
-            responsable: item.responsableNombre || 'Por Asignar',
+            responsable: resolverCustodioReal(item),
             estado: (item.estado === 'dado_de_baja' ? 'dado_de_baja' : item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado' | 'dado_de_baja',
             notas: item.notas || ''
           }));
@@ -353,12 +385,12 @@ export const AssetsView: React.FC = () => {
             <select
               value={selectedEstado}
               onChange={e => setSelectedEstado(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
             >
-              <option value="todos">Todos los Estados</option>
-              <option value="en_uso">En Uso (337)</option>
-              <option value="disponible">Disponible (1)</option>
-              <option value="danado">Dañado / Inactivo (3)</option>
+              <option value="todos">Todos los Estados ({metricas.total})</option>
+              <option value="en_uso">En Uso ({metricas.enUso})</option>
+              <option value="disponible">Disponible ({metricas.disponibles})</option>
+              <option value="danado">Dañado / Inactivo ({metricas.danados})</option>
             </select>
           </div>
 
@@ -367,9 +399,9 @@ export const AssetsView: React.FC = () => {
             <select
               value={selectedUbicacion}
               onChange={e => setSelectedUbicacion(e.target.value)}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700"
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
             >
-              <option value="todas">Todas las Ubicaciones (49)</option>
+              <option value="todas">Todas las Ubicaciones ({ubicacionesUnicas.length})</option>
               {ubicacionesUnicas.map(u => (
                 <option key={u} value={u}>
                   {u}
@@ -382,7 +414,7 @@ export const AssetsView: React.FC = () => {
         {/* Resumen de resultados */}
         <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
           <span>
-            Mostrando <strong>{activosFiltrados.length}</strong> de <strong>{ACTIVOS_ORIGINALES.length}</strong> equipos
+            Mostrando <strong>{activosFiltrados.length}</strong> de <strong>{activos.length}</strong> equipos
           </span>
           {(search || selectedEstado !== 'todos' || selectedUbicacion !== 'todas') && (
             <button

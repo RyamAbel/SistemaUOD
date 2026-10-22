@@ -1,0 +1,62 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: siia_backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-5000}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Supabase__Url=${SUPABASE_URL}
+      - Supabase__Key=${SUPABASE_ANON_KEY}
+      - Supabase__ServiceRoleKey=${SUPABASE_SERVICE_ROLE_KEY}
+      - ConnectionStrings__PostgresPooler=${DATABASE_CONNECTION_STRING}
+      - Gemini__ApiKey=${GEMINI_API_KEY}
+      - Gmail__User=${GMAIL_USER}
+      - Gmail__AppPassword=${GMAIL_APP_PASSWORD}
+      - Cors__AllowedOrigins__0=http://localhost:3000
+      - Cors__AllowedOrigins__1=http://localhost
+      - Cors__AllowedOrigins__2=https://${APP_DOMAIN:-siia.uod.edu.do}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - siia_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
+    container_name: siia_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - siia_network
+
+networks:
+  siia_network:
+    driver: bridge

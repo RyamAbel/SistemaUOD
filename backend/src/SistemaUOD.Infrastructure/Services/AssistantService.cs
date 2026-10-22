@@ -55,25 +55,40 @@ public class AssistantService : IAssistantService
         var userRole = _currentUserService.Role ?? "consulta";
         var userEmail = _currentUserService.Email ?? "usuario@uod.edu.do";
 
-        // 1. Intentar orquestación en vivo con Gemini API si la clave está disponible
-        if (!string.IsNullOrWhiteSpace(apiKey))
+        try
         {
-            try
+            // 1. Intentar orquestación en vivo con Gemini API si la clave está disponible
+            if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                var geminiResult = await LlamarGeminiConHerramientasAsync(request, apiKey, model, userRole, userEmail, executedTools, ct);
-                if (geminiResult != null)
+                try
                 {
-                    return geminiResult;
+                    var geminiResult = await LlamarGeminiConHerramientasAsync(request, apiKey, model, userRole, userEmail, executedTools, ct);
+                    if (geminiResult != null)
+                    {
+                        return geminiResult;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Fallo al comunicar con Gemini API. Activando motor de contingencia local de SIIA.");
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Fallo al comunicar con Gemini API. Activando motor de contingencia local de SIIA.");
-            }
-        }
 
-        // 2. Motor de Contingencia Semántico Local (Alta disponibilidad institucional UOD)
-        return await EjecutarMotorContingenciaAsync(request, userRole, ct);
+            // 2. Motor de Contingencia Semántico Local (Alta disponibilidad institucional UOD)
+            return await EjecutarMotorContingenciaAsync(request, userRole, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Excepción al procesar consulta en asistente de IA: {Mensaje}", request.Message);
+            return new ChatResponseDto
+            {
+                Text = "¡Hola! He recibido tu consulta sobre el inventario institucional UOD; sin embargo, ocurrió una incidencia temporal al consultar los registros. Puedes intentar de nuevo o consultar directamente por SKU, placa institucional (`EQ-XX`) o alertas de inventario.",
+                Mode = request.Mode,
+                ToolCallsEjecutadas = executedTools,
+                IsLiveGemini = false,
+                CostoEstimadoDop = 0.00m
+            };
+        }
     }
 
     private async Task<ChatResponseDto?> LlamarGeminiConHerramientasAsync(
@@ -463,6 +478,134 @@ public class AssistantService : IAssistantService
                 return ($"Propuesta {prop.Id} generada exitosamente. Se ha presentado una tarjeta de confirmación al usuario.", prop);
             }
 
+            case "consultar_mantenimientos":
+            {
+                var placa = args?["placaInstitucional"]?.GetValue<string>()?.ToUpper();
+                var query = _context.Mantenimientos
+                    .AsNoTracking()
+                    .Include(m => m.ActivoSerie)
+                    .Include(m => m.Proveedor)
+                    .AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(placa))
+                {
+                    query = query.Where(m => m.ActivoSerie.PlacaInstitucional == placa);
+                }
+
+                var lista = await query
+                    .OrderByDescending(m => m.FechaProgramada)
+                    .Take(10)
+                    .Select(m => new
+                    {
+                        m.Id,
+                        Activo = m.ActivoSerie.PlacaInstitucional,
+                        m.Tipo,
+                        m.Estado,
+                        m.Descripcion,
+                        Proveedor = m.Proveedor != null ? m.Proveedor.NombreComercial : "Técnico Interno UOD",
+                        m.Costo,
+                        m.FechaProgramada,
+                        m.FechaRealizada
+                    })
+                    .ToListAsync(ct);
+
+                return (JsonSerializer.Serialize(lista), null);
+            }
+
+            case "consultar_ordenes_compra":
+            {
+                var estado = args?["estado"]?.GetValue<string>()?.ToLower();
+                var query = _context.OrdenesCompra
+                    .AsNoTracking()
+                    .Include(o => o.Proveedor)
+                    .Include(o => o.Lineas)
+                    .AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(estado))
+                {
+                    query = query.Where(o => o.Estado.ToLower() == estado);
+                }
+
+                var ordenes = await query
+                    .OrderByDescending(o => o.CreadoEn)
+                    .Take(10)
+                    .Select(o => new
+                    {
+                        o.Id,
+                        o.NumeroOrden,
+                        Proveedor = o.Proveedor.NombreComercial,
+                        o.Estado,
+                        TotalItems = o.Lineas.Sum(l => l.CantidadSolicitada),
+                        TotalRecibido = o.Lineas.Sum(l => l.CantidadRecibida),
+                        o.FechaEntregaEstimada,
+                        o.CreadoEn
+                    })
+                    .ToListAsync(ct);
+
+                return (JsonSerializer.Serialize(ordenes), null);
+            }
+
+            case "consultar_conteos_fisicos":
+            {
+                var conteos = await _context.ConteosFisicos
+                    .AsNoTracking()
+                    .Include(c => c.Ubicacion)
+                    .Include(c => c.Lineas)
+                    .OrderByDescending(c => c.FechaInicio)
+                    .Take(10)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        Ubicacion = c.Ubicacion.Nombre,
+                        c.Estado,
+                        TotalItems = c.Lineas.Count,
+                        TotalDiferencias = c.Lineas.Count(l => l.Diferencia != 0),
+                        c.FechaInicio,
+                        c.FechaCierre
+                    })
+                    .ToListAsync(ct);
+
+                return (JsonSerializer.Serialize(conteos), null);
+            }
+
+            case "preparar_propuesta_compra":
+            {
+                if (userRole == "consulta" || userRole == "auditor")
+                {
+                    return ($"Error: El rol '{userRole}' no cuenta con permisos para crear propuestas de compra. Debe tener rol 'admin_inventario' o 'encargado_almacen'.", null);
+                }
+
+                var proveedorNombre = args?["proveedorNombre"]?.GetValue<string>() ?? "Proveedor UOD";
+                var recursoNombre = args?["recursoNombre"]?.GetValue<string>() ?? "Recurso Requerido";
+                var cantidad = args?["cantidad"]?.GetValue<int>() ?? 10;
+                var motivo = args?["motivo"]?.GetValue<string>() ?? "Reabastecimiento sugerido por Asistente IA (RF-12)";
+
+                var recurso = await _context.Recursos
+                    .FirstOrDefaultAsync(r => r.Nombre.ToLower().Contains(recursoNombre.ToLower()) || r.Sku.ToLower().Contains(recursoNombre.ToLower()), ct);
+
+                var proveedor = await _context.Proveedores
+                    .FirstOrDefaultAsync(p => p.NombreComercial.ToLower().Contains(proveedorNombre.ToLower()), ct);
+
+                var prop = new PropuestaAccionDto
+                {
+                    Id = $"PROP-OC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
+                    Tipo = "orden_compra",
+                    RecursoId = recurso?.Id,
+                    RecursoNombre = recurso?.Nombre ?? recursoNombre,
+                    RecursoSku = recurso?.Sku ?? "UOD-COMPRA",
+                    Cantidad = cantidad,
+                    ProveedorNombre = proveedor?.NombreComercial ?? proveedorNombre,
+                    CostoEstimado = (recurso?.CostoEstimado ?? 0m) * cantidad,
+                    Motivo = motivo,
+                    CreadoEn = DateTime.UtcNow,
+                    Confirmado = false
+                };
+
+                _propuestasAlmacenadas[prop.Id] = prop;
+
+                return ($"Propuesta de Orden de Compra {prop.Id} generada para {recurso?.Nombre ?? recursoNombre} ({cantidad} unidades). Requiere confirmación del usuario.", prop);
+            }
+
             case "obtener_guia_procedimiento":
             {
                 var tema = args?["tema"]?.GetValue<string>()?.ToLower() ?? "general";
@@ -641,6 +784,59 @@ REGLAS DE ORO OBLIGATORIAS:
                             },
                             required = new[] { "tema" }
                         }
+                    },
+                    new
+                    {
+                        name = "consultar_mantenimientos",
+                        description = "Consulta el historial o programación de mantenimientos preventivos y correctivos de equipos físicos UOD.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                placaInstitucional = new { type = "string", description = "Placa del activo (ej. EQ-01)" }
+                            }
+                        }
+                    },
+                    new
+                    {
+                        name = "consultar_ordenes_compra",
+                        description = "Consulta las órdenes de compra institucionales, sus estados (borrador, aprobada, recibida) y montos en DOP.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                estado = new { type = "string", description = "Estado: borrador, aprobada, enviada, recibida_parcial, recibida_total, cancelada" }
+                            }
+                        }
+                    },
+                    new
+                    {
+                        name = "consultar_conteos_fisicos",
+                        description = "Consulta las sesiones de auditoría e inventario físico de las ubicaciones UOD y sus discrepancias.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new { }
+                        }
+                    },
+                    new
+                    {
+                        name = "preparar_propuesta_compra",
+                        description = "Formula una propuesta de orden de compra para reabastecimiento basada en stock bajo RF-12 que requiere confirmación en pantalla.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                proveedorNombre = new { type = "string", description = "Nombre comercial del proveedor" },
+                                recursoNombre = new { type = "string", description = "Nombre del recurso o insumo a reabastecer" },
+                                cantidad = new { type = "integer", description = "Cantidad a solicitar" },
+                                motivo = new { type = "string", description = "Motivo de la reposición" }
+                            },
+                            required = new[] { "recursoNombre", "cantidad" }
+                        }
                     }
                 }
             }
@@ -680,10 +876,14 @@ REGLAS DE ORO OBLIGATORIAS:
             else
             {
                 executedTools.Add("preparar_propuesta_movimiento");
-                var recurso = await _context.Recursos
+                var recursosList = await _context.Recursos
+                    .AsNoTracking()
                     .Include(r => r.Existencias)
-                    .FirstOrDefaultAsync(r => lower.Contains(r.Nombre.ToLower()) || lower.Contains(r.Sku.ToLower()), ct)
-                    ?? await _context.Recursos.Include(r => r.Existencias).FirstOrDefaultAsync(ct);
+                    .Take(40)
+                    .ToListAsync(ct);
+
+                var recurso = recursosList.FirstOrDefault(r => lower.Contains(r.Nombre.ToLower()) || lower.Contains(r.Sku.ToLower()))
+                    ?? recursosList.FirstOrDefault();
 
                 var matchNum = System.Text.RegularExpressions.Regex.Match(lower, @"\d+");
                 int cantidad = matchNum.Success ? int.Parse(matchNum.Value) : 5;
@@ -786,6 +986,80 @@ REGLAS DE ORO OBLIGATORIAS:
                 respuesta = $"Actualmente todos los recursos activos del catálogo ({total} registrados) se encuentran con existencias dentro de los umbrales normales.";
             }
         }
+        // Caso 5: Consulta de Mantenimientos de Equipos
+        else if (lower.Contains("manten") || lower.Contains("reparaci") || lower.Contains("preventivo") || lower.Contains("correctivo"))
+        {
+            executedTools.Add("consultar_mantenimientos");
+            var matchPlaca = System.Text.RegularExpressions.Regex.Match(request.Message.ToUpper(), @"EQ-\d+");
+            string? placa = matchPlaca.Success ? matchPlaca.Value : null;
+
+            var queryM = _context.Mantenimientos
+                .AsNoTracking()
+                .Include(m => m.ActivoSerie)
+                .Include(m => m.Proveedor)
+                .AsQueryable();
+
+            if (placa != null)
+                queryM = queryM.Where(m => m.ActivoSerie.PlacaInstitucional == placa);
+
+            var mantenimientos = await queryM.OrderByDescending(m => m.FechaProgramada).Take(5).ToListAsync(ct);
+
+            if (mantenimientos.Count > 0)
+            {
+                respuesta = "### 🛠️ Mantenimientos Institucionales Registrados (UOD)\n" +
+                            string.Join("\n", mantenimientos.Select(m => $"- **Activo `{(m.ActivoSerie != null ? m.ActivoSerie.PlacaInstitucional : "EQ-UOD")}`** ({m.Tipo.ToUpper()}): Estado `{m.Estado}`, Fecha: {m.FechaProgramada:dd/MM/yyyy}, Proveedor: {m.Proveedor?.NombreComercial ?? "Técnico Interno"}. Costo: RD$ {m.Costo:N2}"));
+            }
+            else
+            {
+                respuesta = placa != null
+                    ? $"No se registran órdenes de mantenimiento pendientes o realizadas para el activo `{placa}`."
+                    : "No se registran órdenes de mantenimiento activas en el sistema institucional.";
+            }
+        }
+        // Caso 6: Consulta de Órdenes de Compra y Proveedores
+        else if (lower.Contains("orden") || lower.Contains("compra") || lower.Contains("proveedor") || lower.Contains("adquisici"))
+        {
+            executedTools.Add("consultar_ordenes_compra");
+            var ordenes = await _context.OrdenesCompra
+                .AsNoTracking()
+                .Include(o => o.Proveedor)
+                .Include(o => o.Lineas)
+                .OrderByDescending(o => o.CreadoEn)
+                .Take(5)
+                .ToListAsync(ct);
+
+            if (ordenes.Count > 0)
+            {
+                respuesta = "### 📋 Órdenes de Compra y Reabastecimiento UOD\n" +
+                            string.Join("\n", ordenes.Select(o => $"- **`{o.NumeroOrden}`** | Proveedor: **{(o.Proveedor != null ? o.Proveedor.NombreComercial : "Proveedor UOD")}** | Estado: `{o.Estado}` | Fecha: {o.FechaEmision:dd/MM/yyyy} | Ítems: {o.Lineas.Sum(l => l.CantidadSolicitada)}"));
+            }
+            else
+            {
+                respuesta = "Actualmente no existen órdenes de compra registradas en el sistema. Puedes generar borradores a partir de las alertas de stock bajo (RF-12).";
+            }
+        }
+        // Caso 7: Consulta de Conteos Físicos y Auditoría
+        else if (lower.Contains("conteo") || lower.Contains("auditor") || lower.Contains("discrepanc") || lower.Contains("inventario fisico"))
+        {
+            executedTools.Add("consultar_conteos_fisicos");
+            var conteos = await _context.ConteosFisicos
+                .AsNoTracking()
+                .Include(c => c.Ubicacion)
+                .Include(c => c.Lineas)
+                .OrderByDescending(c => c.FechaInicio)
+                .Take(5)
+                .ToListAsync(ct);
+
+            if (conteos.Count > 0)
+            {
+                respuesta = "### 📦 Sesiones de Conteo Físico y Auditoría UOD\n" +
+                            string.Join("\n", conteos.Select(c => $"- **Auditoría `{c.Id.ToString()[..8].ToUpper()}`** ({(c.Ubicacion != null ? c.Ubicacion.Nombre : "UOD")}): Estado `{c.Estado}`, Ítems contados: {c.Lineas.Count}, Discrepancias encontradas: {c.Lineas.Count(l => l.Diferencia != 0)}"));
+            }
+            else
+            {
+                respuesta = "No hay sesiones de conteo físico activas recientemente. Puedes iniciar una auditoría desde el módulo de Inventario Físico.";
+            }
+        }
         // Caso por defecto: Saludo / Guía general
         else
         {
@@ -875,6 +1149,66 @@ REGLAS DE ORO OBLIGATORIAS:
         if (userRole == "consulta" || userRole == "auditor")
         {
             throw new UnauthorizedAccessException($"El rol '{userRole}' no cuenta con permisos para ejecutar movimientos de inventario.");
+        }
+
+        if (propuesta.Tipo == "orden_compra")
+        {
+            var proveedor = await _context.Proveedores.FirstOrDefaultAsync(p => p.NombreComercial == propuesta.ProveedorNombre, ct)
+                ?? await _context.Proveedores.FirstOrDefaultAsync(ct);
+
+            var recursoCompra = await _context.Recursos.FirstOrDefaultAsync(r => r.Id == propuesta.RecursoId || (propuesta.RecursoSku != null && r.Sku == propuesta.RecursoSku), ct)
+                ?? await _context.Recursos.FirstOrDefaultAsync(ct);
+
+            var anioOc = DateTime.UtcNow.Year;
+            var conteoOc = await _context.OrdenesCompra.CountAsync(ct) + 1;
+            var numeroOc = $"OC-{anioOc}-{conteoOc:D6}";
+
+            var nuevaOrden = new OrdenCompra
+            {
+                Id = Guid.NewGuid(),
+                NumeroOrden = numeroOc,
+                ProveedorId = proveedor?.Id ?? Guid.Empty,
+                SolicitanteId = _currentUserService.UserId ?? Guid.NewGuid(),
+                Estado = "borrador",
+                FechaEmision = DateOnly.FromDateTime(DateTime.UtcNow),
+                Observaciones = propuesta.Motivo + " [Generado vía Asistente IA]",
+                CreadoEn = DateTime.UtcNow,
+                ActualizadoEn = DateTime.UtcNow
+            };
+
+            if (recursoCompra != null)
+            {
+                nuevaOrden.Lineas.Add(new OrdenCompraLinea
+                {
+                    Id = Guid.NewGuid(),
+                    OrdenId = nuevaOrden.Id,
+                    RecursoId = recursoCompra.Id,
+                    CantidadSolicitada = propuesta.Cantidad,
+                    CantidadRecibida = 0,
+                    PrecioUnitarioEstimado = recursoCompra.CostoEstimado
+                });
+            }
+
+            _context.OrdenesCompra.Add(nuevaOrden);
+            await _context.SaveChangesAsync(ct);
+
+            propuesta.Confirmado = true;
+
+            var resOc = new ResultadoConfirmacionPropuestaDto
+            {
+                Exitoso = true,
+                Mensaje = $"Orden de Compra {numeroOc} creada exitosamente en estado borrador.",
+                PropuestaId = propuesta.Id,
+                MovimientoCorrelativo = numeroOc,
+                MovimientoId = nuevaOrden.Id,
+                RecursoId = recursoCompra?.Id,
+                EsReversible = false,
+                Revertido = false,
+                ConfirmadoEn = DateTime.UtcNow
+            };
+
+            _confirmacionesPrevias[propuesta.Id] = resOc;
+            return resOc;
         }
 
         // Obtener recurso

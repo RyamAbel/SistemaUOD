@@ -55,6 +55,19 @@ public static class DependencyInjection
         services.AddScoped<IDepreciacionService, DepreciacionService>();
         services.AddScoped<IMantenimientoService, MantenimientoService>();
         services.AddHttpClient<IAssistantService, AssistantService>();
+        services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
+        services.AddScoped<IEmailSender, EmailSender>();
+        services.AddScoped<IAlertaService, AlertaService>();
+        services.AddScoped<ICompraService, CompraService>();
+        services.AddScoped<IConteoFisicoService, ConteoFisicoService>();
+        services.AddScoped<IImportacionService, ImportacionService>();
+        services.AddScoped<IReporteService, ReporteService>();
+
+        services.AddSingleton<EmailQueueBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<EmailQueueBackgroundService>());
+
+        services.AddSingleton<ScheduledInventoryAlertService>();
+        services.AddHostedService(sp => sp.GetRequiredService<ScheduledInventoryAlertService>());
 
         return services;
     }

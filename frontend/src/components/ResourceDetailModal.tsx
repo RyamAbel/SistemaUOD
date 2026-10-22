@@ -34,6 +34,7 @@ import {
   RecursoDto,
   MovimientoDto
 } from '@/lib/apiClient';
+import { ACTIVOS_ORIGINALES } from '@/lib/inventoryData';
 import { useAuth } from '@/context/AuthContext';
 import { QrLabelsPrintModal } from './QrLabelsPrintModal';
 
@@ -541,8 +542,24 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                               <td className="py-2.5 px-4 font-medium text-slate-800">
                                 {serie.ubicacionNombre}
                               </td>
-                              <td className="py-2.5 px-4 text-slate-600">
-                                {serie.responsableNombre || 'No asignado'}
+                              <td className="py-2.5 px-4 text-slate-700 font-medium">
+                                {(() => {
+                                  if (serie.responsableNombre && serie.responsableNombre.trim() !== '' && serie.responsableNombre.toLowerCase() !== 'no asignado') {
+                                    return serie.responsableNombre.trim();
+                                  }
+                                  if (serie.notas) {
+                                    const match = serie.notas.match(/responsable:\s*([^\r\n;|]+)/i);
+                                    if (match && match[1]?.trim()) return match[1].trim();
+                                  }
+                                  const placa = (serie.placaInstitucional || '').trim().toLowerCase();
+                                  const numSerie = (serie.numeroSerie || '').trim().toLowerCase();
+                                  const orig = ACTIVOS_ORIGINALES.find(o => 
+                                    (placa && o.placa_institucional.toLowerCase() === placa) ||
+                                    (numSerie && o.numero_serie.toLowerCase() === numSerie) ||
+                                    o.id === serie.id
+                                  );
+                                  return orig?.responsable || 'No asignado';
+                                })()}
                               </td>
                               <td className="py-2.5 px-4">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">

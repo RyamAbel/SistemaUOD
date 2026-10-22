@@ -236,13 +236,15 @@ public class Mantenimiento
     public Guid ActivoSerieId { get; set; }
     public string Tipo { get; set; } = "preventivo";
     public Guid? ProveedorId { get; set; }
-    public string? TecnicoResponsable { get; set; }
+    public string TecnicoResponsable { get; set; } = string.Empty;
     public decimal Costo { get; set; } = 0.00m;
     public string Descripcion { get; set; } = string.Empty;
     public DateTime FechaProgramada { get; set; }
     public DateTime? FechaRealizada { get; set; }
     public string Estado { get; set; } = "programado";
+    public string? ChecklistCompletado { get; set; } = "[]";
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;
 
     public ActivoSerie ActivoSerie { get; set; } = null!;
     public Proveedor? Proveedor { get; set; }
@@ -290,3 +292,96 @@ public class Invitacion
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public DateTime? UsadoEn { get; set; }
 }
+
+public class ColaCorreo
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Destinatario { get; set; } = string.Empty;
+    public string Asunto { get; set; } = string.Empty;
+    public string CuerpoHtml { get; set; } = string.Empty;
+    public string Estado { get; set; } = "pendiente";
+    public int Intentos { get; set; } = 0;
+    public string? UltimoError { get; set; }
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public DateTime? ProcesadoEn { get; set; }
+}
+
+public class NotificacionPreferencia
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UsuarioId { get; set; }
+    public bool RecibirAlertasStock { get; set; } = true;
+    public bool RecibirAlertasMantenimiento { get; set; } = true;
+    public bool RecibirResumenSemanal { get; set; } = false;
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;
+
+    public Perfil? Usuario { get; set; }
+}
+
+public class OrdenCompra
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string NumeroOrden { get; set; } = string.Empty;
+    public Guid ProveedorId { get; set; }
+    public Guid SolicitanteId { get; set; }
+    public string Estado { get; set; } = "borrador"; // borrador, aprobada, enviada, recibida_parcial, recibida_total, cancelada
+    public DateOnly FechaEmision { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
+    public DateOnly? FechaEntregaEstimada { get; set; }
+    public string? Observaciones { get; set; }
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;
+
+    public Proveedor Proveedor { get; set; } = null!;
+    public Perfil Solicitante { get; set; } = null!;
+    public ICollection<OrdenCompraLinea> Lineas { get; set; } = new List<OrdenCompraLinea>();
+}
+
+public class OrdenCompraLinea
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OrdenId { get; set; }
+    public Guid RecursoId { get; set; }
+    public int CantidadSolicitada { get; set; }
+    public int CantidadRecibida { get; set; } = 0;
+    public decimal PrecioUnitarioEstimado { get; set; } = 0.00m;
+
+    public OrdenCompra Orden { get; set; } = null!;
+    public Recurso Recurso { get; set; } = null!;
+}
+
+public class ConteoFisico
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UbicacionId { get; set; }
+    public Guid ResponsableId { get; set; }
+    public DateTime FechaInicio { get; set; } = DateTime.UtcNow;
+    public DateTime? FechaCierre { get; set; }
+    public string Estado { get; set; } = "abierto"; // abierto, conciliado, cancelado
+    public string? Observaciones { get; set; }
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+
+    public Ubicacion Ubicacion { get; set; } = null!;
+    public Perfil Responsable { get; set; } = null!;
+    public ICollection<ConteoLinea> Lineas { get; set; } = new List<ConteoLinea>();
+}
+
+public class ConteoLinea
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ConteoId { get; set; }
+    public Guid RecursoId { get; set; }
+    public Guid? LoteId { get; set; }
+    public int CantidadSistema { get; set; } = 0;
+    public int CantidadFisica { get; set; } = 0;
+    public int Diferencia { get; set; } = 0;
+    public Guid? AjusteMovimientoId { get; set; }
+    public string? Notas { get; set; }
+
+    public ConteoFisico Conteo { get; set; } = null!;
+    public Recurso Recurso { get; set; } = null!;
+    public Lote? Lote { get; set; }
+    public Movimiento? AjusteMovimiento { get; set; }
+}
+
+

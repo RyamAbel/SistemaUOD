@@ -325,4 +325,64 @@ public class AssistantEndpointsTests : IClassFixture<CustomWebApplicationFactory
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Chat_ConsultaMantenimiento_Retorna200Ok_Y_EjecutaHerramienta()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        request.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "¿Cuáles son los mantenimientos preventivos o correctivos programados?",
+            Mode = "operativo"
+        });
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var data = await response.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(data);
+        Assert.Contains("consultar_mantenimientos", data.ToolCallsEjecutadas);
+        Assert.False(string.IsNullOrWhiteSpace(data.Text));
+    }
+
+    [Fact]
+    public async Task Chat_ConsultaOrdenesCompra_Retorna200Ok_Y_EjecutaHerramienta()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        request.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "¿Cuáles son las órdenes de compra registradas con los proveedores?",
+            Mode = "operativo"
+        });
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var data = await response.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(data);
+        Assert.Contains("consultar_ordenes_compra", data.ToolCallsEjecutadas);
+        Assert.False(string.IsNullOrWhiteSpace(data.Text));
+    }
+
+    [Fact]
+    public async Task Chat_ConsultaConteosFisicos_Retorna200Ok_Y_EjecutaHerramienta()
+    {
+        var client = _factory.CreateClient();
+        var request = CrearPeticion(HttpMethod.Post, "/api/v1/assistant/chat", role: "admin_inventario");
+        request.Content = JsonContent.Create(new ChatRequestDto
+        {
+            Message = "¿Qué sesiones de conteo físico o auditoría se han realizado?",
+            Mode = "operativo"
+        });
+
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var data = await response.Content.ReadFromJsonAsync<ChatResponseDto>();
+        Assert.NotNull(data);
+        Assert.Contains("consultar_conteos_fisicos", data.ToolCallsEjecutadas);
+        Assert.False(string.IsNullOrWhiteSpace(data.Text));
+    }
 }

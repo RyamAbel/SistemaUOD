@@ -62,6 +62,17 @@ npm run dev
 ```
 - Aplicación web disponible en: `http://localhost:3000`.
 
+### 4. Despliegue con Docker & Nginx (Producción)
+Consulta [DEPLOYMENT.md](file:///c:/Users/ryam2/Documents/SistemaUOD/SistemaUOD/DEPLOYMENT.md) para la guía completa paso a paso:
+```bash
+# 1. Configurar variables de entorno
+cp .env.docker.example .env
+
+# 2. Desplegar backend, frontend y gateway Nginx
+docker compose -f docker-compose.prod.yml up -d --build
+```
+- Gateway Nginx disponible en: `http://localhost` (puerto 80/443).
+
 ---
 
 ## 🛡️ Principios de Seguridad e IA

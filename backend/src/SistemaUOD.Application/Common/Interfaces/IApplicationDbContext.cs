@@ -22,6 +22,12 @@ public interface IApplicationDbContext
     DbSet<BitacoraAuditoria> BitacoraAuditorias { get; }
     DbSet<Alerta> Alertas { get; }
     DbSet<Invitacion> Invitaciones { get; }
+    DbSet<ColaCorreo> ColaCorreos { get; }
+    DbSet<NotificacionPreferencia> NotificacionesPreferencias { get; }
+    DbSet<OrdenCompra> OrdenesCompra { get; }
+    DbSet<OrdenCompraLinea> OrdenesCompraLineas { get; }
+    DbSet<ConteoFisico> ConteosFisicos { get; }
+    DbSet<ConteoLinea> ConteosLineas { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

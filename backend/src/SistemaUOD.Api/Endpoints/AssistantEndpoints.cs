@@ -18,7 +18,7 @@ public static class AssistantEndpoints
             IAssistantService assistantService,
             CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Message))
+            if (string.IsNullOrWhiteSpace(request?.Message))
             {
                 return Results.BadRequest(new ProblemDetails
                 {
@@ -28,8 +28,21 @@ public static class AssistantEndpoints
                 });
             }
 
-            var respuesta = await assistantService.ProcesarMensajeAsync(request, ct);
-            return Results.Ok(respuesta);
+            try
+            {
+                var respuesta = await assistantService.ProcesarMensajeAsync(request, ct);
+                return Results.Ok(respuesta);
+            }
+            catch (Exception)
+            {
+                return Results.Ok(new ChatResponseDto
+                {
+                    Text = "¡Hola! He recibido tu consulta; sin embargo, ocurrió una incidencia temporal al procesarla. Por favor intenta de nuevo en unos momentos o prueba con otra pregunta de inventario.",
+                    Mode = request.Mode,
+                    IsLiveGemini = false,
+                    CostoEstimadoDop = 0.00m
+                });
+            }
         })
         .WithName("EnviarMensajeAsistente")
         .WithSummary("Procesa un mensaje conversacional en modo operativo o tutor con herramientas de inventario")

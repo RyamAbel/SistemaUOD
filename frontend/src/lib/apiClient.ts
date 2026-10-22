@@ -1578,6 +1578,264 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(dto)
     });
+  },
+
+  // ==========================================
+  // Alertas y Notificaciones (Etapa 11)
+  // ==========================================
+  listarAlertas: async (filtros?: AlertaFiltrosDto): Promise<PagedResult<AlertaDto>> => {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.set('tipo', filtros.tipo);
+    if (filtros?.severidad) params.set('severidad', filtros.severidad);
+    if (filtros?.leida !== undefined) params.set('leida', filtros.leida.toString());
+    if (filtros?.recursoId) params.set('recursoId', filtros.recursoId);
+    if (filtros?.ubicacionId) params.set('ubicacionId', filtros.ubicacionId);
+    if (filtros?.pagina) params.set('pagina', filtros.pagina.toString());
+    if (filtros?.tamanoPagina) params.set('tamanoPagina', filtros.tamanoPagina.toString());
+
+    const qs = params.toString();
+    return request<PagedResult<AlertaDto>>(`alertas${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerResumenAlertas: async (): Promise<ResumenAlertasDto> => {
+    return request<ResumenAlertasDto>('alertas/resumen');
+  },
+
+  obtenerConteoAlertasNoLeidas: async (): Promise<number> => {
+    const res = await request<{ noLeidas: number }>('alertas/conteo-no-leidas');
+    return res?.noLeidas ?? 0;
+  },
+
+  obtenerAlerta: async (id: string): Promise<AlertaDto> => {
+    return request<AlertaDto>(`alertas/${id}`);
+  },
+
+  evaluarReglasAlertas: async (): Promise<EvaluacionAlertasResultadoDto> => {
+    return request<EvaluacionAlertasResultadoDto>('alertas/evaluar', {
+      method: 'POST'
+    });
+  },
+
+  marcarAlertaLeida: async (id: string): Promise<void> => {
+    return request<void>(`alertas/${id}/leida`, {
+      method: 'PATCH'
+    });
+  },
+
+  marcarTodasAlertasLeidas: async (): Promise<{ total: number }> => {
+    return request<{ total: number }>('alertas/marcar-todas-leidas', {
+      method: 'POST'
+    });
+  },
+
+  eliminarAlerta: async (id: string): Promise<void> => {
+    return request<void>(`alertas/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  obtenerPreferenciasNotificacion: async (): Promise<NotificacionPreferenciaDto> => {
+    return request<NotificacionPreferenciaDto>('notificaciones/preferencias');
+  },
+
+  actualizarPreferenciasNotificacion: async (dto: ActualizarPreferenciaDto): Promise<NotificacionPreferenciaDto> => {
+    return request<NotificacionPreferenciaDto>('notificaciones/preferencias', {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  // ==========================================
+  // Compras y Recepción (Etapa 12)
+  // ==========================================
+  listarOrdenesCompra: async (filtros?: OrdenCompraFiltrosDto): Promise<PagedResult<OrdenCompraDto>> => {
+    const params = new URLSearchParams();
+    if (filtros?.busqueda) params.set('busqueda', filtros.busqueda);
+    if (filtros?.estado) params.set('estado', filtros.estado);
+    if (filtros?.proveedorId) params.set('proveedorId', filtros.proveedorId);
+    if (filtros?.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
+    if (filtros?.fechaHasta) params.set('fechaHasta', filtros.fechaHasta);
+    if (filtros?.page) params.set('page', filtros.page.toString());
+    if (filtros?.pageSize) params.set('pageSize', filtros.pageSize.toString());
+
+    const qs = params.toString();
+    return request<PagedResult<OrdenCompraDto>>(`compras/ordenes${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerOrdenCompraPorId: async (id: string): Promise<OrdenCompraDto> => {
+    return request<OrdenCompraDto>(`compras/ordenes/${id}`);
+  },
+
+  crearOrdenCompra: async (dto: CrearOrdenCompraDto): Promise<OrdenCompraDto> => {
+    return request<OrdenCompraDto>('compras/ordenes', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  actualizarOrdenCompra: async (id: string, dto: ActualizarOrdenCompraDto): Promise<OrdenCompraDto> => {
+    return request<OrdenCompraDto>(`compras/ordenes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cambiarEstadoOrdenCompra: async (id: string, dto: CambiarEstadoOrdenDto): Promise<OrdenCompraDto> => {
+    return request<OrdenCompraDto>(`compras/ordenes/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  recibirMercanciaOrdenCompra: async (id: string, dto: RecepcionCompraDto): Promise<OrdenCompraDto> => {
+    return request<OrdenCompraDto>(`compras/ordenes/${id}/recepcion`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  obtenerSugerenciasStockBajo: async (proveedorId?: string): Promise<SugerenciaOrdenStockBajoDto[]> => {
+    const qs = proveedorId ? `?proveedorId=${proveedorId}` : '';
+    return request<SugerenciaOrdenStockBajoDto[]>(`compras/sugerencias-stock-bajo${qs}`);
+  },
+
+  // ==========================================
+  // Conteos Físicos y Auditoría (Etapa 12)
+  // ==========================================
+  listarConteosFisicos: async (filtros?: ConteoFisicoFiltrosDto): Promise<PagedResult<ConteoFisicoDto>> => {
+    const params = new URLSearchParams();
+    if (filtros?.ubicacionId) params.set('ubicacionId', filtros.ubicacionId);
+    if (filtros?.estado) params.set('estado', filtros.estado);
+    if (filtros?.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
+    if (filtros?.fechaHasta) params.set('fechaHasta', filtros.fechaHasta);
+    if (filtros?.page) params.set('page', filtros.page.toString());
+    if (filtros?.pageSize) params.set('pageSize', filtros.pageSize.toString());
+
+    const qs = params.toString();
+    return request<PagedResult<ConteoFisicoDto>>(`conteos-fisicos${qs ? `?${qs}` : ''}`);
+  },
+
+  obtenerConteoFisicoPorId: async (id: string): Promise<ConteoFisicoDto> => {
+    return request<ConteoFisicoDto>(`conteos-fisicos/${id}`);
+  },
+
+  iniciarConteoFisico: async (dto: IniciarConteoFisicoDto): Promise<ConteoFisicoDto> => {
+    return request<ConteoFisicoDto>('conteos-fisicos', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  sincronizarLineasConteo: async (id: string, dto: SincronizarConteosDto): Promise<ConteoFisicoDto> => {
+    return request<ConteoFisicoDto>(`conteos-fisicos/${id}/lineas`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  escanearItemConteo: async (id: string, dto: EscanearItemConteoDto): Promise<ConteoFisicoDto> => {
+    return request<ConteoFisicoDto>(`conteos-fisicos/${id}/escanear`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  conciliarConteoFisico: async (id: string, dto: ConciliarConteoDto): Promise<ConteoFisicoDto> => {
+    return request<ConteoFisicoDto>(`conteos-fisicos/${id}/conciliar`, {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
+  },
+
+  cancelarConteoFisico: async (id: string, motivo?: string): Promise<ConteoFisicoDto> => {
+    const qs = motivo ? `?motivo=${encodeURIComponent(motivo)}` : '';
+    return request<ConteoFisicoDto>(`conteos-fisicos/${id}/cancelar${qs}`, {
+      method: 'POST'
+    });
+  },
+
+  // ==========================================
+  // Importación Masiva (Etapa 12)
+  // ==========================================
+  descargarPlantillaCsvImportacion: async (): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
+    const url = `${API_BASE_URL.replace(/\/+$/, '')}/importacion/plantilla-csv`;
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Error al descargar plantilla CSV: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `plantilla_recursos_siia.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
+  },
+
+  validarFilasImportacion: async (filas: ImportarRecursoFilaDto[]): Promise<ResultadoValidacionImportacionDto> => {
+    return request<ResultadoValidacionImportacionDto>('importacion/validar', {
+      method: 'POST',
+      body: JSON.stringify(filas)
+    });
+  },
+
+  ejecutarImportacionRecursos: async (filas: ImportarRecursoFilaDto[]): Promise<ResultadoImportacionDto> => {
+    return request<ResultadoImportacionDto>('importacion/ejecutar', {
+      method: 'POST',
+      body: JSON.stringify({ filas })
+    });
+  },
+
+  // ==========================================
+  // Reportes y Analítica Ejecutiva (Etapa 13)
+  // ==========================================
+  obtenerResumenEjecutivo: async (): Promise<ResumenEjecutivoDto> => {
+    return request<ResumenEjecutivoDto>('reportes/resumen-ejecutivo');
+  },
+
+  obtenerRotacionConsumibles: async (): Promise<RotacionConsumibleItemDto[]> => {
+    return request<RotacionConsumibleItemDto[]>('reportes/rotacion-consumibles');
+  },
+
+  obtenerDistribucionParqueTi: async (): Promise<DistribucionParqueTiDto[]> => {
+    return request<DistribucionParqueTiDto[]>('reportes/distribucion-parque-ti');
+  },
+
+  obtenerReporteProveedores: async (): Promise<ReporteOrdenesProveedorDto[]> => {
+    return request<ReporteOrdenesProveedorDto[]>('reportes/proveedores');
+  },
+
+  exportarReportePatrimonialCsv: async (): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
+    const url = `${API_BASE_URL.replace(/\/+$/, '')}/reportes/exportar-patrimonial-csv`;
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Error al exportar reporte patrimonial: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `reporte_patrimonial_uod_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
   }
 };
 
@@ -1656,6 +1914,338 @@ export interface PropuestaRecursoDesdeFotoDto {
   recursoSimilarEncontrado?: string;
   confianzaAnalisis: string;
 }
+
+export interface AlertaDto {
+  id: string;
+  tipo: 'stock_bajo' | 'proximo_vencimiento' | 'mantenimiento_vencido' | 'anomalia_conteo' | 'sistema';
+  severidad: 'info' | 'advertencia' | 'urgente';
+  recursoId?: string | null;
+  recursoNombre?: string | null;
+  recursoSku?: string | null;
+  ubicacionId?: string | null;
+  ubicacionNombre?: string | null;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  creadoEn: string;
+}
+
+export interface AlertaFiltrosDto {
+  tipo?: string;
+  severidad?: string;
+  leida?: boolean;
+  recursoId?: string;
+  ubicacionId?: string;
+  pagina?: number;
+  tamanoPagina?: number;
+}
+
+export interface ResumenAlertasDto {
+  totalNoLeidas: number;
+  totalUrgentes: number;
+  totalAdvertencias: number;
+  totalInfo: number;
+  porTipo: Record<string, number>;
+}
+
+export interface EvaluacionAlertasResultadoDto {
+  alertasGeneradas: number;
+  alertasOmitidasExistentes: number;
+  mensajes: string[];
+}
+
+export interface NotificacionPreferenciaDto {
+  id: string;
+  usuarioId: string;
+  recibirAlertasStock: boolean;
+  recibirAlertasMantenimiento: boolean;
+  recibirResumenSemanal: boolean;
+  actualizadoEn: string;
+}
+
+export interface ActualizarPreferenciaDto {
+  recibirAlertasStock: boolean;
+  recibirAlertasMantenimiento: boolean;
+  recibirResumenSemanal: boolean;
+}
+
+// ==========================================
+// Órdenes de Compra y Recepción (Etapa 12)
+// ==========================================
+export interface OrdenCompraLineaDto {
+  id: string;
+  ordenId: string;
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  recursoTipo: string;
+  unidadMedida: string;
+  cantidadSolicitada: number;
+  cantidadRecibida: number;
+  cantidadPendiente: number;
+  precioUnitarioEstimado: number;
+  subtotalEstimado: number;
+  subtotalRecibido: number;
+}
+
+export interface OrdenCompraDto {
+  id: string;
+  numeroOrden: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  proveedorRnc?: string | null;
+  proveedorContacto?: string | null;
+  proveedorTelefono?: string | null;
+  proveedorCorreo?: string | null;
+  solicitanteId: string;
+  solicitanteNombre: string;
+  solicitanteCorreo: string;
+  estado: 'borrador' | 'aprobada' | 'enviada' | 'recibida_parcial' | 'recibida_total' | 'cancelada';
+  fechaEmision: string;
+  fechaEntregaEstimada?: string | null;
+  observaciones?: string | null;
+  totalLineas: number;
+  totalUnidadesSolicitadas: number;
+  totalUnidadesRecibidas: number;
+  totalEstimado: number;
+  porcentajeRecepcion: number;
+  creadoEn: string;
+  actualizadoEn: string;
+  lineas: OrdenCompraLineaDto[];
+}
+
+export interface CrearOrdenCompraLineaDto {
+  recursoId: string;
+  cantidadSolicitada: number;
+  precioUnitarioEstimado: number;
+}
+
+export interface CrearOrdenCompraDto {
+  proveedorId: string;
+  fechaEntregaEstimada?: string;
+  observaciones?: string;
+  lineas: CrearOrdenCompraLineaDto[];
+}
+
+export interface ActualizarOrdenCompraDto {
+  proveedorId: string;
+  fechaEntregaEstimada?: string;
+  observaciones?: string;
+  lineas: CrearOrdenCompraLineaDto[];
+}
+
+export interface CambiarEstadoOrdenDto {
+  estado: 'borrador' | 'aprobada' | 'enviada' | 'cancelada';
+  observaciones?: string;
+}
+
+export interface RecepcionLineaDto {
+  lineaId: string;
+  cantidadRecibida: number;
+  numeroLote?: string;
+  fechaVencimiento?: string;
+}
+
+export interface RecepcionCompraDto {
+  ubicacionRecepcionId: string;
+  conduceOReferencia?: string;
+  observaciones?: string;
+  lineas: RecepcionLineaDto[];
+}
+
+export interface OrdenCompraFiltrosDto {
+  busqueda?: string;
+  estado?: string;
+  proveedorId?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SugerenciaOrdenStockBajoDto {
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  categoriaNombre: string;
+  proveedorSugeridoId?: string | null;
+  proveedorSugeridoNombre?: string | null;
+  stockActual: number;
+  stockMinimo: number;
+  puntoReorden: number;
+  cantidadSugerida: number;
+  costoUnitarioEstimado: number;
+  subtotalEstimado: number;
+}
+
+// ==========================================
+// Conteos Físicos e Inventario (Etapa 12)
+// ==========================================
+export interface ConteoLineaDto {
+  id: string;
+  conteoId: string;
+  recursoId: string;
+  recursoSku: string;
+  recursoNombre: string;
+  recursoTipo: string;
+  unidadMedida: string;
+  loteId?: string | null;
+  numeroLote?: string | null;
+  fechaVencimiento?: string | null;
+  cantidadSistema: number;
+  cantidadFisica: number;
+  diferencia: number;
+  ajusteMovimientoId?: string | null;
+  ajusteMovimientoNumero?: string | null;
+  notas?: string | null;
+}
+
+export interface ConteoFisicoDto {
+  id: string;
+  ubicacionId: string;
+  ubicacionNombre: string;
+  ubicacionCodigo: string;
+  responsableId: string;
+  responsableNombre: string;
+  responsableCorreo: string;
+  fechaInicio: string;
+  fechaCierre?: string | null;
+  estado: 'abierto' | 'conciliado' | 'cancelado';
+  observaciones?: string | null;
+  totalLineas: number;
+  totalUnidadesSistema: number;
+  totalUnidadesFisicas: number;
+  totalDiscrepancias: number;
+  creadoEn: string;
+  lineas: ConteoLineaDto[];
+}
+
+export interface IniciarConteoFisicoDto {
+  ubicacionId: string;
+  observaciones?: string;
+  precargarExistenciasSistema?: boolean;
+}
+
+export interface ActualizarLineaConteoDto {
+  recursoId: string;
+  loteId?: string;
+  cantidadFisica: number;
+  notas?: string;
+}
+
+export interface SincronizarConteosDto {
+  lineas: ActualizarLineaConteoDto[];
+}
+
+export interface EscanearItemConteoDto {
+  codigo: string;
+  cantidadSumar?: number;
+  notas?: string;
+}
+
+export interface ConciliarConteoDto {
+  observaciones?: string;
+}
+
+export interface ConteoFisicoFiltrosDto {
+  ubicacionId?: string;
+  estado?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ImportarRecursoFilaDto {
+  numeroFila?: number;
+  sku: string;
+  nombre: string;
+  descripcion?: string;
+  categoria?: string;
+  tipo?: string;
+  unidadMedida?: string;
+  stockMinimo?: number;
+  stockMaximo?: number;
+  puntoReorden?: number;
+  costoEstimado?: number;
+}
+
+export interface FilaValidacionErrorDto {
+  numeroFila: number;
+  sku?: string;
+  nombre?: string;
+  campo: string;
+  mensaje: string;
+}
+
+export interface ResultadoValidacionImportacionDto {
+  totalFilas: number;
+  filasValidas: number;
+  filasConError: number;
+  posiblesDuplicados: number;
+  errores: FilaValidacionErrorDto[];
+  recursosValidos: ImportarRecursoFilaDto[];
+}
+
+export interface ResultadoImportacionDto {
+  recursosCreados: number;
+  recursosOmitidos: number;
+  totalProcesados: number;
+  mensaje: string;
+}
+
+export interface ResumenEjecutivoDto {
+  totalRecursosCatalogo: number;
+  totalActivosFisicos: number;
+  equiposEnUso: number;
+  equiposEnAlmacen: number;
+  equiposEnMantenimiento: number;
+  equiposDeBaja: number;
+  totalStockConsumibles: number;
+  alertasStockBajo: number;
+  ordenesCompraActivas: number;
+  valorPatrimonialHistoricoDop: number;
+  depreciacionAcumuladaDop: number;
+  valorNetoEnLibrosDop: number;
+  exactitudInventarioPorcentaje: number;
+  fechaGeneracion: string;
+}
+
+export interface RotacionConsumibleItemDto {
+  recursoId: string;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  stockActual: number;
+  stockMinimo: number;
+  totalEntradas: number;
+  totalSalidas: number;
+  tasaRotacion: number;
+  costoEstimadoUnitario: number;
+  costoTotalConsumidoDop: number;
+}
+
+export interface DistribucionParqueTiDto {
+  categoria: string;
+  cantidadEquipos: number;
+  enUso: number;
+  enAlmacen: number;
+  enMantenimiento: number;
+  deBaja: number;
+  porcentajeDelTotal: number;
+}
+
+export interface ReporteOrdenesProveedorDto {
+  proveedorId: string;
+  proveedorNombre: string;
+  rnc?: string;
+  totalOrdenes: number;
+  ordenesCompletadas: number;
+  montoTotalDop: number;
+  tasaCumplimiento: number;
+}
+
+
 
 
 

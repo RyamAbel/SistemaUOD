@@ -18,7 +18,8 @@ import {
   Edit2,
   RefreshCw,
   X,
-  CreditCard
+  CreditCard,
+  ShoppingBag
 } from 'lucide-react';
 import {
   apiClient,
@@ -28,12 +29,13 @@ import {
   CrearCategoriaDto
 } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
+import { PurchaseOrdersView } from './PurchaseOrdersView';
 
 export const SuppliersView: React.FC = () => {
   const { rol } = useAuth();
   const canEdit = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
 
-  const [activeSubTab, setActiveSubTab] = useState<'proveedores' | 'categorias'>('proveedores');
+  const [activeSubTab, setActiveSubTab] = useState<'proveedores' | 'categorias' | 'ordenes'>('proveedores');
   const [searchTerm, setSearchTerm] = useState('');
   const [soloActivos, setSoloActivos] = useState(true);
 
@@ -278,67 +280,80 @@ export const SuppliersView: React.FC = () => {
             <FolderTree className="h-3.5 w-3.5" />
             Categorías
           </button>
-        </div>
-      </div>
-
-      {/* Action Bar (Search & New Button) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder={
-                activeSubTab === 'proveedores'
-                  ? 'Buscar por RNC, nombre comercial o contacto...'
-                  : 'Buscar por código o nombre de categoría...'
-              }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1C3177] focus:ring-2 focus:ring-[#1C3177]/10"
-            />
-          </div>
           <button
-            onClick={() => (activeSubTab === 'proveedores' ? cargarProveedores() : cargarCategorias())}
-            title="Recargar datos"
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition-colors"
+            onClick={() => setActiveSubTab('ordenes')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+              activeSubTab === 'ordenes'
+                ? 'bg-white text-[#1C3177] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            <RefreshCw className="h-4 w-4" />
+            <ShoppingBag className="h-3.5 w-3.5" />
+            Órdenes & Recepción
           </button>
         </div>
-
-        <div className="flex items-center gap-2">
-          {activeSubTab === 'proveedores' && (
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none bg-white border border-slate-200 px-3 py-2 rounded-xl">
-              <input
-                type="checkbox"
-                checked={soloActivos}
-                onChange={(e) => setSoloActivos(e.target.checked)}
-                className="rounded border-slate-300 text-[#1C3177] focus:ring-[#1C3177]"
-              />
-              Solo activos
-            </label>
-          )}
-
-          {canEdit && (
-            <button
-              onClick={() => {
-                if (activeSubTab === 'proveedores') {
-                  setErrorProveedor(null);
-                  setModalProveedorOpen(true);
-                } else {
-                  setErrorCategoria(null);
-                  setModalCategoriaOpen(true);
-                }
-              }}
-              className="flex items-center gap-2 rounded-xl bg-[#1C3177] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#2B4BA0] transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              {activeSubTab === 'proveedores' ? 'Nuevo Proveedor' : 'Nueva Categoría'}
-            </button>
-          )}
-        </div>
       </div>
+
+      {/* Action Bar (Search & New Button) - Only for Proveedores y Categorías */}
+      {activeSubTab !== 'ordenes' && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder={
+                  activeSubTab === 'proveedores'
+                    ? 'Buscar por RNC, nombre comercial o contacto...'
+                    : 'Buscar por código o nombre de categoría...'
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1C3177] focus:ring-2 focus:ring-[#1C3177]/10"
+              />
+            </div>
+            <button
+              onClick={() => (activeSubTab === 'proveedores' ? cargarProveedores() : cargarCategorias())}
+              title="Recargar datos"
+              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {activeSubTab === 'proveedores' && (
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none bg-white border border-slate-200 px-3 py-2 rounded-xl">
+                <input
+                  type="checkbox"
+                  checked={soloActivos}
+                  onChange={(e) => setSoloActivos(e.target.checked)}
+                  className="rounded border-slate-300 text-[#1C3177] focus:ring-[#1C3177]"
+                />
+                Solo activos
+              </label>
+            )}
+
+            {canEdit && (
+              <button
+                onClick={() => {
+                  if (activeSubTab === 'proveedores') {
+                    setErrorProveedor(null);
+                    setModalProveedorOpen(true);
+                  } else {
+                    setErrorCategoria(null);
+                    setModalCategoriaOpen(true);
+                  }
+                }}
+                className="flex items-center gap-2 rounded-xl bg-[#1C3177] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#2B4BA0] transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                {activeSubTab === 'proveedores' ? 'Nuevo Proveedor' : 'Nueva Categoría'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* CONTENT: TAB PROVEEDORES */}
       {activeSubTab === 'proveedores' && (
@@ -533,6 +548,9 @@ export const SuppliersView: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* CONTENT: TAB ÓRDENES DE COMPRA & RECEPCIÓN */}
+      {activeSubTab === 'ordenes' && <PurchaseOrdersView />}
 
       {/* MODAL: NUEVO PROVEEDOR */}
       {modalProveedorOpen && (

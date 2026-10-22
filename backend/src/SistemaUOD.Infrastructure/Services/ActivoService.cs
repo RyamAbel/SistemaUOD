@@ -65,6 +65,14 @@ public class ActivoService : IActivoService
             query = query.Where(a => a.ResponsableId == filtros.ResponsableId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(filtros.Custodio))
+        {
+            var cust = filtros.Custodio.Trim().ToLower();
+            query = query.Where(a =>
+                (a.Responsable != null && a.Responsable.NombreCompleto.ToLower().Contains(cust)) ||
+                (a.Notas != null && a.Notas.ToLower().Contains(cust)));
+        }
+
         // 6. Filtro por Estado
         if (!string.IsNullOrWhiteSpace(filtros.Estado))
         {
@@ -122,6 +130,14 @@ public class ActivoService : IActivoService
                 ActualizadoEn = a.ActualizadoEn
             })
             .ToListAsync(ct);
+
+        foreach (var item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item.ResponsableNombre))
+            {
+                item.ResponsableNombre = ExtraerResponsableDeNotas(item.Notas);
+            }
+        }
 
         return PagedResult<ActivoSerieDto>.Create(items, totalCount, filtros.PageIndex, filtros.PageSize);
     }
@@ -330,7 +346,7 @@ public class ActivoService : IActivoService
             UbicacionId = activo.UbicacionId,
             UbicacionNombre = ubicacion.Nombre,
             ResponsableId = activo.ResponsableId,
-            ResponsableNombre = activo.Responsable?.NombreCompleto,
+            ResponsableNombre = activo.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(activo.Notas),
             ResponsableCorreo = activo.Responsable?.Correo,
             ProveedorId = activo.ProveedorId,
             ProveedorNombre = activo.Proveedor?.NombreComercial,
@@ -390,7 +406,7 @@ public class ActivoService : IActivoService
             UbicacionId = activo.UbicacionId,
             UbicacionNombre = activo.Ubicacion.Nombre,
             ResponsableId = activo.ResponsableId,
-            ResponsableNombre = activo.Responsable?.NombreCompleto,
+            ResponsableNombre = activo.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(activo.Notas),
             ResponsableCorreo = activo.Responsable?.Correo,
             ProveedorId = activo.ProveedorId,
             ProveedorNombre = activo.Proveedor?.NombreComercial,
@@ -470,7 +486,7 @@ public class ActivoService : IActivoService
             UbicacionId = a.UbicacionId,
             UbicacionNombre = a.Ubicacion.Nombre,
             ResponsableId = a.ResponsableId,
-            ResponsableNombre = a.Responsable?.NombreCompleto,
+            ResponsableNombre = a.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(a.Notas),
             ResponsableCorreo = a.Responsable?.Correo,
             ProveedorId = a.ProveedorId,
             ProveedorNombre = a.Proveedor?.NombreComercial,
@@ -1015,7 +1031,7 @@ public class ActivoService : IActivoService
             UbicacionId = activo.UbicacionId,
             UbicacionNombre = ubicacion.Nombre,
             ResponsableId = activo.ResponsableId,
-            ResponsableNombre = activo.Responsable?.NombreCompleto,
+            ResponsableNombre = activo.Responsable?.NombreCompleto ?? ExtraerResponsableDeNotas(activo.Notas),
             ResponsableCorreo = activo.Responsable?.Correo,
             ProveedorId = activo.ProveedorId,
             ProveedorNombre = activo.Proveedor?.NombreComercial,
@@ -1026,5 +1042,12 @@ public class ActivoService : IActivoService
             CreadoEn = activo.CreadoEn,
             ActualizadoEn = activo.ActualizadoEn
         };
+    }
+
+    private static string? ExtraerResponsableDeNotas(string? notas)
+    {
+        if (string.IsNullOrWhiteSpace(notas)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(notas, @"Responsable:\s*([^\r\n;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value) ? match.Groups[1].Value.Trim() : null;
     }
 }

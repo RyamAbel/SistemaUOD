@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiClient } from '@/lib/apiClient';
 import { LoginView } from '@/components/LoginView';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar, NavTab } from '@/components/Sidebar';
@@ -18,6 +19,7 @@ import { CameraScannerModal } from '@/components/CameraScannerModal';
 import { ResourceDetailModal } from '@/components/ResourceDetailModal';
 import { AssetsView } from '@/components/AssetsView';
 import { PhysicalAuditView } from '@/components/PhysicalAuditView';
+import { AlertsView } from '@/components/AlertsView';
 import {
   initialArticulos,
   initialMovimientos,
@@ -40,8 +42,24 @@ export default function Home() {
   const [scannedResourceId, setScannedResourceId] = useState<string | null>(null);
   const [scannedDetailOpen, setScannedDetailOpen] = useState(false);
 
-  // Real-time stock alert count based on actual articles
-  const stockAlertCount = articulos.filter(a => a.stockActual <= a.stockMinimo).length;
+  // Conteo de alertas reales sincronizadas con el sistema backend
+  const [systemAlertCount, setSystemAlertCount] = useState<number>(0);
+
+  const refrescarConteoAlertas = useCallback(async () => {
+    try {
+      const count = await apiClient.obtenerConteoAlertasNoLeidas();
+      setSystemAlertCount(count);
+    } catch {
+      // Fallback si la API no está disponible
+      setSystemAlertCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    refrescarConteoAlertas();
+    const timer = setInterval(refrescarConteoAlertas, 30000);
+    return () => clearInterval(timer);
+  }, [refrescarConteoAlertas]);
 
   // Global shortcut handler (Ctrl+K or Cmd+K) to open AI Drawer
   useEffect(() => {
@@ -132,8 +150,9 @@ export default function Home() {
       <Navbar
         onOpenAi={() => setAiOpen(true)}
         aiOpen={aiOpen}
-        alertCount={stockAlertCount}
+        alertCount={systemAlertCount}
         onOpenScanner={() => setScannerOpen(true)}
+        onNavigateToAlerts={() => setActiveTab('alertas')}
       />
 
       {/* Main Workspace Layout */}
@@ -142,7 +161,7 @@ export default function Home() {
         <Sidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          stockAlertCount={stockAlertCount}
+          stockAlertCount={systemAlertCount}
         />
 
         {/* Content View */}
@@ -189,6 +208,8 @@ export default function Home() {
           )}
 
           {activeTab === 'mantenimiento' && <MaintenanceView />}
+
+          {activeTab === 'alertas' && <AlertsView />}
 
           {activeTab === 'activos' && <AssetsView />}
 

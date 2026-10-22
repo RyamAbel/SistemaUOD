@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Search,
   Bell,
@@ -15,22 +15,33 @@ import {
   AlertTriangle,
   Package,
   Activity,
-  Camera
+  Camera,
+  Check
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { apiClient, AlertaDto } from '@/lib/apiClient';
 
 interface NavbarProps {
   onOpenAi: () => void;
   aiOpen: boolean;
   alertCount?: number;
   onOpenScanner?: () => void;
+  onNavigateToAlerts?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0, onOpenScanner }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  onOpenAi,
+  aiOpen,
+  alertCount: propAlertCount,
+  onOpenScanner,
+  onNavigateToAlerts
+}) => {
   const { user, perfil, rol, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [liveAlerts, setLiveAlerts] = useState<AlertaDto[]>([]);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +49,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0
   const displayRol = (perfil?.rol || rol || 'consulta').replace('_', ' ').toUpperCase();
   const avatarUrl = user?.user_metadata?.avatar_url;
   const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+
+  // Carga de alertas reales desde la API
+  const refrescarAlertas = useCallback(async () => {
+    try {
+      const [count, res] = await Promise.all([
+        apiClient.obtenerConteoAlertasNoLeidas(),
+        apiClient.listarAlertas({ leida: false, tamanoPagina: 5 })
+      ]);
+      setLiveCount(count);
+      setLiveAlerts(res.items || []);
+    } catch {
+      // Fallback silencioso si el backend no responde
+    }
+  }, []);
+
+  useEffect(() => {
+    refrescarAlertas();
+    const timer = setInterval(refrescarAlertas, 30000); // Poll cada 30 segundos
+    return () => clearInterval(timer);
+  }, [refrescarAlertas]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -49,11 +80,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const notifications = alertCount > 0 ? [
-    { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', label: 'Stock bajo detectado', detail: `${alertCount} artículos requieren reorden`, time: 'Ahora' },
-    { icon: Package, color: 'text-[#1C3177]', bg: 'bg-blue-50 border-blue-200', label: 'Movimiento auditado', detail: 'Traslado MOV-2026-00105 registrado', time: '5 min' },
-    { icon: Activity, color: 'text-[#3DAA5C]', bg: 'bg-emerald-50 border-emerald-200', label: 'Sistema operativo', detail: 'Todas las clínicas sincronizadas', time: '1 h' },
-  ] : [];
+  const totalCount = liveCount !== null ? liveCount : (propAlertCount ?? 0);
+
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between bg-white border-b border-slate-200 px-5 gap-4 shadow-sm">
@@ -124,52 +152,108 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAi, aiOpen, alertCount = 0
         <div className="relative" ref={notifRef}>
           <button
             id="notifications-btn"
-            onClick={() => setNotifOpen(v => !v)}
+            onClick={() => {
+              setNotifOpen(v => !v);
+              refrescarAlertas();
+            }}
             className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all"
             aria-label="Ver notificaciones"
           >
             <Bell className="h-4 w-4" />
-            {alertCount > 0 && (
+            {totalCount > 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white ring-2 ring-white">
-                {alertCount > 9 ? '9+' : alertCount}
+                {totalCount > 9 ? '9+' : totalCount}
               </span>
             )}
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-11 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 z-50 animate-fade-in overflow-hidden">
+            <div className="absolute right-0 top-11 w-84 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 z-50 animate-fade-in overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                <span className="text-xs font-bold text-slate-900">Notificaciones</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">Notificaciones</span>
+                  {totalCount > 0 && (
+                    <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.2 text-[10px] font-bold">
+                      {totalCount} pendientes
+                    </span>
+                  )}
+                </div>
                 <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
               <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">Sin notificaciones activas</div>
-                ) : notifications.map((n, i) => {
-                  const Icon = n.icon;
+                {liveAlerts.length === 0 ? (
+                  <div className="py-8 px-4 text-center">
+                    <div className="mx-auto w-10 h-10 rounded-full bg-emerald-50 text-[#2D8246] flex items-center justify-center mb-2 border border-emerald-200">
+                      <Check className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-700">¡Todo al día!</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">No hay alertas ni avisos pendientes en el inventario.</p>
+                  </div>
+                ) : liveAlerts.map((alerta) => {
+                  const isUrgent = alerta.severidad === 'urgente';
+                  const isWarn = alerta.severidad === 'advertencia';
+                  const badgeClass = isUrgent
+                    ? 'bg-rose-50 text-rose-600 border-rose-200'
+                    : isWarn
+                    ? 'bg-amber-50 text-amber-600 border-amber-200'
+                    : 'bg-blue-50 text-[#1C3177] border-blue-200';
+
                   return (
-                    <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <div className={`mt-0.5 h-7 w-7 rounded-lg ${n.bg} flex items-center justify-center shrink-0 border`}>
-                        <Icon className={`h-3.5 w-3.5 ${n.color}`} />
+                    <div
+                      key={alerta.id}
+                      onClick={async () => {
+                        setNotifOpen(false);
+                        try {
+                          await apiClient.marcarAlertaLeida(alerta.id);
+                          refrescarAlertas();
+                        } catch {}
+                        onNavigateToAlerts?.();
+                      }}
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                    >
+                      <div className={`mt-0.5 h-7 w-7 rounded-lg ${badgeClass} flex items-center justify-center shrink-0 border`}>
+                        <AlertTriangle className="h-3.5 w-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold text-slate-800">{n.label}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{n.detail}</p>
+                        <p className="text-[11px] font-bold text-slate-800 truncate">{alerta.titulo}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5">{alerta.mensaje}</p>
                       </div>
-                      <span className="text-[9px] text-slate-400 shrink-0 mt-0.5">{n.time}</span>
+                      <span className="text-[9px] text-slate-400 shrink-0 mt-0.5">
+                        {new Date(alerta.creadoEn).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-              {notifications.length > 0 && (
-                <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                  <button className="text-[10px] text-[#1C3177] hover:text-[#2B4BA0] font-bold transition-colors">
-                    Ver todas las alertas →
+              <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setNotifOpen(false);
+                    onNavigateToAlerts?.();
+                  }}
+                  className="text-[11px] text-[#1C3177] hover:text-[#2B4BA0] font-bold transition-colors"
+                >
+                  Ver todas las alertas →
+                </button>
+                {liveAlerts.length > 0 && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await apiClient.marcarTodasAlertasLeidas();
+                        refrescarAlertas();
+                      } catch (err) {
+                        console.error('Error marcando alertas como leídas:', err);
+                      }
+                    }}
+                    className="text-[10px] text-slate-500 hover:text-slate-800 font-semibold transition-colors cursor-pointer"
+                  >
+                    Marcar todas leídas
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>

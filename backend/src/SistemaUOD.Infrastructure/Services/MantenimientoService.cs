@@ -192,12 +192,14 @@ public class MantenimientoService : IMantenimientoService
             ActivoSerieId = dto.ActivoSerieId,
             Tipo = dto.Tipo.ToLower(),
             ProveedorId = dto.ProveedorId,
-            TecnicoResponsable = dto.TecnicoResponsable?.Trim(),
+            TecnicoResponsable = dto.TecnicoResponsable?.Trim() ?? string.Empty,
             Costo = dto.Costo,
             Descripcion = dto.Descripcion.Trim(),
             FechaProgramada = dto.FechaProgramada,
             Estado = "programado",
-            CreadoEn = DateTime.UtcNow
+            ChecklistCompletado = "[]",
+            CreadoEn = DateTime.UtcNow,
+            ActualizadoEn = DateTime.UtcNow
         };
 
         // Si se indicó cambiar estado del activo o si es correctivo urgente
@@ -213,7 +215,7 @@ public class MantenimientoService : IMantenimientoService
         _context.BitacoraAuditorias.Add(new BitacoraAuditoria
         {
             Id = Guid.NewGuid(),
-            UsuarioId = usuarioId,
+            UsuarioId = await ValidarUsuarioAuditIdAsync(usuarioId, ct),
             Origen = "humano",
             Accion = "CREAR_MANTENIMIENTO",
             Entidad = "Mantenimiento",
@@ -274,17 +276,18 @@ public class MantenimientoService : IMantenimientoService
 
         mantenimiento.Tipo = dto.Tipo.ToLower();
         mantenimiento.ProveedorId = dto.ProveedorId;
-        mantenimiento.TecnicoResponsable = dto.TecnicoResponsable?.Trim();
+        mantenimiento.TecnicoResponsable = dto.TecnicoResponsable?.Trim() ?? string.Empty;
         mantenimiento.Costo = dto.Costo;
         mantenimiento.Descripcion = dto.Descripcion.Trim();
         mantenimiento.FechaProgramada = dto.FechaProgramada;
         mantenimiento.FechaRealizada = dto.FechaRealizada;
         mantenimiento.Estado = dto.Estado.ToLower();
+        mantenimiento.ActualizadoEn = DateTime.UtcNow;
 
         _context.BitacoraAuditorias.Add(new BitacoraAuditoria
         {
             Id = Guid.NewGuid(),
-            UsuarioId = usuarioId,
+            UsuarioId = await ValidarUsuarioAuditIdAsync(usuarioId, ct),
             Origen = "humano",
             Accion = "ACTUALIZAR_MANTENIMIENTO",
             Entidad = "Mantenimiento",
@@ -333,6 +336,7 @@ public class MantenimientoService : IMantenimientoService
         mantenimiento.Estado = "completado";
         mantenimiento.FechaRealizada = dto.FechaRealizada;
         mantenimiento.Costo = dto.CostoFinal;
+        mantenimiento.ActualizadoEn = DateTime.UtcNow;
         if (!string.IsNullOrWhiteSpace(dto.TecnicoResponsable))
             mantenimiento.TecnicoResponsable = dto.TecnicoResponsable.Trim();
 
@@ -352,7 +356,7 @@ public class MantenimientoService : IMantenimientoService
         _context.BitacoraAuditorias.Add(new BitacoraAuditoria
         {
             Id = Guid.NewGuid(),
-            UsuarioId = usuarioId,
+            UsuarioId = await ValidarUsuarioAuditIdAsync(usuarioId, ct),
             Origen = "humano",
             Accion = "COMPLETAR_MANTENIMIENTO",
             Entidad = "Mantenimiento",
@@ -395,6 +399,7 @@ public class MantenimientoService : IMantenimientoService
             throw new InvalidOperationException("No se puede cancelar un mantenimiento que ya fue completado.");
 
         mantenimiento.Estado = "cancelado";
+        mantenimiento.ActualizadoEn = DateTime.UtcNow;
         mantenimiento.Descripcion = $"{mantenimiento.Descripcion} | Cancelado: {dto.Motivo.Trim()}";
 
         // Si el activo estaba en mantenimiento y se cancela, devolver a su estado anterior o disponible
@@ -408,7 +413,7 @@ public class MantenimientoService : IMantenimientoService
         _context.BitacoraAuditorias.Add(new BitacoraAuditoria
         {
             Id = Guid.NewGuid(),
-            UsuarioId = usuarioId,
+            UsuarioId = await ValidarUsuarioAuditIdAsync(usuarioId, ct),
             Origen = "humano",
             Accion = "CANCELAR_MANTENIMIENTO",
             Entidad = "Mantenimiento",
@@ -429,6 +434,15 @@ public class MantenimientoService : IMantenimientoService
 
         return await ObtenerPorIdAsync(mantenimiento.Id, ct)
                ?? throw new InvalidOperationException("No se pudo cargar el mantenimiento cancelado.");
+    }
+
+    private async Task<Guid?> ValidarUsuarioAuditIdAsync(Guid usuarioId, CancellationToken ct)
+    {
+        if (usuarioId == Guid.Empty || usuarioId == Guid.Parse("00000000-0000-0000-0000-000000000001"))
+            return null;
+
+        var existe = await _context.Perfiles.AnyAsync(p => p.Id == usuarioId, ct);
+        return existe ? usuarioId : null;
     }
 
     private static MantenimientoDto MapearDto(Mantenimiento m)
