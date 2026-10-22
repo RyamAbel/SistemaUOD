@@ -647,11 +647,11 @@ public class AssistantService : IAssistantService
                 "4. Selecciona el destino final (`descarte_ecologico`, `repuestos`, `reciclaje` o `donacion`).\n" +
                 "5. Al confirmar, el activo pasa al estado `dado_de_baja` y se emite de forma automática el **Acta Oficial de Descargo** con las cláusulas patrimoniales y las firmas colegiadas de TI, Auditoría Interna y Dirección Administrativa.",
 
-            "depreciacion" or "dgii" => 
-                "### Guía de Depreciación Fiscal DGII (Categoría 2)\n" +
-                "1. Los equipos de TI y computación de la UOD se amortizan bajo la normativa DGII Cat. 2 (25% anual, 48 meses de vida útil y 5% de valor residual).\n" +
-                "2. En **Activos Fijos**, haz clic en el icono de calculadora para ver la tabla de amortización proyectada de cualquier equipo.\n" +
-                "3. Puedes descargar el reporte fiscal general en formato CSV compatible con Excel pulsando **Reporte Fiscal DGII (CSV)** en el encabezado.",
+            "reportes" or "costos" => 
+                "### Guía de Reportes de Inventario y Almacén\n" +
+                "1. En **Reportes y Análisis**, puedes consultar la inversión total de adquisición de los activos registrados.\n" +
+                "2. Puedes filtrar por categoría tecnológica, estado operativo y ubicación física.\n" +
+                "3. Los reportes reflejan 100% los activos físicos reales de la base de datos.",
 
             _ => 
                 "### Guía General de SIIA (Universidad Odontológica Dominicana)\n" +

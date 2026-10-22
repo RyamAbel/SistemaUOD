@@ -68,8 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     consulta: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'reportes']
   };
 
-  const allowed = allowedTabsByRol[currentRol] || allowedTabsByRol['super_admin'];
-  const visibleMenuItems = menuItems.filter(item => allowed.includes(item.id));
+  // Roles desactivados temporalmente según alcance: acceso unificado para todo usuario registrado
+  // (allowedTabsByRol se preserva intacto para reactivación futura)
+  const visibleMenuItems = menuItems;
 
   return (
     <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between p-4 shadow-xs">

@@ -4,8 +4,11 @@
 ---
 
 ## 1. Qué es SIIA y para quién
-**SIIA** es una plataforma web moderna, segura e integral diseñada para centralizar el control de existencias, suministros consumibles y activos fijos institucionales (inicialmente para instituciones en República Dominicana y escalable a SaaS multi-tenant).
-Incorpora un **Asistente de IA** (basado en Gemini) capaz de responder consultas en lenguaje natural, fungir como tutor operativo del personal y proponer acciones de inventario (altas, traslados, salidas) que **siempre requieren confirmación explícita** del usuario antes de ejecutarse.
+**SIIA** es el sistema de inventario y almacén de la **Universidad Odontológica Dominicana (UOD)**. Maneja activos fijos institucionales (los 341 equipos tecnológicos físicos del levantamiento TI 2026) y los suministros consumibles del almacén.
+**Alcance estricto:** SIIA **NO** maneja procesos clínicos, cirugías ni odontología, ni libros, ni contabilidad, ni ventas.
+**Política de Roles:** Por ahora SIIA **no usa roles**: todos los usuarios registrados tienen el mismo acceso y no debe haber selectores, pantallas ni restricciones por rol. La lógica y modelos de roles preexistentes se dejan desactivados sin borrar su base para poder activarlos más adelante. Todo usuario registrado puede operar el inventario, manteniendo el registro inmutable en la bitácora de auditoría (quién hizo qué y cuándo).
+**Diseño:** Se debe leer `design-system/MASTER.md` antes de tocar cualquier pantalla.
+Incorpora un **Asistente de IA** (basado en Gemini) capaz de responder consultas con datos reales, fungir como tutor operativo del personal y proponer acciones de inventario (altas, traslados, salidas) que **siempre requieren confirmación explícita** del usuario antes de ejecutarse.
 
 ---
 
@@ -48,7 +51,7 @@ SistemaUOD/
 ---
 
 ## 4. Reglas de Oro del Proyecto
-1. **Seguridad y Permisos:** Todo endpoint valida el rol del usuario y deja registro inmutable en la bitácora de auditoría (cumplimiento Ley 172-13).
+1. **Seguridad y Auditoría:** Todo endpoint valida que el usuario esté autenticado y deja registro inmutable en la bitácora de auditoría con su identidad real (cumplimiento Ley 172-13). Las restricciones por rol permanecen desactivadas temporalmente para permitir acceso unificado a todo el personal autorizado.
 2. **Cero Secretos en Código:** Ninguna clave o credencial va al repositorio ni al chat; se gestionan exclusivamente en archivos `.env.local` / `appsettings.Development.json` locales ignorados por Git.
 3. **Evolución del Esquema:** Todo cambio en la base de datos se realiza mediante un archivo de migración SQL versionado en `database/migrations/`.
 4. **Gobierno de la IA:** Las acciones de escritura propuestas por la IA **nunca** se ejecutan automáticamente; requieren tarjeta interactiva con previsualización de impacto y confirmación explícita del usuario.

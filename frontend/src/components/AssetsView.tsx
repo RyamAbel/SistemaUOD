@@ -509,16 +509,6 @@ export const AssetsView: React.FC = () => {
                           <button
                             onClick={e => {
                               e.stopPropagation();
-                              setActivoParaDepreciacion(activo);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                            title="Calcular Depreciación y Valor en Libros (DGII)"
-                          >
-                            <Calculator className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
                               setActivoParaMantenimiento(activo);
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
@@ -794,16 +784,6 @@ export const AssetsView: React.FC = () => {
         <ActaEntregaModal
           acta={actaVisualizada}
           onClose={() => setActaVisualizada(null)}
-        />
-      )}
-
-      {/* Modal de Depreciación y Valor en Libros DGII Cat. 2 */}
-      {activoParaDepreciacion && (
-        <DepreciationModal
-          isOpen={!!activoParaDepreciacion}
-          onClose={() => setActivoParaDepreciacion(null)}
-          activoId={activoParaDepreciacion.id}
-          placaInstitucional={activoParaDepreciacion.placa_institucional}
         />
       )}
 

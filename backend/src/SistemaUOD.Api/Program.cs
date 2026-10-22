@@ -58,20 +58,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// 3. Políticas de Autorización Basadas en Roles
+// 3. Políticas de Autorización (Roles desactivados temporalmente según alcance: acceso unificado para todo usuario registrado)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(Policies.ExigirSuperAdmin, policy =>
-        policy.RequireRole(RolesUsuario.SuperAdmin));
+        policy.RequireAuthenticatedUser());
 
     options.AddPolicy(Policies.ExigirGestionInventario, policy =>
-        policy.RequireRole(Policies.RolesGestionInventario));
+        policy.RequireAuthenticatedUser());
 
     options.AddPolicy(Policies.ExigirOperacionAlmacen, policy =>
-        policy.RequireRole(Policies.RolesOperacionAlmacen));
+        policy.RequireAuthenticatedUser());
 
     options.AddPolicy(Policies.ExigirAuditoria, policy =>
-        policy.RequireRole(Policies.RolesAuditoria));
+        policy.RequireAuthenticatedUser());
 
     options.AddPolicy(Policies.ExigirUsuarioActivo, policy =>
         policy.RequireAuthenticatedUser());

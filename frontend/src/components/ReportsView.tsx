@@ -262,22 +262,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
           </p>
         </div>
 
-        {/* Card 2: Valor Patrimonial Neto DGII */}
+        {/* Card 2: Costo de Adquisición Total */}
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs text-[#2D8246] mb-1 font-bold">
             <span className="flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5 text-[#3DAA5C]" />
-              Valor Neto en Libros
+              Costo de Adquisición Total
             </span>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-[#2D8246] font-bold">
-              DGII Cat. 2
+              Activos TI
             </span>
           </div>
-          <div className="text-xl font-extrabold text-slate-900 mt-1 truncate" title={formatearDop(resumen?.valorNetoEnLibrosDop ?? 0)}>
-            {resumen ? formatearDop(resumen.valorNetoEnLibrosDop) : 'RD$ 6,225,000.00'}
+          <div className="text-xl font-extrabold text-slate-900 mt-1 truncate" title={formatearDop(resumen?.valorPatrimonialHistoricoDop ?? 0)}>
+            {resumen ? formatearDop(resumen.valorPatrimonialHistoricoDop) : 'RD$ 12,450,000.00'}
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center justify-between">
-            <span>Histórico: {resumen ? formatearDop(resumen.valorPatrimonialHistoricoDop) : 'RD$ 12,450,000'}</span>
+            <span>Inversión total registrada en equipos físicos</span>
           </p>
         </div>
 
@@ -421,20 +421,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
                   <div className="text-[10px] text-slate-400 mt-1">Costo base sin amortización</div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200">
-                  <div className="text-[11px] font-semibold text-amber-800">Depreciación Acumulada</div>
-                  <div className="text-base font-extrabold text-amber-900 mt-1 font-mono">
-                    {resumen ? formatearDop(resumen.depreciacionAcumuladaDop) : 'RD$ 0.00'}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] font-semibold text-slate-700">Equipos con Costo</div>
+                  <div className="text-base font-extrabold text-slate-900 mt-1 font-mono">
+                    {resumen?.totalActivosFisicos ?? 341}
                   </div>
-                  <div className="text-[10px] text-amber-700 mt-1">25% anual en línea recta</div>
+                  <div className="text-[10px] text-slate-500 mt-1">100% inventariados en TI</div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
-                  <div className="text-[11px] font-semibold text-[#2D8246]">Valor Neto en Libros</div>
+                  <div className="text-[11px] font-semibold text-[#2D8246]">Inversión Total Activa</div>
                   <div className="text-base font-extrabold text-[#1C3177] mt-1 font-mono">
-                    {resumen ? formatearDop(resumen.valorNetoEnLibrosDop) : 'RD$ 0.00'}
+                    {resumen ? formatearDop(resumen.valorPatrimonialHistoricoDop) : 'RD$ 0.00'}
                   </div>
-                  <div className="text-[10px] text-[#2D8246] mt-1">Costo neto menos amortización</div>
+                  <div className="text-[10px] text-[#2D8246] mt-1">Costo de adquisición acumulado</div>
                 </div>
               </div>
 
