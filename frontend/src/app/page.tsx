@@ -20,6 +20,7 @@ import { ResourceDetailModal } from '@/components/ResourceDetailModal';
 import { AssetsView } from '@/components/AssetsView';
 import { PhysicalAuditView } from '@/components/PhysicalAuditView';
 import { AlertsView } from '@/components/AlertsView';
+import { EditProfileModal } from '@/components/EditProfileModal';
 import {
   initialArticulos,
   initialMovimientos,
@@ -33,6 +34,7 @@ export default function Home() {
   const [demoMode, setDemoMode] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [aiOpen, setAiOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [articulos, setArticulos] = useState<ArticuloItem[]>(initialArticulos);
   const [movimientos, setMovimientos] = useState<MovimientoItem[]>(initialMovimientos);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -153,6 +155,8 @@ export default function Home() {
         alertCount={systemAlertCount}
         onOpenScanner={() => setScannerOpen(true)}
         onNavigateToAlerts={() => setActiveTab('alertas')}
+        onOpenProfile={() => setEditProfileOpen(true)}
+        onNavigateToSettings={() => setActiveTab('configuracion')}
       />
 
       {/* Main Workspace Layout */}
@@ -265,6 +269,13 @@ export default function Home() {
           setScannedDetailOpen(false);
           setScannedResourceId(null);
         }}
+      />
+
+      {/* Modal Editar Perfil (Idea 8) */}
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        onProfileUpdated={(msg) => triggerToast(msg)}
       />
     </div>
   );

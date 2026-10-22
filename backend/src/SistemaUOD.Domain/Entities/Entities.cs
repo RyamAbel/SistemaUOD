@@ -6,8 +6,10 @@ public class Perfil
     public string Correo { get; set; } = string.Empty;
     public string NombreCompleto { get; set; } = string.Empty;
     public string Rol { get; set; } = "consulta";
+    public string? Cargo { get; set; }
     public string? Departamento { get; set; }
     public string? Telefono { get; set; }
+    public string? AvatarUrl { get; set; }
     public bool Activo { get; set; } = true;
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;

@@ -15,8 +15,10 @@ export interface PerfilUsuario {
   correo: string;
   nombreCompleto: string;
   rol: string;
+  cargo?: string | null;
   departamento?: string | null;
   telefono?: string | null;
+  avatarUrl?: string | null;
   activo: boolean;
   creadoEn: string;
   actualizadoEn: string;
@@ -906,6 +908,45 @@ export const apiClient = {
   // Endpoints específicos del Dominio
   getMiPerfil: async (): Promise<PerfilUsuario> => {
     return request<PerfilUsuario>('me');
+  },
+
+  actualizarMiPerfil: async (datos: {
+    nombreCompleto: string;
+    cargo?: string | null;
+    departamento?: string | null;
+    telefono?: string | null;
+    avatarUrl?: string | null;
+  }): Promise<PerfilUsuario> => {
+    return request<PerfilUsuario>('me', {
+      method: 'PUT',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  subirAvatarPerfil: async (file: File): Promise<PerfilUsuario> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}/me/avatar`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(errJson?.detail || 'Error al subir la fotografía de perfil');
+    }
+    return res.json();
+  },
+
+  eliminarAvatarPerfil: async (): Promise<{ mensaje: string }> => {
+    return request<{ mensaje: string }>('me/avatar', {
+      method: 'DELETE'
+    });
   },
 
   checkHealth: async () => {

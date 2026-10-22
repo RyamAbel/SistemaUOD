@@ -54,8 +54,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Correo).HasColumnName("correo").IsRequired();
             entity.Property(e => e.NombreCompleto).HasColumnName("nombre_completo").IsRequired();
             entity.Property(e => e.Rol).HasColumnName("rol").HasColumnType("rol_usuario").IsRequired();
+            entity.Property(e => e.Cargo).HasColumnName("cargo");
             entity.Property(e => e.Departamento).HasColumnName("departamento");
             entity.Property(e => e.Telefono).HasColumnName("telefono");
+            entity.Property(e => e.AvatarUrl).HasColumnName("avatar_url");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true);
             entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
             entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");

@@ -27,6 +27,8 @@ interface NavbarProps {
   alertCount?: number;
   onOpenScanner?: () => void;
   onNavigateToAlerts?: () => void;
+  onOpenProfile?: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,7 +36,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   aiOpen,
   alertCount: propAlertCount,
   onOpenScanner,
-  onNavigateToAlerts
+  onNavigateToAlerts,
+  onOpenProfile,
+  onNavigateToSettings
 }) => {
   const { user, perfil, rol, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -47,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const displayName = perfil?.nombreCompleto || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Personal UOD';
   const displayRol = (perfil?.rol || rol || 'consulta').replace('_', ' ').toUpperCase();
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const avatarUrl = perfil?.avatarUrl || user?.user_metadata?.avatar_url;
   const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
 
   // Carga de alertas reales desde la API
@@ -291,18 +295,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
               <div className="py-1.5">
-                {[
-                  { icon: User, label: 'Mi perfil', color: 'text-slate-600' },
-                  { icon: Settings, label: 'Configuración', color: 'text-slate-600' },
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <button key={i} className="flex w-full items-center gap-3 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                      <Icon className={`h-3.5 w-3.5 ${item.color}`} />
-                      {item.label}
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onOpenProfile?.();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  <User className="h-3.5 w-3.5 text-[#1C3177]" />
+                  <span>Mi perfil</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onNavigateToSettings?.();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  <Settings className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Configuración</span>
+                </button>
               </div>
               <div className="border-t border-slate-100 py-1.5">
                 <button
