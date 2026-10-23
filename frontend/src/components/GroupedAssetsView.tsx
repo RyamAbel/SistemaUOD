@@ -255,8 +255,8 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
   // Ordenamiento de grupos
   const [sortGroupOption, setSortGroupOption] = useState<'cantidad_desc' | 'cantidad_asc' | 'nombre_asc' | 'nombre_desc'>('cantidad_desc');
 
-  // Estado de acordeones expandidos (por defecto, los 3 grupos principales abiertos)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['LAPTOP', 'CPU', 'UPS', 'BOCINAS']));
+  // Estado de acordeones expandidos (por defecto, todos los grupos cerrados hasta que el usuario seleccione uno)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // Estado copiado para número de serie
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
@@ -570,17 +570,17 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
               <button
                 type="button"
                 onClick={handleExpandAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all"
+                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all cursor-pointer"
               >
-                Expandir todos
+                Expandir todo
               </button>
               <span className="text-slate-300">|</span>
               <button
                 type="button"
                 onClick={handleCollapseAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all"
+                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all cursor-pointer"
               >
-                Colapsar todos
+                Contraer todo
               </button>
             </div>
           </div>
@@ -660,8 +660,17 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
               >
                 {/* Cabecera del Grupo (Accordion Trigger) */}
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
                   onClick={() => toggleGroup(grupo.config.key)}
-                  className={`p-4 cursor-pointer select-none transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleGroup(grupo.config.key);
+                    }
+                  }}
+                  className={`p-4 cursor-pointer select-none transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1C3177] ${
                     isExpanded ? 'bg-slate-50/70 border-b border-slate-200/70' : 'hover:bg-slate-50/40'
                   }`}
                 >
