@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import { apiClient, PerfilUsuario } from '@/lib/apiClient';
+import { useTheme } from '@/context/ThemeContext';
 
 interface AuthContextType {
   user: User | null;
@@ -39,12 +40,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const { syncFromPerfil } = useTheme();
 
   const fetchProfileFromApi = useCallback(async (activeSession: Session) => {
     try {
       const p = await apiClient.getMiPerfil();
       setPerfil(p);
       setAuthError(null);
+      if (p.preferencias) {
+        syncFromPerfil(p.preferencias);
+      }
     } catch (err: any) {
       // Si la API responde 403 Forbidden: usuario no invitado o desactivado
       if (err.status === 403) {
@@ -147,7 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPerfil(null);
       setAuthError(null);
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        // Limpiar tokens de autenticación sin destruir preferencias de UI
+        const keysToRemove = Object.keys(localStorage).filter(
+          k => k.startsWith('sb-') || k.includes('token') || k.includes('auth')
+        );
+        keysToRemove.forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
         window.location.replace('/');
       }

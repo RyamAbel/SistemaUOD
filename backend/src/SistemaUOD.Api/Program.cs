@@ -247,7 +247,8 @@ using (var scope = app.Services.CreateScope())
         cmd.CommandText = @"
             ALTER TABLE public.perfiles 
                 ADD COLUMN IF NOT EXISTS cargo TEXT,
-                ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+                ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+                ADD COLUMN IF NOT EXISTS preferencias TEXT;
 
             ALTER TABLE public.activos_serie
                 ADD COLUMN IF NOT EXISTS costo_adquisicion NUMERIC(14,2) DEFAULT 0.00,

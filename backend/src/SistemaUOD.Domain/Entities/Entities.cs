@@ -10,6 +10,7 @@ public class Perfil
     public string? Departamento { get; set; }
     public string? Telefono { get; set; }
     public string? AvatarUrl { get; set; }
+    public string? Preferencias { get; set; }
     public bool Activo { get; set; } = true;
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;

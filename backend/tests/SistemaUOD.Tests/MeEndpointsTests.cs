@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SistemaUOD.Application.DTOs;
 using SistemaUOD.Domain.Entities;
+using SistemaUOD.Domain.Enums;
 using SistemaUOD.Infrastructure.Data;
 using Xunit;
 
@@ -179,5 +180,51 @@ public class MeEndpointsTests : IClassFixture<CustomWebApplicationFactory>
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ActualizarPreferencias_Retorna200Ok_Y_GuardaEnPerfil()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var client = _factory.CreateClient();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Perfiles.Add(new Perfil
+            {
+                Id = userId,
+                Correo = "preferencias.test@uod.edu.do",
+                NombreCompleto = "Tester Preferencias",
+                Rol = RolesUsuario.SuperAdmin,
+                Activo = true
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Put, "/api/v1/me/preferencias");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "valid-test-token");
+        request.Headers.Add("X-Test-UserId", userId.ToString());
+        request.Content = JsonContent.Create(new ActualizarPreferenciasDto
+        {
+            Preferencias = "{\"tema\":\"dark\",\"tableDensity\":\"compacta\"}"
+        });
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Verificar que GET /api/v1/me devuelve las preferencias guardadas
+        var getReq = new HttpRequestMessage(HttpMethod.Get, "/api/v1/me");
+        getReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "valid-test-token");
+        getReq.Headers.Add("X-Test-UserId", userId.ToString());
+        var getResp = await client.SendAsync(getReq);
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+        var perfil = await getResp.Content.ReadFromJsonAsync<PerfilDto>();
+        Assert.NotNull(perfil);
+        Assert.Contains("\"tema\":\"dark\"", perfil.Preferencias);
     }
 }

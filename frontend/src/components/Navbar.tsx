@@ -19,6 +19,7 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { apiClient, AlertaDto } from '@/lib/apiClient';
 
 interface NavbarProps {
@@ -84,7 +85,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const totalCount = liveCount !== null ? liveCount : (propAlertCount ?? 0);
+  const { notifPreferences } = useTheme();
+  const rawCount = liveCount !== null ? liveCount : (propAlertCount ?? 0);
+  const totalCount = notifPreferences.canalPantalla ? rawCount : 0;
 
 
   return (

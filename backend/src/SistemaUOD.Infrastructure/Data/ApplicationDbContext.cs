@@ -58,6 +58,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Departamento).HasColumnName("departamento");
             entity.Property(e => e.Telefono).HasColumnName("telefono");
             entity.Property(e => e.AvatarUrl).HasColumnName("avatar_url");
+            entity.Property(e => e.Preferencias).HasColumnName("preferencias");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true);
             entity.Property(e => e.CreadoEn).HasColumnName("creado_en");
             entity.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en");

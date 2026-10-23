@@ -19,6 +19,7 @@ export interface PerfilUsuario {
   departamento?: string | null;
   telefono?: string | null;
   avatarUrl?: string | null;
+  preferencias?: string | null;
   activo: boolean;
   creadoEn: string;
   actualizadoEn: string;
@@ -989,6 +990,14 @@ export const apiClient = {
   eliminarAvatarPerfil: async (): Promise<{ mensaje: string }> => {
     return request<{ mensaje: string }>('me/avatar', {
       method: 'DELETE'
+    });
+  },
+
+  guardarPreferencias: async (preferencias: any): Promise<{ mensaje: string; preferencias: string }> => {
+    const prefStr = typeof preferencias === 'string' ? preferencias : JSON.stringify(preferencias);
+    return request<{ mensaje: string; preferencias: string }>('me/preferencias', {
+      method: 'PUT',
+      body: JSON.stringify({ preferencias: prefStr })
     });
   },
 

@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 /* ── Tokens UOD Institucionales ──────────────────────────────── */
@@ -198,3 +198,104 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Densidad de Tablas y Listados ──────────────────────────── */
+[data-density="compacta"] table th {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  padding-left: 0.65rem !important;
+  padding-right: 0.65rem !important;
+  font-size: 0.7rem !important;
+}
+
+[data-density="compacta"] table td {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  padding-left: 0.65rem !important;
+  padding-right: 0.65rem !important;
+  font-size: 0.75rem !important;
+}
+
+[data-density="compacta"] tr {
+  height: 2.25rem !important;
+}
+
+[data-density="comoda"] table th {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  font-size: 0.75rem !important;
+}
+
+[data-density="comoda"] table td {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  font-size: 0.8rem !important;
+}
+
+/* ── Reglas Globales de Modo Oscuro Institucional UOD ─────────── */
+[data-theme="dark"] body {
+  background-color: #0D1B2A !important;
+  color: #F0F4FF !important;
+}
+
+[data-theme="dark"] .bg-white {
+  background-color: #112240 !important;
+  color: #F0F4FF !important;
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-50\/50,
+[data-theme="dark"] .bg-slate-50\/40,
+[data-theme="dark"] .bg-slate-100 {
+  background-color: #1A3356 !important;
+  color: #F0F4FF !important;
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700 {
+  color: #F0F4FF !important;
+}
+
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500 {
+  color: #A8B8D8 !important;
+}
+
+[data-theme="dark"] .text-slate-400 {
+  color: #8A9AB8 !important;
+}
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-200\/80,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-300 {
+  border-color: #1E3A6E !important;
+}
+
+[data-theme="dark"] .bg-navbar {
+  background-color: #112240 !important;
+  border-bottom-color: #1E3A6E !important;
+}
+
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: #1A3356 !important;
+  color: #F0F4FF !important;
+  border-color: #1E3A6E !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #8A9AB8 !important;
+}
+
+[data-theme="dark"] .table-row-hover:hover {
+  background-color: #1A3356 !important;
+}
+

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { apiClient } from '@/lib/apiClient';
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 export type TableDensity = 'comoda' | 'compacta';
@@ -22,6 +23,7 @@ interface ThemeContextType {
   setTableDensity: (density: TableDensity) => void;
   notifPreferences: NotificationPreferences;
   updateNotifPreferences: (prefs: Partial<NotificationPreferences>) => void;
+  syncFromPerfil: (preferenciasJson: string | null | undefined) => void;
 }
 
 const defaultNotifPreferences: NotificationPreferences = {
@@ -40,7 +42,8 @@ const ThemeContext = createContext<ThemeContextType>({
   tableDensity: 'comoda',
   setTableDensity: () => {},
   notifPreferences: defaultNotifPreferences,
-  updateNotifPreferences: () => {}
+  updateNotifPreferences: () => {},
+  syncFromPerfil: () => {}
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -107,6 +110,55 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     document.documentElement.setAttribute('data-density', tableDensity);
   }, [tableDensity]);
 
+  // Sincronización en segundo plano con el backend
+  const syncToBackend = useCallback((newTheme: ThemeMode, newDensity: TableDensity, newNotifs: NotificationPreferences) => {
+    try {
+      const payload = {
+        tema: newTheme,
+        tableDensity: newDensity,
+        notifPreferences: newNotifs
+      };
+      apiClient.guardarPreferencias(payload).catch((err) => {
+        // En offline o no auth, se mantiene localStorage
+        console.debug('Aviso al guardar preferencias en API:', err);
+      });
+    } catch (e) {
+      // Ignorar errores no bloqueantes
+    }
+  }, []);
+
+  // Sincronización desde el perfil del usuario autenticado al iniciar sesión
+  const syncFromPerfil = useCallback((preferenciasJson: string | null | undefined) => {
+    if (!preferenciasJson) return;
+    try {
+      const parsed = typeof preferenciasJson === 'string' ? JSON.parse(preferenciasJson) : preferenciasJson;
+      if (parsed.tema && (parsed.tema === 'light' || parsed.tema === 'dark' || parsed.tema === 'auto')) {
+        setThemeState(parsed.tema);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('siia_theme', parsed.tema);
+        }
+        applyTheme(parsed.tema);
+      }
+      if (parsed.tableDensity && (parsed.tableDensity === 'comoda' || parsed.tableDensity === 'compacta')) {
+        setTableDensityState(parsed.tableDensity);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('siia_table_density', parsed.tableDensity);
+        }
+      }
+      if (parsed.notifPreferences) {
+        setNotifPreferences((prev) => {
+          const merged = { ...prev, ...parsed.notifPreferences };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('siia_notif_prefs', JSON.stringify(merged));
+          }
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Error al parsear preferencias desde perfil:', err);
+    }
+  }, [applyTheme]);
+
   // Manejador para cambiar tema
   const setTheme = (mode: ThemeMode) => {
     setThemeState(mode);
@@ -114,6 +166,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('siia_theme', mode);
     }
     applyTheme(mode);
+    syncToBackend(mode, tableDensity, notifPreferences);
   };
 
   // Manejador para cambiar densidad de tablas
@@ -122,6 +175,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (typeof window !== 'undefined') {
       localStorage.setItem('siia_table_density', density);
     }
+    syncToBackend(theme, density, notifPreferences);
   };
 
   // Manejador para actualizar preferencias de notificación
@@ -131,6 +185,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (typeof window !== 'undefined') {
         localStorage.setItem('siia_notif_prefs', JSON.stringify(updated));
       }
+      syncToBackend(theme, tableDensity, updated);
       return updated;
     });
   };
@@ -144,7 +199,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         tableDensity,
         setTableDensity,
         notifPreferences,
-        updateNotifPreferences
+        updateNotifPreferences,
+        syncFromPerfil
       }}
     >
       {children}

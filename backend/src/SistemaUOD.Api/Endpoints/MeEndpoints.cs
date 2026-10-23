@@ -84,6 +84,7 @@ public static class MeEndpoints
                 Departamento = perfil.Departamento,
                 Telefono = perfil.Telefono,
                 AvatarUrl = perfil.AvatarUrl,
+                Preferencias = perfil.Preferencias,
                 Activo = perfil.Activo,
                 CreadoEn = perfil.CreadoEn,
                 ActualizadoEn = perfil.ActualizadoEn,
@@ -189,6 +190,7 @@ public static class MeEndpoints
                 Departamento = perfil.Departamento,
                 Telefono = perfil.Telefono,
                 AvatarUrl = perfil.AvatarUrl,
+                Preferencias = perfil.Preferencias,
                 Activo = perfil.Activo,
                 CreadoEn = perfil.CreadoEn,
                 ActualizadoEn = perfil.ActualizadoEn,
@@ -277,7 +279,6 @@ public static class MeEndpoints
                 var rutaDestino = $"avatars/{perfil.Id}_{DateTime.UtcNow.Ticks}{extensionReal}";
                 avatarUrl = await storageService.SubirArchivoAsync(BucketAvatars, rutaDestino, stream, mimeReal, ct);
 
-                // Si storage devuelve URL relativa o privada, obtener signed url o usar storage
                 var signedUrl = await storageService.ObtenerUrlFirmadaAsync(BucketAvatars, rutaDestino, TimeSpan.FromDays(365), ct);
                 if (!string.IsNullOrWhiteSpace(signedUrl))
                 {
@@ -286,7 +287,6 @@ public static class MeEndpoints
             }
             catch
             {
-                // Fallback seguro (desarrollo o storage local): convertir a data URL Base64
                 stream.Position = 0;
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream, ct);
@@ -321,6 +321,7 @@ public static class MeEndpoints
                 Departamento = perfil.Departamento,
                 Telefono = perfil.Telefono,
                 AvatarUrl = perfil.AvatarUrl,
+                Preferencias = perfil.Preferencias,
                 Activo = perfil.Activo,
                 CreadoEn = perfil.CreadoEn,
                 ActualizadoEn = perfil.ActualizadoEn,
@@ -377,6 +378,78 @@ public static class MeEndpoints
         })
         .WithName("EliminarAvatarPerfil")
         .WithSummary("Elimina la foto de perfil del usuario autenticado");
+
+        // 5. Guardar preferencias de usuario (Tema, Densidad, Alertas)
+        group.MapPut("/preferencias", async (
+            ActualizarPreferenciasDto request,
+            ICurrentUserService currentUser,
+            IApplicationDbContext dbContext,
+            IHostEnvironment env,
+            CancellationToken ct) =>
+        {
+            var userId = currentUser.UserId;
+            if (userId == null)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "No autenticado",
+                    detail: "El token JWT provisto no contiene un identificador de usuario válido.");
+            }
+
+            var perfil = await dbContext.Perfiles.FirstOrDefaultAsync(p => p.Id == userId.Value, ct);
+            if (perfil == null)
+            {
+                if (env.IsDevelopment() && userId == Guid.Parse("00000000-0000-0000-0000-000000000001"))
+                {
+                    perfil = new Perfil
+                    {
+                        Id = userId.Value,
+                        Correo = "admin@uod.edu.do",
+                        NombreCompleto = "Administrador UOD",
+                        Rol = RolesUsuario.SuperAdmin,
+                        Preferencias = request.Preferencias,
+                        Activo = true,
+                        CreadoEn = DateTime.UtcNow,
+                        ActualizadoEn = DateTime.UtcNow
+                    };
+                    dbContext.Perfiles.Add(perfil);
+                }
+                else
+                {
+                    return Results.Problem(
+                        statusCode: StatusCodes.Status404NotFound,
+                        title: "Perfil no encontrado",
+                        detail: "No se encontró el registro de perfil correspondiente al usuario.");
+                }
+            }
+            else
+            {
+                perfil.Preferencias = request.Preferencias;
+                perfil.ActualizadoEn = DateTime.UtcNow;
+            }
+
+            dbContext.BitacoraAuditorias.Add(new BitacoraAuditoria
+            {
+                Id = Guid.NewGuid(),
+                UsuarioId = perfil.Id,
+                Origen = "humano",
+                Accion = "UPDATE",
+                Entidad = "perfiles",
+                RegistroId = perfil.Id.ToString(),
+                ValoresNuevos = System.Text.Json.JsonSerializer.Serialize(new { Accion = "ACTUALIZAR_PREFERENCIAS", request.Preferencias }),
+                CreadoEn = DateTime.UtcNow
+            });
+
+            await dbContext.SaveChangesAsync(ct);
+
+            return Results.Ok(new
+            {
+                mensaje = "Preferencias guardadas exitosamente",
+                preferencias = perfil.Preferencias
+            });
+        })
+        .WithName("ActualizarPreferencias")
+        .WithSummary("Actualiza las preferencias de interfaz y notificaciones del usuario autenticado");
 
         return app;
     }
