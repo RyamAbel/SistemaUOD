@@ -10,6 +10,15 @@
 **Diseño:** Se debe leer `design-system/MASTER.md` antes de tocar cualquier pantalla.
 Incorpora un **Asistente de IA** (basado en Gemini) capaz de responder consultas con datos reales, fungir como tutor operativo del personal y proponer acciones de inventario (altas, traslados, salidas) que **siempre requieren confirmación explícita** del usuario antes de ejecutarse.
 
+### 1.1 Reglas de Cierre Final del Proyecto (No Negociables)
+1. **Sin datos de prueba ni inventados:** Solo existe lo que está en el Excel original (`Datos/ACTIVOS 2026 TECNOLOGIA.xlsx` / `docs/datos-originales`). Si algo no está en el Excel, no existe en el sistema.
+2. **Todo funcional y conectado:** Lo que se crea o cambia en un lugar se ve en todas las pantallas, reportes, alertas y en las respuestas del Asistente de IA.
+3. **Sin funciones repetidas:** Cada función vive en una sola sección conforme al mapa aprobado; en las demás, a lo sumo, hay un enlace directo de navegación.
+4. **Nada decorativo ni innecesario:** Si una opción, botón, pantalla o tarjeta no hace nada útil o no puede tener efecto real, se elimina.
+5. **Sin fallos:** Cada cambio se prueba antes de darlo por bueno, y las pruebas no dejan datos residuales en base de datos.
+6. **Sin roles por ahora:** Todos los usuarios registrados tienen el mismo acceso unificado.
+7. **Copia de seguridad antes de borrar:** Todo borrado es reversible, se respalda previamente y se muestra para confirmación explícita del usuario.
+
 ---
 
 ## 2. Decisiones Técnicas Aprobadas
