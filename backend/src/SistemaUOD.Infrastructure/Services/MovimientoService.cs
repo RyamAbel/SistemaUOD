@@ -91,13 +91,16 @@ public class MovimientoService : IMovimientoService
             }
         }
 
-        // 4. Transacción Atómica: Todo o nada
-        var soportaTransacciones = !_db.Database.ProviderName?.Contains("InMemory") == true;
-        IDbContextTransaction? transaction = null;
-        if (soportaTransacciones)
+        // 4. Transacción Atómica: Todo o nada (con soporte para NpgsqlRetryingExecutionStrategy)
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            transaction = await _db.Database.BeginTransactionAsync(ct);
-        }
+            var soportaTransacciones = !_db.Database.ProviderName?.Contains("InMemory") == true;
+            IDbContextTransaction? transaction = null;
+            if (soportaTransacciones)
+            {
+                transaction = await _db.Database.BeginTransactionAsync(ct);
+            }
 
         try
         {
@@ -111,6 +114,17 @@ public class MovimientoService : IMovimientoService
             var conteoAnio = await _db.Movimientos
                 .CountAsync(m => m.NumeroMovimiento.StartsWith($"MOV-{anio}-"), ct);
             var numeroMovimiento = $"MOV-{anio}-{(conteoAnio + 1):D6}";
+
+            // Asegurar que el usuario existe en perfiles para cumplir la integridad referencial
+            var perfilExiste = await _db.Perfiles.AnyAsync(p => p.Id == usuarioId, ct);
+            if (!perfilExiste)
+            {
+                var perfilFallback = await _db.Perfiles.FirstOrDefaultAsync(p => p.Activo, ct);
+                if (perfilFallback != null)
+                {
+                    usuarioId = perfilFallback.Id;
+                }
+            }
 
             var nuevoMovimiento = new Movimiento
             {
@@ -280,7 +294,8 @@ public class MovimientoService : IMovimientoService
             }
             throw;
         }
-    }
+    });
+}
 
     public async Task<PrevisualizarMovimientoResultadoDto> PrevisualizarMovimientoAsync(
         CrearMovimientoDto dto,

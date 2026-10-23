@@ -678,7 +678,19 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
         }
       }
 
-      // 2. Registrar el movimiento en la API
+      // 2. Resolver proveedor si el usuario escribió un nombre o seleccionó de la lista
+      let provIdFinal = proveedorId || null;
+      if (!provIdFinal && proveedorNombre.trim()) {
+        const provMatch = proveedores.find(
+          p => p.nombreComercial?.toLowerCase() === proveedorNombre.trim().toLowerCase() ||
+               p.razonSocial?.toLowerCase() === proveedorNombre.trim().toLowerCase()
+        );
+        if (provMatch) {
+          provIdFinal = provMatch.id;
+        }
+      }
+
+      // Registrar el movimiento en la API
       const payload: CrearMovimientoDto = {
         tipo,
         origenUbicacionId: origenUbicacionId ? origenUbicacionId : null,
@@ -687,7 +699,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
         comprobanteUrl: comprobanteUrl ? comprobanteUrl.trim() : null,
         numeroFactura: numeroFactura.trim() || null,
         facturaUrl: facturaPreviewUrl || null,
-        proveedorId: proveedorId || null,
+        proveedorId: provIdFinal,
         proveedorNombre: proveedorNombre.trim() || null,
         fechaMovimiento: fechaMovimiento ? new Date(fechaMovimiento).toISOString() : null,
         idempotenciaKey: `MOV-REQ-${Date.now()}`,
@@ -698,7 +710,8 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
       setMovimientoExitoso(nuevoMov);
       showToast(`Movimiento ${nuevoMov.numeroMovimiento} registrado exitosamente.`);
     } catch (err: any) {
-      showToast(err.message || 'Error al ejecutar movimiento transaccional');
+      console.error('Error al registrar movimiento:', err);
+      showToast(err.problem?.detail || err.message || 'Error al ejecutar movimiento transaccional');
     } finally {
       setGuardando(false);
     }

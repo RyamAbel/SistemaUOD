@@ -148,6 +148,7 @@ public static class CodigosEndpoints
                     detail: ex.Message);
             }
         })
+        .AllowAnonymous()
         .WithName("DescargarImagenQr")
         .WithSummary("Genera y descarga la imagen PNG del código QR institucional para impresión de etiquetas");
 

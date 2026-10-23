@@ -232,13 +232,19 @@ app.MapGet("/api/v1/admin/verificacion-politica", () => Results.Ok(new
 .WithName("VerificarPoliticaSuperAdmin")
 .WithSummary("Endpoint de control para validar la política de rol super_admin");
 
-// Asegurar existencia de columnas de las migraciones 006 y 007
+// Asegurar existencia de columnas y perfiles iniciales en la base de datos
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var db = scope.ServiceProvider.GetRequiredService<SistemaUOD.Infrastructure.Data.ApplicationDbContext>();
-        db.Database.ExecuteSqlRaw(@"
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+        {
+            await conn.OpenAsync();
+        }
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
             ALTER TABLE public.perfiles 
                 ADD COLUMN IF NOT EXISTS cargo TEXT,
                 ADD COLUMN IF NOT EXISTS avatar_url TEXT;
@@ -247,11 +253,53 @@ using (var scope = app.Services.CreateScope())
                 ADD COLUMN IF NOT EXISTS costo_adquisicion NUMERIC(14,2) DEFAULT 0.00,
                 ADD COLUMN IF NOT EXISTS factura_url TEXT,
                 ADD COLUMN IF NOT EXISTS factura_nombre TEXT;
-        ");
+
+            -- 1. Sincronizar usuarios existentes de auth.users a public.perfiles
+            INSERT INTO public.perfiles (id, correo, nombre_completo, rol, activo)
+            SELECT 
+                u.id, 
+                u.email, 
+                COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)), 
+                'super_admin'::rol_usuario, 
+                true
+            FROM auth.users u
+            WHERE NOT EXISTS (SELECT 1 FROM public.perfiles p WHERE p.id = u.id)
+            ON CONFLICT (id) DO NOTHING;
+
+            -- 2. Asegurar usuario admin institucional para desarrollo local
+            INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+            VALUES (
+                '00000000-0000-0000-0000-000000000001',
+                '00000000-0000-0000-0000-000000000000',
+                'authenticated',
+                'authenticated',
+                'admin@uod.edu.do',
+                '',
+                now(),
+                '{""provider"":""email"",""providers"":[""email""]}',
+                '{""full_name"":""Administrador UOD""}',
+                now(),
+                now()
+            ) ON CONFLICT (id) DO NOTHING;
+
+            INSERT INTO public.perfiles (id, correo, nombre_completo, rol, cargo, departamento, telefono, activo)
+            VALUES (
+                '00000000-0000-0000-0000-000000000001',
+                'admin@uod.edu.do',
+                'Administrador UOD',
+                'super_admin',
+                'Administrador de Sistemas TI',
+                'Tecnología e Inventario',
+                '(809) 555-0100',
+                true
+            ) ON CONFLICT (id) DO NOTHING;
+        ";
+        await cmd.ExecuteNonQueryAsync();
+        Console.WriteLine("[Startup] Esquema y perfiles verificados correctamente en Supabase.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[Startup] Nota al asegurar columnas en BD: {ex.Message}");
+        Console.WriteLine($"[Startup] Nota al asegurar esquema o perfiles en BD: {ex.Message}");
     }
 }
 

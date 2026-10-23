@@ -19,8 +19,8 @@ public static class ConteosFisicosEndpoints
             [FromQuery] string? estado,
             [FromQuery] DateTime? fechaDesde,
             [FromQuery] DateTime? fechaHasta,
-            [FromQuery] int page,
-            [FromQuery] int pageSize,
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
             IConteoFisicoService conteoService,
             CancellationToken ct) =>
         {
@@ -30,8 +30,8 @@ public static class ConteosFisicosEndpoints
                 Estado = estado,
                 FechaDesde = fechaDesde,
                 FechaHasta = fechaHasta,
-                Page = page <= 0 ? 1 : page,
-                PageSize = pageSize <= 0 ? 20 : pageSize
+                Page = (page == null || page <= 0) ? 1 : page.Value,
+                PageSize = (pageSize == null || pageSize <= 0) ? 20 : pageSize.Value
             };
 
             var resultado = await conteoService.ListarConteosAsync(filtros, ct);

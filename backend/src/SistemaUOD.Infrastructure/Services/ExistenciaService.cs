@@ -29,6 +29,8 @@ public class ExistenciaService : IExistenciaService
                 .ThenInclude(e => e.Lote)
                     .ThenInclude(l => l!.Proveedor)
             .Include(r => r.ActivosSerie)
+                .ThenInclude(a => a.Ubicacion)
+            .Include(r => r.ActivosSerie)
                 .ThenInclude(a => a.Asignaciones)
             .Where(r => r.Activo)
             .AsQueryable();
@@ -131,7 +133,7 @@ public class ExistenciaService : IExistenciaService
             // Desglose por ubicaciones
             var desglosesUbicaciones = r.Tipo == "activo_fijo"
                 ? r.ActivosSerie
-                    .GroupBy(a => new { a.UbicacionId, a.Ubicacion.Codigo, a.Ubicacion.Nombre })
+                    .GroupBy(a => new { a.UbicacionId, Codigo = a.Ubicacion != null ? a.Ubicacion.Codigo : "UB-N/A", Nombre = a.Ubicacion != null ? a.Ubicacion.Nombre : "Ubicación Asignada" })
                     .Select(g => new ExistenciaPorUbicacionDto
                     {
                         UbicacionId = g.Key.UbicacionId,
@@ -142,7 +144,7 @@ public class ExistenciaService : IExistenciaService
                     })
                     .ToList()
                 : r.Existencias
-                    .GroupBy(e => new { e.UbicacionId, e.Ubicacion.Codigo, e.Ubicacion.Nombre })
+                    .GroupBy(e => new { e.UbicacionId, Codigo = e.Ubicacion != null ? e.Ubicacion.Codigo : "UB-N/A", Nombre = e.Ubicacion != null ? e.Ubicacion.Nombre : "Ubicación Asignada" })
                     .Select(g => new ExistenciaPorUbicacionDto
                     {
                         UbicacionId = g.Key.UbicacionId,
