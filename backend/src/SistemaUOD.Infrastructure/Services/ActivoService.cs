@@ -1259,4 +1259,38 @@ public class ActivoService : IActivoService
         var match = System.Text.RegularExpressions.Regex.Match(notas, @"Responsable:\s*([^\r\n;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value) ? match.Groups[1].Value.Trim() : null;
     }
+
+    public async Task<bool> EliminarActivoDefinitivoAsync(Guid id, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        // 1. Limpiar registros de préstamos y asignaciones vinculados
+        var asignaciones = await _context.AsignacionesPrestamos
+            .Where(a => a.ActivoSerieId == id)
+            .ToListAsync(ct);
+        if (asignaciones.Any())
+        {
+            _context.AsignacionesPrestamos.RemoveRange(asignaciones);
+        }
+
+        // 2. Limpiar registros de mantenimientos vinculados
+        var mantenimientos = await _context.Mantenimientos
+            .Where(m => m.ActivoSerieId == id)
+            .ToListAsync(ct);
+        if (mantenimientos.Any())
+        {
+            _context.Mantenimientos.RemoveRange(mantenimientos);
+        }
+
+        // 3. Eliminar físicamente el activo
+        _context.ActivosSerie.Remove(activo);
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
 }

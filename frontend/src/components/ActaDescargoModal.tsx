@@ -10,18 +10,21 @@ import {
   User,
   Calendar,
   DollarSign,
-  AlertOctagon
+  AlertOctagon,
+  Trash2
 } from 'lucide-react';
 import { ActaDescargoPatrimonialDto } from '@/lib/apiClient';
 
 interface ActaDescargoModalProps {
   acta: ActaDescargoPatrimonialDto | null;
   onClose: () => void;
+  onDeleteAsset?: (activoId: string) => void;
 }
 
 export const ActaDescargoModal: React.FC<ActaDescargoModalProps> = ({
   acta,
-  onClose
+  onClose,
+  onDeleteAsset
 }) => {
   if (!acta) return null;
 
@@ -88,6 +91,17 @@ export const ActaDescargoModal: React.FC<ActaDescargoModalProps> = ({
               <Printer className="w-4 h-4" />
               Imprimir / Guardar PDF
             </button>
+            {onDeleteAsset && (
+              <button
+                type="button"
+                onClick={() => onDeleteAsset(acta.activoId)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-100 bg-rose-800/80 hover:bg-rose-700 hover:text-white rounded-lg transition-colors border border-rose-500/40 cursor-pointer shadow-xs"
+                title="Eliminar este activo definitivamente del sistema"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Eliminar Definitivamente
+              </button>
+            )}
             <button
               onClick={onClose}
               aria-label="Cerrar modal"

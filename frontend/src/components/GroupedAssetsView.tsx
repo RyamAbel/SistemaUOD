@@ -34,7 +34,8 @@ import {
   Check,
   Building2,
   SlidersHorizontal,
-  FolderTree
+  FolderTree,
+  Trash2
 } from 'lucide-react';
 import { ActivoTI, RECURSOS_ORIGINALES } from '@/lib/inventoryData';
 
@@ -43,6 +44,7 @@ export interface GroupedAssetsViewProps {
   onEditAsset?: (activo: ActivoTI) => void;
   onSelectAsset?: (activo: ActivoTI) => void;
   onTransferAsset?: (activo: ActivoTI) => void;
+  onDeleteAsset?: (activo: ActivoTI) => void;
   ubicacionesDisponibles?: string[];
   initialSearch?: string;
 }
@@ -235,6 +237,7 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
   onEditAsset,
   onSelectAsset,
   onTransferAsset,
+  onDeleteAsset,
   ubicacionesDisponibles = [],
   initialSearch = ''
 }) => {
@@ -868,6 +871,18 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                                         title="Trasladar de ubicación o custodio"
                                       >
                                         <ArrowRightLeft className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+
+                                    {/* Botón Eliminar Definitivamente (cuando está de baja o dañado) */}
+                                    {onDeleteAsset && (activo.estado === 'danado' || activo.estado === 'dado_de_baja') && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onDeleteAsset(activo)}
+                                        className="p-1 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg transition-colors cursor-pointer"
+                                        title="Eliminar activo definitivamente"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
                                       </button>
                                     )}
                                   </div>

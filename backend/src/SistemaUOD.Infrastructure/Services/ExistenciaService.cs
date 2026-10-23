@@ -63,7 +63,7 @@ public class ExistenciaService : IExistenciaService
         {
             // Stock físico total: suma de existencias para consumibles, o conteo de activos físicos operativos/disponibles para activos fijos
             var stockTotal = r.Tipo == "activo_fijo"
-                ? r.ActivosSerie.Count(a => a.Estado != "baja")
+                ? r.ActivosSerie.Count(a => a.Estado != "baja" && a.Estado != "dado_de_baja")
                 : r.Existencias.Sum(e => e.Cantidad);
 
             // Stock reservado: activos en préstamo temporal activo o asignados
@@ -139,7 +139,7 @@ public class ExistenciaService : IExistenciaService
                         UbicacionId = g.Key.UbicacionId,
                         UbicacionCodigo = g.Key.Codigo,
                         UbicacionNombre = g.Key.Nombre,
-                        Cantidad = g.Count(a => a.Estado != "baja"),
+                        Cantidad = g.Count(a => a.Estado != "baja" && a.Estado != "dado_de_baja"),
                         CantidadDisponible = g.Count(a => a.Estado == "disponible")
                     })
                     .ToList()

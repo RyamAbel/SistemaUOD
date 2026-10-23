@@ -23,7 +23,9 @@ import {
   Wrench,
   AlertOctagon,
   Pencil,
-  Layers
+  Layers,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
 import { apiClient, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto } from '@/lib/apiClient';
@@ -51,6 +53,9 @@ export const AssetsView: React.FC = () => {
   const [activoParaMantenimiento, setActivoParaMantenimiento] = useState<ActivoTI | null>(null);
   const [activoParaBaja, setActivoParaBaja] = useState<ActivoTI | null>(null);
   const [actaDescargoVisualizada, setActaDescargoVisualizada] = useState<ActaDescargoPatrimonialDto | null>(null);
+  const [activoParaEliminar, setActivoParaEliminar] = useState<ActivoTI | null>(null);
+  const [eliminandoActivo, setEliminandoActivo] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [exportandoCsv, setExportandoCsv] = useState(false);
 
   const resolverCustodioReal = (item: {
@@ -262,6 +267,28 @@ export const AssetsView: React.FC = () => {
     setActivoParaBaja(null);
     if (res.actaDescargo) {
       setActaDescargoVisualizada(res.actaDescargo);
+    }
+  };
+
+  const handleConfirmarEliminar = async () => {
+    if (!activoParaEliminar) return;
+    try {
+      setEliminandoActivo(true);
+      await apiClient.eliminarActivoDefinitivo(activoParaEliminar.id);
+      setActivos(prev => prev.filter(a => a.id !== activoParaEliminar.id));
+      if (selectedActivo?.id === activoParaEliminar.id) {
+        setSelectedActivo(null);
+      }
+      if (actaDescargoVisualizada?.activoId === activoParaEliminar.id) {
+        setActaDescargoVisualizada(null);
+      }
+      setToastMsg(`Activo ${activoParaEliminar.placa_institucional || activoParaEliminar.numero_serie} eliminado definitivamente del sistema.`);
+      setTimeout(() => setToastMsg(null), 4000);
+      setActivoParaEliminar(null);
+    } catch (err: any) {
+      alert(err.message || 'Error al eliminar el activo definitivamente');
+    } finally {
+      setEliminandoActivo(false);
     }
   };
 
@@ -603,6 +630,18 @@ export const AssetsView: React.FC = () => {
                           >
                             <AlertOctagon className="h-4 w-4" />
                           </button>
+                          {(activo.estado === 'danado' || activo.estado === 'dado_de_baja') && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setActivoParaEliminar(activo);
+                              }}
+                              className="p-1.5 rounded-lg text-rose-500 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                              title="Eliminar activo definitivamente del sistema"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={e => {
                               e.stopPropagation();
@@ -686,6 +725,18 @@ export const AssetsView: React.FC = () => {
                   >
                     <AlertOctagon className="h-3.5 w-3.5" />
                   </button>
+                  {(activo.estado === 'danado' || activo.estado === 'dado_de_baja') && (
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setActivoParaEliminar(activo);
+                      }}
+                      className="p-1 rounded-md text-rose-500 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                      title="Eliminar activo definitivamente del sistema"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {getBadgeEstado(activo.estado)}
                 </div>
               </div>
@@ -721,6 +772,7 @@ export const AssetsView: React.FC = () => {
           onEditAsset={activo => setActivoParaEditar(activo)}
           onSelectAsset={activo => setSelectedActivo(activo)}
           onTransferAsset={activo => setActivoParaTrasladar(activo)}
+          onDeleteAsset={activo => setActivoParaEliminar(activo)}
           ubicacionesDisponibles={ubicacionesUnicas}
           initialSearch={search}
         />
@@ -835,16 +887,29 @@ export const AssetsView: React.FC = () => {
                   Mantenimiento
                 </button>
                 {selectedActivo.estado === 'danado' || selectedActivo.estado === 'dado_de_baja' ? (
-                  <button
-                    onClick={() => {
-                      const act = selectedActivo;
-                      handleAbrirActaDescargo(act);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
-                  >
-                    <AlertOctagon className="h-3.5 w-3.5" />
-                    Ver Acta de Descargo
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        const act = selectedActivo;
+                        handleAbrirActaDescargo(act);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                    >
+                      <AlertOctagon className="h-3.5 w-3.5" />
+                      Ver Acta de Descargo
+                    </button>
+                    <button
+                      onClick={() => {
+                        const act = selectedActivo;
+                        setSelectedActivo(null);
+                        setActivoParaEliminar(act);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors cursor-pointer shadow-xs"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Eliminar Definitivamente
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={() => {
@@ -913,6 +978,11 @@ export const AssetsView: React.FC = () => {
         <ActaDescargoModal
           acta={actaDescargoVisualizada}
           onClose={() => setActaDescargoVisualizada(null)}
+          onDeleteAsset={(id) => {
+            const act = activos.find(a => a.id === id);
+            setActaDescargoVisualizada(null);
+            if (act) setActivoParaEliminar(act);
+          }}
         />
       )}
 
@@ -925,6 +995,96 @@ export const AssetsView: React.FC = () => {
           onSaved={handleActivoActualizado}
         />
       )}
+
+      {/* Modal de Confirmación de Eliminación Definitiva */}
+      {activoParaEliminar && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 border border-rose-200">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  ¿Eliminar activo definitivamente?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Esta acción es permanente e irreversible
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Placa / ID:</span>
+                <span className="font-mono font-bold text-[#1C3177] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {activoParaEliminar.placa_institucional || 'S/P'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Equipo / Modelo:</span>
+                <span className="font-semibold text-slate-800 text-right truncate max-w-[200px]">
+                  {activoParaEliminar.recurso_nombre}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Número de Serie:</span>
+                <span className="font-mono text-slate-700">
+                  {activoParaEliminar.numero_serie}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Estado:</span>
+                <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 text-[10px]">
+                  {activoParaEliminar.estado === 'dado_de_baja' ? 'Descargo Patrimonial' : 'Dañado / Inactivo'}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              El activo ya ha sido dado de baja institucionalmente. Al eliminarlo permanentemente, se removerá por completo de la base de datos de activos físicos y del catálogo general.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={eliminandoActivo}
+                onClick={() => setActivoParaEliminar(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={eliminandoActivo}
+                onClick={handleConfirmarEliminar}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-60"
+              >
+                {eliminandoActivo ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Sí, eliminar definitivamente</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Feedback */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-900 px-4 py-3 text-xs text-white shadow-xl animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
     </div>
   );
 };
+

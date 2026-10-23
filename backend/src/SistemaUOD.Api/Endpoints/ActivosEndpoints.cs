@@ -152,15 +152,22 @@ public static class ActivosEndpoints
         .WithName("CambiarEstadoActivo")
         .WithSummary("Modifica el estado operativo de un activo físico (operativo, mantenimiento, etc.)");
 
-        // 7. Dar de baja un activo físico (ExigirGestionInventario)
+        // 7. Dar de baja o eliminar un activo físico
         group.MapDelete("/{id:guid}", async (
             Guid id,
             [FromQuery] string? motivo,
+            [FromQuery] bool? permanente,
             IActivoService activoService,
             CancellationToken ct) =>
         {
             try
             {
+                if (permanente == true)
+                {
+                    await activoService.EliminarActivoDefinitivoAsync(id, ct);
+                    return Results.NoContent();
+                }
+
                 var resultado = await activoService.DarDeBajaAsync(id, motivo ?? "Baja administrativa", ct);
                 return Results.Ok(resultado);
             }
@@ -173,7 +180,29 @@ public static class ActivosEndpoints
             }
         })
         .WithName("DarDeBajaActivo")
-        .WithSummary("Da de baja definitiva o temporal a un activo físico");
+        .WithSummary("Da de baja o elimina permanentemente un activo físico");
+
+        // 7.1 Eliminar definitivamente un activo físico
+        group.MapDelete("/{id:guid}/definitivo", async (
+            Guid id,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                await activoService.EliminarActivoDefinitivoAsync(id, ct);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+        })
+        .WithName("EliminarActivoDefinitivo")
+        .WithSummary("Elimina permanentemente un activo físico del sistema");
 
         // 8. Trasladar activo a otra ubicación física (ExigirGestionInventario)
         group.MapPost("/{id:guid}/trasladar", async (

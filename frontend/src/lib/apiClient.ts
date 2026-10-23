@@ -1465,6 +1465,12 @@ export const apiClient = {
     });
   },
 
+  eliminarActivoDefinitivo: async (id: string): Promise<void> => {
+    return request<void>(`activos/${id}/definitivo`, {
+      method: 'DELETE'
+    });
+  },
+
   trasladarActivo: async (id: string, dto: TrasladarActivoDto): Promise<ResultadoTrasladoActivoDto> => {
     return request<ResultadoTrasladoActivoDto>(`activos/${id}/trasladar`, {
       method: 'POST',
