@@ -39,7 +39,7 @@ import {
   CategoriaDto,
   PagedResult
 } from '@/lib/apiClient';
-import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
+import { ACTIVOS_ORIGINALES, ActivoTI, resolverCustodioReal } from '@/lib/inventoryData';
 import { useAuth } from '@/context/AuthContext';
 import { ResourceFormDrawer } from './ResourceFormDrawer';
 import { ResourceDetailModal } from './ResourceDetailModal';
@@ -195,6 +195,38 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   useEffect(() => {
     apiClient.listarCategorias(true).then(setCategorias).catch(() => {});
   }, []);
+
+  // Cargar activos físicos desde la API para sincronizar altas y movimientos en tiempo real
+  const cargarActivosFisicos = useCallback(async () => {
+    try {
+      const res = await apiClient.listarActivos({ pageSize: 500 });
+      if (res.items && res.items.length > 0) {
+        const mapeados: ActivoTI[] = res.items.map(item => ({
+          id: item.id,
+          recurso_id: item.recursoId,
+          placa_institucional: item.placaInstitucional || '',
+          numero_serie: item.numeroSerie,
+          recurso_nombre: item.recursoNombre,
+          categoria_nombre: item.categoriaNombre,
+          ubicacion_id: item.ubicacionId,
+          ubicacion_nombre: item.ubicacionNombre,
+          responsable: resolverCustodioReal(item),
+          estado: (item.estado === 'dado_de_baja' ? 'dado_de_baja' : item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as any,
+          costo_adquisicion: item.costoAdquisicion,
+          factura_url: item.facturaUrl,
+          factura_nombre: item.facturaNombre,
+          notas: item.notas || ''
+        }));
+        setActivosFisicos(mapeados);
+      }
+    } catch (err) {
+      console.warn('Usando dataset institucional local como fallback:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarActivosFisicos();
+  }, [cargarActivosFisicos]);
 
   // Cargar recursos desde la API
   const fetchRecursos = useCallback(async () => {
@@ -477,7 +509,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
 
           {/* Reload */}
           <button
-            onClick={fetchRecursos}
+            onClick={() => {
+              fetchRecursos();
+              cargarActivosFisicos();
+            }}
             title="Actualizar datos"
             className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition-colors"
           >
@@ -850,7 +885,6 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
               activos={activosFisicos}
               onEditAsset={(activo) => setActivoParaEditar(activo)}
               onSelectAsset={(activo) => handleOpenDetail(activo.recurso_id)}
-              ubicacionesDisponibles={categorias.map(c => c.nombre)}
               initialSearch={search}
             />
           ) : viewMode === 'table' ? (
@@ -1445,6 +1479,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
         initialDataToDuplicate={duplicatingResource}
         onSaved={(savedRecurso, keepOpen) => {
           fetchRecursos();
+          cargarActivosFisicos();
           showToast(`Recurso "${savedRecurso.nombre}" guardado exitosamente`);
           if (!keepOpen) {
             setDrawerOpen(false);
@@ -1497,6 +1532,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
         onClose={() => setImportModalOpen(false)}
         onSuccess={() => {
           fetchRecursos();
+          cargarActivosFisicos();
         }}
       />
 

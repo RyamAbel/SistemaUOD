@@ -6195,3 +6195,32 @@ export const ACTIVOS_ORIGINALES: ActivoTI[] = [
     "notas": "Responsable: PAPITO"
   }
 ];
+
+export const resolverCustodioReal = (item: {
+  responsableNombre?: string | null;
+  notas?: string | null;
+  placaInstitucional?: string | null;
+  numeroSerie?: string | null;
+  id?: string;
+}): string => {
+  if (item.responsableNombre && item.responsableNombre.trim() !== '' && item.responsableNombre.toLowerCase() !== 'por asignar') {
+    return item.responsableNombre.trim();
+  }
+  if (item.notas && typeof item.notas === 'string') {
+    const match = item.notas.match(/responsable:\s*([^\r\n;|]+)/i);
+    if (match && match[1]?.trim()) {
+      return match[1].trim();
+    }
+  }
+  const placa = (item.placaInstitucional || '').trim().toLowerCase();
+  const serial = (item.numeroSerie || '').trim().toLowerCase();
+  const orig = ACTIVOS_ORIGINALES.find(o =>
+    (placa && o.placa_institucional.toLowerCase() === placa) ||
+    (serial && o.numero_serie.toLowerCase() === serial) ||
+    o.id === item.id
+  );
+  if (orig?.responsable && orig.responsable.trim()) {
+    return orig.responsable.trim();
+  }
+  return 'Por Asignar';
+};

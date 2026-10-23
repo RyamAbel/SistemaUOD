@@ -244,6 +244,11 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
   const [selectedEstado, setSelectedEstado] = useState<string>('todos');
   const [selectedCustodio, setSelectedCustodio] = useState<string>('todos');
 
+  // Sincronizar búsqueda cuando cambia desde el componente padre
+  React.useEffect(() => {
+    setSearch(initialSearch);
+  }, [initialSearch]);
+
   // Ordenamiento de grupos
   const [sortGroupOption, setSortGroupOption] = useState<'cantidad_desc' | 'cantidad_asc' | 'nombre_asc' | 'nombre_desc'>('cantidad_desc');
 
@@ -336,11 +341,13 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
       const q = search.trim().toLowerCase();
       const matchSearch =
         q === '' ||
-        activo.placa_institucional.toLowerCase().includes(q) ||
-        activo.numero_serie.toLowerCase().includes(q) ||
-        activo.recurso_nombre.toLowerCase().includes(q) ||
-        activo.responsable.toLowerCase().includes(q) ||
-        activo.ubicacion_nombre.toLowerCase().includes(q);
+        (activo.placa_institucional && activo.placa_institucional.toLowerCase().includes(q)) ||
+        (activo.numero_serie && activo.numero_serie.toLowerCase().includes(q)) ||
+        (activo.recurso_nombre && activo.recurso_nombre.toLowerCase().includes(q)) ||
+        (activo.responsable && activo.responsable.toLowerCase().includes(q)) ||
+        (activo.ubicacion_nombre && activo.ubicacion_nombre.toLowerCase().includes(q)) ||
+        (activo.categoria_nombre && activo.categoria_nombre.toLowerCase().includes(q)) ||
+        (activo.notas && activo.notas.toLowerCase().includes(q));
 
       // Estado
       const matchEstado =
