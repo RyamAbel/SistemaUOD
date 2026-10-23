@@ -145,6 +145,16 @@ public class AlertaService : IAlertaService
         return true;
     }
 
+    public async Task<int> LimpiarTodasAlertasAsync(CancellationToken ct = default)
+    {
+        var todas = await _context.Alertas.ToListAsync(ct);
+        if (todas.Count == 0) return 0;
+
+        _context.Alertas.RemoveRange(todas);
+        await _context.SaveChangesAsync(ct);
+        return todas.Count;
+    }
+
     public async Task<AlertaDto> CrearAsync(CrearAlertaDto dto, CancellationToken ct = default)
     {
         var alerta = new Alerta
@@ -188,6 +198,12 @@ public class AlertaService : IAlertaService
 
         foreach (var recurso in recursosActivos)
         {
+            // REGLA DE ORO DEL PROYECTO: Si un activo o recurso no tiene mínimo definido (> 0), NO genera alerta de stock.
+            if (recurso.StockMinimo <= 0)
+            {
+                continue;
+            }
+
             var stockTotal = recurso.Existencias?.Sum(e => e.Cantidad) ?? 0;
             var yaTieneAlerta = alertasAbiertas.Any(a => a.RecursoId == recurso.Id && a.Tipo == "stock_bajo");
 

@@ -156,6 +156,25 @@ export const AlertsView: React.FC = () => {
     }
   };
 
+  const handleEliminarTodasAlertas = async () => {
+    if (!confirm('¿Está seguro de que desea eliminar todas las alertas residuales del sistema? Esta acción limpiará el contador a cero.')) return;
+    try {
+      const res = await apiClient.eliminarTodasAlertas();
+      setAlertas([]);
+      setResumen({
+        totalNoLeidas: 0,
+        totalUrgentes: 0,
+        totalAdvertencias: 0,
+        totalInfo: 0,
+        porTipo: {}
+      });
+      showToast(res.mensaje || 'Todas las alertas fueron eliminadas. Contador en cero.');
+      await cargarDatos();
+    } catch {
+      showToast('Error al limpiar las alertas.');
+    }
+  };
+
   const handleAbrirPreferencias = async () => {
     setPrefOpen(true);
     setPrefLoading(true);
@@ -246,15 +265,24 @@ export const AlertsView: React.FC = () => {
           <button
             onClick={handleMarcarTodasLeidas}
             disabled={resumen.totalNoLeidas === 0}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-[#2D8246] transition-all shadow-xs disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-[#2D8246] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             <CheckCheck className="h-3.5 w-3.5 text-[#3DAA5C]" />
             <span>Marcar Todas Leídas</span>
           </button>
 
           <button
+            onClick={handleEliminarTodasAlertas}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all shadow-xs cursor-pointer"
+            title="Eliminar todas las alertas residuales para reiniciar el contador a cero"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+            <span>Limpiar Alertas</span>
+          </button>
+
+          <button
             onClick={handleAbrirPreferencias}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-[#1C3177] hover:bg-[#2B4BA0] text-white transition-all shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-[#1C3177] hover:bg-[#2B4BA0] text-white transition-all shadow-xs cursor-pointer"
           >
             <Sliders className="h-3.5 w-3.5" />
             <span>Preferencias</span>

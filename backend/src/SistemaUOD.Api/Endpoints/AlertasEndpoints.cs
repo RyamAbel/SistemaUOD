@@ -143,7 +143,7 @@ public static class AlertasEndpoints
         .WithName("CrearAlertaManual")
         .WithSummary("Registra manualmente una alerta institucional");
 
-        // 9. Eliminar alerta
+        // 9. Eliminar alerta individual
         group.MapDelete("/{id:guid}", async (
             Guid id,
             IAlertaService alertaService,
@@ -161,9 +161,29 @@ public static class AlertasEndpoints
 
             return Results.Ok(new { mensaje = "Alerta eliminada correctamente.", id });
         })
-        .RequireAuthorization(Policies.ExigirGestionInventario)
         .WithName("EliminarAlerta")
         .WithSummary("Elimina permanentemente una alerta del sistema");
+
+        // 10. Limpiar todas las alertas residuales para reiniciar el contador a cero (Arreglo 5)
+        group.MapDelete("/todas", async (
+            IAlertaService alertaService,
+            CancellationToken ct) =>
+        {
+            var totalEliminadas = await alertaService.LimpiarTodasAlertasAsync(ct);
+            return Results.Ok(new { mensaje = $"Se eliminaron {totalEliminadas} alertas. El contador está en cero.", total = totalEliminadas });
+        })
+        .WithName("LimpiarTodasAlertas")
+        .WithSummary("Elimina permanentemente todas las alertas para iniciar el contador en cero");
+
+        group.MapPost("/limpiar-residuales", async (
+            IAlertaService alertaService,
+            CancellationToken ct) =>
+        {
+            var totalEliminadas = await alertaService.LimpiarTodasAlertasAsync(ct);
+            return Results.Ok(new { mensaje = $"Se eliminaron {totalEliminadas} alertas. El contador está en cero.", total = totalEliminadas });
+        })
+        .WithName("LimpiarAlertasResiduales")
+        .WithSummary("Limpia todas las alertas residuales acumuladas en la base de datos");
 
         // -------------------------------------------------------------
         // Endpoints de Preferencias de Notificación

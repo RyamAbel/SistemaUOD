@@ -271,6 +271,50 @@ public class MovimientoService : IMovimientoService
             _db.Movimientos.Add(nuevoMovimiento);
             _db.MovimientosLineas.AddRange(lineasEntidad);
 
+            // Generar alerta por evento real de movimiento (cumplimiento Arreglo 5)
+            _db.Alertas.Add(new Alerta
+            {
+                Id = Guid.NewGuid(),
+                Tipo = "sistema",
+                Severidad = dto.Tipo == "baja" ? "advertencia" : "info",
+                Titulo = $"Movimiento {numeroMovimiento}: {dto.Tipo.ToUpper()}",
+                Mensaje = $"{dto.Motivo} ({dto.Lineas.Count} recurso(s) procesado(s)).",
+                Leida = false,
+                CreadoEn = DateTime.UtcNow
+            });
+
+            // Verificar si algún recurso cayó por debajo de su stock mínimo (si tiene mínimo definido > 0)
+            foreach (var linea in dto.Lineas)
+            {
+                if (recursos.TryGetValue(linea.RecursoId, out var rec) && rec.StockMinimo > 0)
+                {
+                    var existenciasRecurso = _db.Existencias.Local
+                        .Where(e => e.RecursoId == linea.RecursoId)
+                        .Sum(e => e.Cantidad);
+
+                    if (existenciasRecurso <= rec.StockMinimo)
+                    {
+                        var yaTieneAlerta = _db.Alertas.Local
+                            .Any(a => !a.Leida && a.RecursoId == linea.RecursoId && a.Tipo == "stock_bajo");
+
+                        if (!yaTieneAlerta)
+                        {
+                            _db.Alertas.Add(new Alerta
+                            {
+                                Id = Guid.NewGuid(),
+                                Tipo = "stock_bajo",
+                                Severidad = existenciasRecurso <= 0 ? "urgente" : "advertencia",
+                                RecursoId = linea.RecursoId,
+                                Titulo = existenciasRecurso <= 0 ? $"Agotado: {rec.Nombre}" : $"Stock bajo mínimo: {rec.Nombre}",
+                                Mensaje = $"El recurso '{rec.Nombre}' ({rec.Sku}) alcanzó un nivel ({existenciasRecurso}) por debajo de su mínimo configurado ({rec.StockMinimo}).",
+                                Leida = false,
+                                CreadoEn = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+            }
+
             await _db.SaveChangesAsync(ct);
 
             if (transaction != null)

@@ -1737,6 +1737,12 @@ export const apiClient = {
     });
   },
 
+  eliminarTodasAlertas: async (): Promise<{ mensaje: string; total: number }> => {
+    return request<{ mensaje: string; total: number }>('alertas/todas', {
+      method: 'DELETE'
+    });
+  },
+
   obtenerPreferenciasNotificacion: async (): Promise<NotificacionPreferenciaDto> => {
     return request<NotificacionPreferenciaDto>('notificaciones/preferencias');
   },

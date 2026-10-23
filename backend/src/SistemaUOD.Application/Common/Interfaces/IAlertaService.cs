@@ -13,6 +13,7 @@ public interface IAlertaService
     Task<bool> MarcarComoLeidaAsync(Guid id, CancellationToken ct = default);
     Task<int> MarcarTodasComoLeidasAsync(CancellationToken ct = default);
     Task<bool> EliminarAsync(Guid id, CancellationToken ct = default);
+    Task<int> LimpiarTodasAlertasAsync(CancellationToken ct = default);
     Task<AlertaDto> CrearAsync(CrearAlertaDto dto, CancellationToken ct = default);
     Task<NotificacionPreferenciaDto> ObtenerPreferenciasUsuarioAsync(Guid usuarioId, CancellationToken ct = default);
     Task<NotificacionPreferenciaDto> ActualizarPreferenciasUsuarioAsync(Guid usuarioId, ActualizarPreferenciaDto dto, CancellationToken ct = default);

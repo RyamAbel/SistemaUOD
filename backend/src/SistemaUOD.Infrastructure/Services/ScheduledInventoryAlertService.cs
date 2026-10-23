@@ -26,11 +26,11 @@ public class ScheduledInventoryAlertService : BackgroundService
     {
         _logger.LogInformation("Servicio programado de evaluación de inventario y alertas (ScheduledInventoryAlertService) iniciado.");
 
-        // Esperar 15 segundos al inicio para permitir inicialización completa de la base de datos
-        await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
-
         var intervalHours = int.TryParse(_configuration["Alerts:EvaluationIntervalHours"], out var h) ? h : 24;
         if (intervalHours <= 0) intervalHours = 24;
+
+        // Esperar el intervalo completo antes de la primera evaluación para nunca generar alertas al arrancar o iniciar sesión
+        await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
