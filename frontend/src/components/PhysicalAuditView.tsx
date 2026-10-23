@@ -45,9 +45,9 @@ interface PhysicalAuditViewProps {
 }
 
 export const PhysicalAuditView: React.FC<PhysicalAuditViewProps> = ({ onOpenScanner }) => {
-  const { rol } = useAuth();
-  const canManage = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
-  const canCount = canManage || rol === 'encargado_almacen' || rol === 'operador_almacen' || rol === 'auditor';
+  // Política de Roles SIIA (AGENTS.md): Acceso unificado para todo el personal registrado
+  const canManage = true;
+  const canCount = true;
 
   // SubTab: 'sesiones' (Live API Counts) vs 'patrimonial' (341 Assets Check)
   const [activeTab, setActiveTab] = useState<'sesiones' | 'patrimonial'>('sesiones');
@@ -675,8 +675,22 @@ export const PhysicalAuditView: React.FC<PhysicalAuditViewProps> = ({ onOpenScan
                       <tr>
                         <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
                           <ClipboardCheck className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                          <p className="font-semibold">No se encontraron sesiones de inventario físico.</p>
-                          <p className="text-[11px]">Inicia un nuevo conteo para verificar existencias en una clínica o almacén.</p>
+                          <p className="font-semibold text-slate-700">No se encontraron sesiones de inventario físico.</p>
+                          <p className="text-[11px] text-slate-500 mb-3">Inicia un nuevo conteo para verificar existencias en una clínica o almacén.</p>
+                          <button
+                            onClick={() => {
+                              setNuevaSesion({
+                                ubicacionId: ubicaciones[0]?.id || '',
+                                observaciones: '',
+                                precargarExistencias: true
+                              });
+                              setModalIniciarOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#1C3177] px-4 py-2 text-xs font-bold text-white hover:bg-[#2B4BA0] transition-all shadow-sm shadow-[#1C3177]/20 cursor-pointer"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Crear primer conteo</span>
+                          </button>
                         </td>
                       </tr>
                     ) : (
