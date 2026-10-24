@@ -385,7 +385,29 @@ public static class ActivosEndpoints
         .WithName("SubirFacturaActivo")
         .WithSummary("Sube la factura real del activo en formato PDF o imagen (hasta 10 MB)");
 
-        // 14. Obtener historial de cambios del activo
+        // 14. Eliminar factura del activo
+        group.MapDelete("/{id:guid}/factura", async (
+            Guid id,
+            IActivoService activoService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var resultado = await activoService.EliminarFacturaAsync(id, ct);
+                return Results.Ok(resultado);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Activo no encontrado",
+                    detail: ex.Message);
+            }
+        })
+        .WithName("EliminarFacturaActivo")
+        .WithSummary("Elimina la factura asociada a un activo físico");
+
+        // 15. Obtener historial de cambios del activo
         group.MapGet("/{id:guid}/historial", async (
             Guid id,
             IActivoService activoService,

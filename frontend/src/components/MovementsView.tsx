@@ -260,14 +260,13 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
     const cargarCatalogos = async () => {
       setLoadingCatalogos(true);
       try {
-        const [ubicRes, catRes, provRes] = await Promise.all([
+        const [ubicRes, catRes] = await Promise.all([
           apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true }),
-          apiClient.listarCategorias(true).catch(() => []),
-          apiClient.listarProveedores({ pageSize: 100, soloActivos: true }).catch(() => ({ items: [] }))
+          apiClient.listarCategorias(true).catch(() => [])
         ]);
         setUbicaciones(ubicRes.items);
         setCategorias(catRes);
-        setProveedores(provRes.items || []);
+        setProveedores([]);
         if (catRes.length > 0) {
           setNuevaCategoriaId(catRes[0].id);
         }
@@ -2211,10 +2210,10 @@ export const MovementsView: React.FC<MovementsViewProps> = ({
                 onChange={e => setHistorialUbicacionFiltro(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177] bg-white"
               >
-                <option value="">Todas las ubicaciones...</option>
+                <option value="">Todas las ubicaciones ({ubicaciones.reduce((acc, u) => acc + (u.totalActivosFisicos || 0), 0)})</option>
                 {ubicaciones.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.nombre} ({u.codigo})
+                    {u.nombre} ({u.totalActivosFisicos})
                   </option>
                 ))}
               </select>

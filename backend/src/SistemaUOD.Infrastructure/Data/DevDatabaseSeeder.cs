@@ -163,37 +163,6 @@ public static class DevDatabaseSeeder
 
         context.Ubicaciones.AddRange(ubicRectoria, ubicTecnologia, ubicLabComputo, ubicClinicaB, ubicClinicaC, ubicClinicaE, ubicDirClinica);
 
-        // 4. Proveedores Institucionales
-        var provTI = new Proveedor
-        {
-            Id = Guid.Parse("33333333-3333-3333-3333-333333333301"),
-            Rnc = "101889922",
-            NombreComercial = "Soluciones Tecnológicas del Caribe S.R.L.",
-            RazonSocial = "Soluciones Tecnológicas del Caribe S.R.L.",
-            ContactoNombre = "Lic. Carlos Méndez",
-            Telefono = "(809) 555-8901",
-            Correo = "ventas@solucionesti.com.do",
-            Direccion = "Av. Winston Churchill #45, Sto Dgo",
-            PlazoCreditoDias = 30,
-            Activo = true
-        };
-
-        var provDell = new Proveedor
-        {
-            Id = Guid.Parse("33333333-3333-3333-3333-333333333302"),
-            Rnc = "131445566",
-            NombreComercial = "Distribuidora TI Dominicana S.A.",
-            RazonSocial = "Distribuidora TI Dominicana S.A.",
-            ContactoNombre = "Dra. Laura Peña",
-            Telefono = "(809) 555-4422",
-            Correo = "pedidos@tidominicana.com",
-            Direccion = "Av. 27 de Febrero #200, Sto Dgo",
-            PlazoCreditoDias = 45,
-            Activo = true
-        };
-
-        context.Proveedores.AddRange(provTI, provDell);
-
         // 5. Recursos Reales de Tecnología (del inventario original UOD)
         var recLaptop = new Recurso
         {

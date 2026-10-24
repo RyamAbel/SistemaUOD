@@ -32,6 +32,7 @@ import { useTheme, ThemeMode, TableDensity } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabaseClient';
+import { getSafeAvatarUrl } from '@/lib/avatarHelper';
 
 const DEPARTAMENTOS_UOD = [
   'Tecnología e Información',
@@ -61,6 +62,7 @@ export const SettingsView: React.FC = () => {
   const [departamento, setDepartamento] = useState('');
   const [telefono, setTelefono] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -75,10 +77,15 @@ export const SettingsView: React.FC = () => {
       setCargo(perfil.cargo || '');
       setDepartamento(perfil.departamento || '');
       setTelefono(perfil.telefono || '');
-      setAvatarPreview(perfil.avatarUrl || user?.user_metadata?.avatar_url || null);
+      const effectiveAvatar = perfil.avatarUrl === 'none'
+        ? null
+        : (perfil.avatarUrl || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null);
+      setAvatarPreview(effectiveAvatar);
+      setAvatarLoadError(false);
     } else if (user) {
       setNombreCompleto(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
-      setAvatarPreview(user.user_metadata?.avatar_url || null);
+      setAvatarPreview(user.user_metadata?.avatar_url || user.user_metadata?.picture || null);
+      setAvatarLoadError(false);
     }
   }, [perfil, user]);
 
@@ -87,8 +94,8 @@ export const SettingsView: React.FC = () => {
     setTimeout(() => setSaveSuccessPill(null), 3500);
   };
 
-  // Manejo de selección de archivo de imagen
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Manejo de selección y subida inmediata de archivo de imagen
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -105,32 +112,46 @@ export const SettingsView: React.FC = () => {
     setProfileError(null);
     setAvatarFile(file);
 
+    // Previsualización instantánea
     const reader = new FileReader();
     reader.onload = () => {
       setAvatarPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
+
+    // Subida y guardado automático inmediato en la base de datos
+    setIsUploadingAvatar(true);
+    try {
+      const res = await apiClient.subirAvatarPerfil(file);
+      if (res?.avatarUrl) {
+        setAvatarPreview(res.avatarUrl);
+      }
+      setAvatarFile(null);
+      await refreshProfile();
+      showPill('Foto de perfil actualizada y guardada correctamente.');
+    } catch (err: any) {
+      console.warn('Error al subir avatar:', err);
+      setProfileError(err.message || 'Error al guardar la fotografía de perfil');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
-  // Restablecer foto de avatar
+  // Restablecer foto de avatar (volver a iniciales)
   const handleRemoveAvatar = async () => {
     setAvatarFile(null);
     setAvatarPreview(null);
     setProfileError(null);
+    setIsUploadingAvatar(true);
 
-    if (perfil?.avatarUrl) {
-      try {
-        setIsUploadingAvatar(true);
-        await apiClient.eliminarAvatarPerfil();
-        await refreshProfile();
-        showPill('Foto de perfil eliminada. Se mostrarán tus iniciales.');
-      } catch (err: any) {
-        setProfileError(err.message || 'Error al eliminar la foto de perfil');
-      } finally {
-        setIsUploadingAvatar(false);
-      }
-    } else {
-      showPill('Foto descartada.');
+    try {
+      await apiClient.eliminarAvatarPerfil();
+      await refreshProfile();
+      showPill('Foto de perfil eliminada. Se mostrarán tus iniciales.');
+    } catch (err: any) {
+      setProfileError(err.message || 'Error al eliminar la foto de perfil');
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -148,14 +169,14 @@ export const SettingsView: React.FC = () => {
     setIsSavingProfile(true);
 
     try {
-      let finalAvatarUrl = avatarPreview;
+      let finalAvatarUrl = perfil?.avatarUrl === 'none' ? 'none' : (perfil?.avatarUrl || avatarPreview);
 
-      // 1. Si hay archivo local seleccionado, subirlo
+      // 1. Si hay archivo local pendiente, subirlo
       if (avatarFile) {
         setIsUploadingAvatar(true);
         try {
           const resAvatar = await apiClient.subirAvatarPerfil(avatarFile);
-          finalAvatarUrl = resAvatar.avatarUrl || avatarPreview;
+          finalAvatarUrl = resAvatar.avatarUrl || finalAvatarUrl;
           setAvatarFile(null);
         } catch (uploadErr: any) {
           console.warn('Aviso al subir avatar:', uploadErr);
@@ -604,10 +625,12 @@ export const SettingsView: React.FC = () => {
           {/* Avatar / Foto de Perfil */}
           <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
             <div className="relative group shrink-0">
-              {avatarPreview ? (
+              {avatarPreview && !avatarLoadError ? (
                 <img
-                  src={avatarPreview}
+                  src={getSafeAvatarUrl(avatarPreview) || avatarPreview}
                   alt={nombreCompleto || 'Usuario'}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarLoadError(true)}
                   className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-xs"
                 />
               ) : (

@@ -60,10 +60,33 @@ public static class MeEndpoints
                     });
                 }
 
-                return Results.Problem(
-                    statusCode: StatusCodes.Status403Forbidden,
-                    title: "Acceso denegado",
-                    detail: "No se encontró un perfil institucional activo vinculado a esta cuenta.");
+                // Auto-provisionar perfil para cualquier usuario autenticado con Google OAuth
+                var correoAuth = currentUser.Email ?? "usuario@uod.edu.do";
+                var nombreAuth = correoAuth.Contains('@') ? correoAuth.Split('@')[0] : "Usuario";
+
+                var nuevoPerfil = new SistemaUOD.Domain.Entities.Perfil
+                {
+                    Id = userId.Value,
+                    Correo = correoAuth,
+                    NombreCompleto = nombreAuth,
+                    Rol = RolesUsuario.AdminInventario,
+                    Cargo = "Personal Autorizado",
+                    Departamento = "Inventario y Almacén",
+                    Activo = true,
+                    CreadoEn = DateTime.UtcNow,
+                    ActualizadoEn = DateTime.UtcNow
+                };
+
+                try
+                {
+                    dbContext.Perfiles.Add(nuevoPerfil);
+                    await dbContext.SaveChangesAsync(ct);
+                    perfil = nuevoPerfil;
+                }
+                catch
+                {
+                    perfil = await dbContext.Perfiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == userId.Value, ct) ?? nuevoPerfil;
+                }
             }
 
             if (!perfil.Activo)
@@ -72,6 +95,32 @@ public static class MeEndpoints
                     statusCode: StatusCodes.Status403Forbidden,
                     title: "Cuenta desactivada",
                     detail: "La cuenta institucional del usuario ha sido desactivada por administración.");
+            }
+
+            // Si el perfil aún no tiene AvatarUrl configurado (es nulo y no se ha marcado como "none"), intentar extraerlo de Google OAuth
+            if (perfil.AvatarUrl == null && dbContext is DbContext concreteDb)
+            {
+                try
+                {
+                    var avatarGoogle = await concreteDb.Database
+                        .SqlQueryRaw<string>("SELECT COALESCE(raw_user_meta_data->>'avatar_url', raw_user_meta_data->>'picture') FROM auth.users WHERE id = {0}", perfil.Id)
+                        .FirstOrDefaultAsync(ct);
+
+                    if (!string.IsNullOrWhiteSpace(avatarGoogle))
+                    {
+                        var perfilDb = await dbContext.Perfiles.FirstOrDefaultAsync(p => p.Id == perfil.Id, ct);
+                        if (perfilDb != null)
+                        {
+                            perfilDb.AvatarUrl = avatarGoogle;
+                            await dbContext.SaveChangesAsync(ct);
+                            perfil.AvatarUrl = avatarGoogle;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignorar si no se puede consultar auth.users directamente
+                }
             }
 
             var dto = new PerfilDto
@@ -236,8 +285,11 @@ public static class MeEndpoints
                     detail: "La foto de perfil excede el tamaño máximo permitido de 5 MB.");
             }
 
-            using var stream = file.OpenReadStream();
-            var (esValido, extensionReal, mimeReal) = ValidarCabeceraBinaria(stream);
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream, ct);
+            memoryStream.Position = 0;
+
+            var (esValido, extensionReal, mimeReal) = ValidarCabeceraBinaria(memoryStream);
             if (!esValido)
             {
                 return Results.Problem(
@@ -275,21 +327,13 @@ public static class MeEndpoints
             string avatarUrl;
             try
             {
-                stream.Position = 0;
+                memoryStream.Position = 0;
                 var rutaDestino = $"avatars/{perfil.Id}_{DateTime.UtcNow.Ticks}{extensionReal}";
-                avatarUrl = await storageService.SubirArchivoAsync(BucketAvatars, rutaDestino, stream, mimeReal, ct);
-
-                var signedUrl = await storageService.ObtenerUrlFirmadaAsync(BucketAvatars, rutaDestino, TimeSpan.FromDays(365), ct);
-                if (!string.IsNullOrWhiteSpace(signedUrl))
-                {
-                    avatarUrl = signedUrl;
-                }
+                avatarUrl = await storageService.SubirArchivoAsync(BucketAvatars, rutaDestino, memoryStream, mimeReal, ct);
             }
             catch
             {
-                stream.Position = 0;
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream, ct);
+                memoryStream.Position = 0;
                 var base64 = Convert.ToBase64String(memoryStream.ToArray());
                 avatarUrl = $"data:{mimeReal};base64,{base64}";
             }
@@ -331,7 +375,8 @@ public static class MeEndpoints
             return Results.Ok(resultadoDto);
         })
         .WithName("SubirAvatarPerfil")
-        .WithSummary("Sube y asocia una foto de perfil personalizada (máx. 5 MB, JPG/PNG/WebP) al usuario autenticado");
+        .WithSummary("Sube y asocia una foto de perfil personalizada (máx. 5 MB, JPG/PNG/WebP) al usuario autenticado")
+        .DisableAntiforgery();
 
         // 4. Eliminar foto de avatar (volver a iniciales)
         group.MapDelete("/avatar", async (
@@ -357,7 +402,7 @@ public static class MeEndpoints
                     detail: "No se encontró el registro de perfil correspondiente al usuario.");
             }
 
-            perfil.AvatarUrl = null;
+            perfil.AvatarUrl = "none";
             perfil.ActualizadoEn = DateTime.UtcNow;
 
             dbContext.BitacoraAuditorias.Add(new BitacoraAuditoria

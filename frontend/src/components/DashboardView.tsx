@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package,
   AlertTriangle,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowLeftRight,
   CircleDollarSign,
   Sparkles,
   Eye,
@@ -17,10 +18,12 @@ import {
   Building2,
   HardDrive,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { ArticuloItem, MovimientoItem } from '@/lib/initialData';
 import { RESUMEN_INVENTARIO } from '@/lib/inventoryData';
+import { apiClient, MovimientoDto } from '@/lib/apiClient';
 import { NavTab } from './Sidebar';
 
 interface DashboardViewProps {
@@ -36,6 +39,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAi,
   onNavigateTab
 }) => {
+  const [realMovimientos, setRealMovimientos] = useState<MovimientoDto[]>([]);
+  const [cargandoMovimientos, setCargandoMovimientos] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .listarMovimientos({ pageSize: 6 })
+      .then((res) => {
+        if (isMounted) {
+          setRealMovimientos(res.items || []);
+          setCargandoMovimientos(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setRealMovimientos([]);
+          setCargandoMovimientos(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 6 Top KPI Metrics */}
@@ -324,36 +352,86 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-400 font-semibold text-[11px]">
-                <th className="py-2.5 px-3">Código Movimiento</th>
-                <th className="py-2.5 px-3">Activo TI</th>
-                <th className="py-2.5 px-3">Tipo</th>
-                <th className="py-2.5 px-3">Destino / Dependencia</th>
-                <th className="py-2.5 px-3">Responsable</th>
-                <th className="py-2.5 px-3">Fecha</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {movimientos.slice(0, 6).map((mov) => (
-                <tr key={mov.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-2.5 px-3 font-mono font-semibold text-slate-800">{mov.numero}</td>
-                  <td className="py-2.5 px-3 font-medium text-slate-900">{mov.articuloNombre}</td>
-                  <td className="py-2.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#1C3177] border border-blue-200">
-                      Asignación
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-700">{mov.destino || 'Clínica UOD'}</td>
-                  <td className="py-2.5 px-3 font-medium text-slate-800">{mov.usuario}</td>
-                  <td className="py-2.5 px-3 text-slate-500">{mov.fecha}</td>
+        {cargandoMovimientos ? (
+          <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-[#1C3177]" />
+            <span className="text-xs font-medium">Consultando movimientos recientes...</span>
+          </div>
+        ) : realMovimientos.length === 0 ? (
+          <div className="py-12 px-4 text-center rounded-xl bg-slate-50/50 border border-dashed border-slate-200">
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-blue-50 text-[#1C3177] flex items-center justify-center mb-3">
+              <ArrowLeftRight className="h-6 w-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-800">Sin movimientos registrados</h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+              Aún no se han ejecutado traslados, ajustes o bajas en el inventario. Las operaciones que registre en el sistema se reflejarán aquí en tiempo real.
+            </p>
+            <button
+              onClick={() => onNavigateTab('movimientos')}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#1C3177] text-white hover:bg-[#2B4BA0] transition-colors shadow-xs cursor-pointer"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              Registrar nuevo movimiento
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 font-semibold text-[11px]">
+                  <th className="py-2.5 px-3">Código Movimiento</th>
+                  <th className="py-2.5 px-3">Tipo</th>
+                  <th className="py-2.5 px-3">Origen</th>
+                  <th className="py-2.5 px-3">Destino / Dependencia</th>
+                  <th className="py-2.5 px-3">Responsable</th>
+                  <th className="py-2.5 px-3">Fecha</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {realMovimientos.map((mov) => {
+                  const badgeColors: Record<string, string> = {
+                    entrada: 'bg-emerald-50 text-[#2D8246] border-emerald-200',
+                    salida: 'bg-amber-50 text-amber-800 border-amber-200',
+                    traslado: 'bg-blue-50 text-[#1C3177] border-blue-200',
+                    ajuste: 'bg-purple-50 text-purple-700 border-purple-200',
+                    devolucion: 'bg-teal-50 text-teal-700 border-teal-200',
+                    baja: 'bg-rose-50 text-rose-700 border-rose-200'
+                  };
+                  return (
+                    <tr key={mov.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-semibold text-slate-800">
+                        {mov.numeroMovimiento}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
+                            badgeColors[mov.tipo] || 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {mov.tipo}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {mov.origenUbicacionNombre || 'Almacén Central'}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                        {mov.destinoUbicacionNombre || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">{mov.usuarioNombre}</td>
+                      <td className="py-2.5 px-3 text-slate-500">
+                        {new Date(mov.creadoEn).toLocaleDateString('es-DO', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

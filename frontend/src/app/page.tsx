@@ -13,28 +13,25 @@ import { MovementsView } from '@/components/MovementsView';
 import { MaintenanceView } from '@/components/MaintenanceView';
 import { ReportsView } from '@/components/ReportsView';
 import { SettingsView } from '@/components/SettingsView';
-import { SuppliersView } from '@/components/SuppliersView';
 import { AiAssistantDrawer } from '@/components/AiAssistantDrawer';
 import { CameraScannerModal } from '@/components/CameraScannerModal';
 import { ResourceDetailModal } from '@/components/ResourceDetailModal';
 import { AssetsView } from '@/components/AssetsView';
 import { PhysicalAuditView } from '@/components/PhysicalAuditView';
 import { AlertsView } from '@/components/AlertsView';
-import { EditProfileModal } from '@/components/EditProfileModal';
 import {
   initialArticulos,
   initialMovimientos,
   ArticuloItem,
   MovimientoItem
 } from '@/lib/initialData';
-import { Sparkles, CheckCircle2, Box, ShoppingBag, ClipboardCheck } from 'lucide-react';
+import { Sparkles, CheckCircle2, Box, ClipboardCheck } from 'lucide-react';
 
 export default function Home() {
   const { user, loading } = useAuth();
   const [demoMode, setDemoMode] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [aiOpen, setAiOpen] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [articulos, setArticulos] = useState<ArticuloItem[]>(initialArticulos);
   const [movimientos, setMovimientos] = useState<MovimientoItem[]>(initialMovimientos);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -155,7 +152,7 @@ export default function Home() {
         alertCount={systemAlertCount}
         onOpenScanner={() => setScannerOpen(true)}
         onNavigateToAlerts={() => setActiveTab('alertas')}
-        onOpenProfile={() => setEditProfileOpen(true)}
+        onOpenProfile={() => setActiveTab('configuracion')}
         onNavigateToSettings={() => setActiveTab('configuracion')}
       />
 
@@ -183,6 +180,7 @@ export default function Home() {
             <CatalogView
               articulos={articulos}
               onAddArticulo={handleAddArticulo}
+              onNavigateTab={setActiveTab}
             />
           )}
 
@@ -215,9 +213,9 @@ export default function Home() {
 
           {activeTab === 'alertas' && <AlertsView />}
 
-          {activeTab === 'activos' && <AssetsView />}
-
-          {activeTab === 'compras' && <SuppliersView />}
+          {activeTab === 'activos' && (
+            <AssetsView onNavigateToMovements={() => setActiveTab('movimientos')} />
+          )}
 
           {activeTab === 'inventario_fisico' && (
             <PhysicalAuditView onOpenScanner={() => setScannerOpen(true)} />
@@ -269,13 +267,6 @@ export default function Home() {
           setScannedDetailOpen(false);
           setScannedResourceId(null);
         }}
-      />
-
-      {/* Modal Editar Perfil (Idea 8) */}
-      <EditProfileModal
-        isOpen={editProfileOpen}
-        onClose={() => setEditProfileOpen(false)}
-        onProfileUpdated={(msg) => triggerToast(msg)}
       />
     </div>
   );

@@ -12,4 +12,5 @@ public interface IConteoFisicoService
     Task<ConteoFisicoDto> EscanearItemAsync(Guid conteoId, EscanearItemConteoDto dto, Guid usuarioId, CancellationToken ct = default);
     Task<ConteoFisicoDto> ConciliarConteoAsync(Guid conteoId, ConciliarConteoDto dto, Guid usuarioId, CancellationToken ct = default);
     Task<ConteoFisicoDto> CancelarConteoAsync(Guid conteoId, string? motivo, Guid usuarioId, CancellationToken ct = default);
+    Task EliminarConteoAsync(Guid conteoId, CancellationToken ct = default);
 }

@@ -43,7 +43,14 @@ public class ConteoFisicoService : IConteoFisicoService
         if (!string.IsNullOrWhiteSpace(filtros.Estado))
         {
             var estado = filtros.Estado.Trim().ToLower();
-            query = query.Where(c => c.Estado.ToLower() == estado);
+            if (estado == "cancelado")
+            {
+                query = query.Where(c => c.Estado.ToLower() == "cancelado" || c.Estado.ToLower() == "anulado");
+            }
+            else
+            {
+                query = query.Where(c => c.Estado.ToLower() == estado);
+            }
         }
 
         if (filtros.FechaDesde.HasValue)
@@ -132,6 +139,8 @@ public class ConteoFisicoService : IConteoFisicoService
                 .AsNoTracking()
                 .ToListAsync(ct);
 
+            var recursosCargados = new HashSet<Guid>();
+
             foreach (var ex in existencias)
             {
                 nuevoConteo.Lineas.Add(new ConteoLinea
@@ -145,6 +154,35 @@ public class ConteoFisicoService : IConteoFisicoService
                     Diferencia = -ex.Cantidad,
                     Notas = "Carga inicial desde existencias del sistema"
                 });
+                recursosCargados.Add(ex.RecursoId);
+            }
+
+            // También incluir activos fijos físicos asignados a esta ubicación que no estén en existencias
+            var activosUbicacion = await _db.ActivosSerie
+                .Where(a => a.UbicacionId == dto.UbicacionId && a.Estado != "dado_de_baja")
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var agrupadosPorRecurso = activosUbicacion
+                .GroupBy(a => a.RecursoId)
+                .ToList();
+
+            foreach (var grp in agrupadosPorRecurso)
+            {
+                if (!recursosCargados.Contains(grp.Key))
+                {
+                    var placas = string.Join(", ", grp.Select(x => x.PlacaInstitucional).Where(p => !string.IsNullOrEmpty(p)));
+                    nuevoConteo.Lineas.Add(new ConteoLinea
+                    {
+                        Id = Guid.NewGuid(),
+                        ConteoId = nuevoConteo.Id,
+                        RecursoId = grp.Key,
+                        CantidadSistema = grp.Count(),
+                        CantidadFisica = 0,
+                        Diferencia = -grp.Count(),
+                        Notas = string.IsNullOrEmpty(placas) ? "Activos físicos de la ubicación" : $"Placas: {placas}"
+                    });
+                }
             }
         }
 
@@ -399,7 +437,7 @@ public class ConteoFisicoService : IConteoFisicoService
             throw new InvalidOperationException("Solo se pueden cancelar conteos en estado 'abierto'.");
         }
 
-        conteo.Estado = "cancelado";
+        conteo.Estado = "anulado";
         conteo.FechaCierre = DateTime.UtcNow;
         if (!string.IsNullOrWhiteSpace(motivo))
         {
@@ -410,6 +448,22 @@ public class ConteoFisicoService : IConteoFisicoService
 
         await _db.SaveChangesAsync(ct);
         return (await ObtenerPorIdAsync(conteo.Id, ct))!;
+    }
+
+    public async Task EliminarConteoAsync(Guid conteoId, CancellationToken ct = default)
+    {
+        var conteo = await _db.ConteosFisicos
+            .Include(c => c.Lineas)
+            .FirstOrDefaultAsync(c => c.Id == conteoId, ct);
+
+        if (conteo == null)
+        {
+            throw new KeyNotFoundException($"No se encontró el conteo físico con ID '{conteoId}'.");
+        }
+
+        _db.ConteosLineas.RemoveRange(conteo.Lineas);
+        _db.ConteosFisicos.Remove(conteo);
+        await _db.SaveChangesAsync(ct);
     }
 
     private static ConteoFisicoDto MapearADto(ConteoFisico c)
@@ -449,7 +503,7 @@ public class ConteoFisicoService : IConteoFisicoService
             ResponsableCorreo = c.Responsable?.Correo ?? string.Empty,
             FechaInicio = c.FechaInicio,
             FechaCierre = c.FechaCierre,
-            Estado = c.Estado,
+            Estado = (c.Estado == "anulado" || c.Estado == "cancelado") ? "cancelado" : c.Estado,
             Observaciones = c.Observaciones,
             TotalLineas = lineas.Count,
             TotalUnidadesSistema = totalSistema,

@@ -45,15 +45,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfileFromApi = useCallback(async (activeSession: Session) => {
     try {
       const p = await apiClient.getMiPerfil();
+      // Si la base de datos no tiene avatar aún y no ha sido descartado explícitamente ('none'), usar la foto provista por Google OAuth
+      if (p.avatarUrl !== 'none' && !p.avatarUrl && (activeSession.user.user_metadata?.avatar_url || activeSession.user.user_metadata?.picture)) {
+        p.avatarUrl = activeSession.user.user_metadata?.avatar_url || activeSession.user.user_metadata?.picture;
+      }
       setPerfil(p);
       setAuthError(null);
       if (p.preferencias) {
         syncFromPerfil(p.preferencias);
       }
     } catch (err: any) {
-      // Si la API responde 403 Forbidden: usuario no invitado o desactivado
+      // Si la API responde 403 Forbidden: usuario suspendido o sin acceso
       if (err.status === 403) {
-        const errorMsg = err.message || 'Tu correo no cuenta con una invitación institucional activa en SIIA.';
+        const errorMsg = err.message || 'Tu cuenta no tiene permisos para acceder a SIIA o ha sido suspendida.';
         setAuthError(errorMsg);
         await supabase.auth.signOut();
         setUser(null);

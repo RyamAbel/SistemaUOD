@@ -299,10 +299,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                 Bienvenido de nuevo
               </h1>
               <p className={`mt-1.5 text-xs leading-relaxed max-w-xs mx-auto mb-6 ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
-                Inicia sesión con tu correo autorizado de la UOD para acceder al control de inventario y almacén.
+                Inicia sesión con tu cuenta de Google para acceder al control de inventario y almacén.
               </p>
 
-              {/* Alerta de Error / Correo no invitado */}
+              {/* Alerta de Error de autenticación */}
               <AnimatePresence>
                 {authError && (
                   <motion.div
@@ -318,24 +318,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                     <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                     <div className="flex-1 pr-3">
                       <span className="font-bold block">
-                        Acceso no autorizado
+                        Aviso de inicio de sesión
                       </span>
                       <p className="text-[11px] leading-relaxed mt-0.5 opacity-90">
-                        {authError.toLowerCase().includes('invita') ||
-                        authError.toLowerCase().includes('autoriz') ||
-                        authError.toLowerCase().includes('403')
-                          ? 'Tu cuenta de Google no tiene una invitación activa en SIIA. Contacta a Tecnología UOD para autorizar tu acceso.'
-                          : authError}
+                        {authError}
                       </p>
-                      <div className="mt-2.5">
-                        <a
-                          href="mailto:tecnologia@uod.edu.do?subject=Solicitud de acceso a SIIA UOD"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold hover:underline"
-                        >
-                          <Mail className="h-3 w-3" />
-                          <span>Solicitar invitación a TI</span>
-                        </a>
-                      </div>
                     </div>
                     <button
                       onClick={clearAuthError}
@@ -386,7 +373,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                       />
                     </svg>
-                    <span>Continuar con Google Institucional</span>
+                    <span>Continuar con Google</span>
                   </>
                 )}
               </motion.button>
@@ -400,7 +387,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypassDemo }) => {
                   <span>Acceso seguro protegido por Supabase Auth</span>
                 </div>
                 <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                  Solo cuentas autorizadas por la Dirección de Tecnología UOD.
+                  Inicio de sesión disponible con cualquier cuenta de Google.
                 </p>
               </div>
 

@@ -98,7 +98,7 @@ public class ExistenciaService : IExistenciaService
                 ? Math.Max(0, objetivoReorden - stockDisponible)
                 : 0;
 
-            // Análisis de Lotes Clínicos
+            // Análisis de Lotes de Almacén
             var lotesVencidos = 0;
             var lotesProximos = 0;
 

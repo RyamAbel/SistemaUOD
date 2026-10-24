@@ -250,9 +250,15 @@ body {
 [data-theme="dark"] .bg-slate-50,
 [data-theme="dark"] .bg-slate-50\/50,
 [data-theme="dark"] .bg-slate-50\/40,
-[data-theme="dark"] .bg-slate-100 {
+[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] .bg-\[\#F7F9FC\] {
   background-color: #1A3356 !important;
   color: #F0F4FF !important;
+}
+
+[data-theme="dark"] main.bg-\[\#F7F9FC\],
+[data-theme="dark"] div.bg-\[\#F7F9FC\] {
+  background-color: #0D1B2A !important;
 }
 
 [data-theme="dark"] .text-slate-900,

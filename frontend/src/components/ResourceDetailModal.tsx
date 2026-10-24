@@ -26,7 +26,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   RotateCcw,
-  SlidersHorizontal
+  SlidersHorizontal,
+  FileCheck
 } from 'lucide-react';
 import {
   apiClient,
@@ -528,6 +529,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                             <th className="py-2.5 px-4">Ubicación</th>
                             <th className="py-2.5 px-4">Custodio / Responsable</th>
                             <th className="py-2.5 px-4">Estado</th>
+                            <th className="py-2.5 px-4 text-center">Factura</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -565,6 +567,22 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                   {serie.estado}
                                 </span>
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                {serie.facturaUrl ? (
+                                  <a
+                                    href={serie.facturaUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                                    title="Ver o descargar factura digital"
+                                  >
+                                    <FileCheck className="w-3 h-3 text-emerald-600" />
+                                    Factura
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-400 text-[10px]">—</span>
+                                )}
                               </td>
                             </tr>
                           ))}

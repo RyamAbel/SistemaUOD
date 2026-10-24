@@ -295,7 +295,8 @@ public class MovimientoService : IMovimientoService
                     if (existenciasRecurso <= rec.StockMinimo)
                     {
                         var yaTieneAlerta = _db.Alertas.Local
-                            .Any(a => !a.Leida && a.RecursoId == linea.RecursoId && a.Tipo == "stock_bajo");
+                            .Any(a => !a.Leida && a.RecursoId == linea.RecursoId && a.Tipo == "stock_bajo")
+                            || await _db.Alertas.AnyAsync(a => !a.Leida && a.RecursoId == linea.RecursoId && a.Tipo == "stock_bajo", ct);
 
                         if (!yaTieneAlerta)
                         {

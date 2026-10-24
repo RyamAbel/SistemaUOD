@@ -8,7 +8,6 @@ import {
   ArrowLeftRight,
   Box,
   Wrench,
-  ShoppingBag,
   ClipboardCheck,
   BarChart3,
   Settings,
@@ -25,7 +24,6 @@ export type NavTab =
   | 'activos'
   | 'mantenimiento'
   | 'alertas'
-  | 'compras'
   | 'inventario_fisico'
   | 'reportes'
   | 'configuracion';
@@ -52,18 +50,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'activos', label: 'Activos Fijos TI', icon: Box },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench },
     { id: 'alertas', label: 'Centro de Alertas', icon: Bell, badge: stockAlertCount },
-    { id: 'compras', label: 'Proveedores & Compras', icon: ShoppingBag },
     { id: 'inventario_fisico', label: 'Inventario Físico', icon: ClipboardCheck },
     { id: 'reportes', label: 'Reportes & Análisis', icon: BarChart3 },
     { id: 'configuracion', label: 'Configuración', icon: Settings },
   ];
 
   const allowedTabsByRol: Record<string, NavTab[]> = {
-    super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
-    admin_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes', 'configuracion'],
-    gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'compras', 'inventario_fisico', 'reportes'],
-    encargado_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'compras', 'inventario_fisico'],
-    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'compras', 'inventario_fisico'],
+    super_admin: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'inventario_fisico', 'reportes', 'configuracion'],
+    admin_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'inventario_fisico', 'reportes', 'configuracion'],
+    gestor_inventario: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'mantenimiento', 'alertas', 'inventario_fisico', 'reportes'],
+    encargado_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'inventario_fisico'],
+    operador_almacen: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'inventario_fisico'],
     auditor: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'reportes'],
     consulta: ['dashboard', 'catalogo', 'ubicaciones', 'movimientos', 'activos', 'alertas', 'reportes']
   };

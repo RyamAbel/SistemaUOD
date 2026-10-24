@@ -30,13 +30,15 @@ import {
   Printer,
   Camera,
   Loader2,
-  Layers
+  Layers,
+  Box
 } from 'lucide-react';
 import {
   apiClient,
   RecursoDto,
   RecursoFiltrosDto,
   CategoriaDto,
+  UbicacionDto,
   PagedResult
 } from '@/lib/apiClient';
 import { ACTIVOS_ORIGINALES, ActivoTI, resolverCustodioReal } from '@/lib/inventoryData';
@@ -53,9 +55,10 @@ interface CatalogViewProps {
   articulos?: any[];
   onAddArticulo?: (nuevo: any) => void;
   onOpenResourceDetail?: (id: string) => void;
+  onNavigateTab?: (tab: any) => void;
 }
 
-export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, onAddArticulo }) => {
+export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, onAddArticulo, onNavigateTab }) => {
   const { rol } = useAuth();
   const canManage = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
 
@@ -111,6 +114,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
   });
   const [loading, setLoading] = useState(true);
   const [categorias, setCategorias] = useState<CategoriaDto[]>([]);
+  const [ubicaciones, setUbicaciones] = useState<UbicacionDto[]>([]);
+  const [ubicacionId, setUbicacionId] = useState<string>('');
 
   // 5. Selección múltiple para acciones en lote
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -191,9 +196,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Cargar categorías disponibles para el filtro
+  // Cargar categorías y ubicaciones disponibles para el filtro
   useEffect(() => {
     apiClient.listarCategorias(true).then(setCategorias).catch(() => {});
+    apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true }).then((res) => setUbicaciones(res.items || [])).catch(() => {});
   }, []);
 
   // Cargar activos físicos desde la API para sincronizar altas y movimientos en tiempo real
@@ -238,6 +244,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
         search: search.trim() || undefined,
         categoriaId: categoriaId || undefined,
         tipo: (tipo as any) || undefined,
+        ubicacionId: ubicacionId || undefined,
         stockBajo: stockBajo || undefined,
         stockAgotado: stockAgotado || undefined,
         conFoto: conFoto !== null ? conFoto : undefined,
@@ -262,6 +269,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
     search,
     categoriaId,
     tipo,
+    ubicacionId,
     stockBajo,
     stockAgotado,
     conFoto,
@@ -286,6 +294,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
     setSearch('');
     setCategoriaId('');
     setTipo('');
+    setUbicacionId('');
     setStockBajo(false);
     setStockAgotado(false);
     setConFoto(null);
@@ -302,6 +311,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
     if (search.trim()) count++;
     if (categoriaId) count++;
     if (tipo) count++;
+    if (ubicacionId) count++;
     if (stockBajo) count++;
     if (stockAgotado) count++;
     if (conFoto !== null) count++;
@@ -309,7 +319,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
     if (costoMin || costoMax) count++;
     if (!soloActivos) count++;
     return count;
-  }, [search, categoriaId, tipo, stockBajo, stockAgotado, conFoto, conQr, costoMin, costoMax, soloActivos]);
+  }, [search, categoriaId, tipo, ubicacionId, stockBajo, stockAgotado, conFoto, conQr, costoMin, costoMax, soloActivos]);
 
   // Manejo de Selección múltiple
   const handleToggleSelectAll = () => {
@@ -519,30 +529,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-[#1C3177]' : ''}`} />
           </button>
 
-          {/* Importar CSV Button (Etapa 12) */}
-          {canManage && (
+          {/* Acceso a Activos Fijos (Lugar único de registro y edición) */}
+          {onNavigateTab && (
             <button
-              onClick={() => setImportModalOpen(true)}
-              title="Importación masiva de recursos desde archivo CSV / Excel"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              onClick={() => onNavigateTab('activos')}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-[#1C3177] shadow-2xs transition-all cursor-pointer"
+              title="Ir al módulo de Activos Fijos para registrar o editar equipos"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-[#3DAA5C]" />
-              <span className="hidden sm:inline">Importar CSV</span>
-            </button>
-          )}
-
-          {/* Nuevo Recurso Button */}
-          {canManage && (
-            <button
-              onClick={() => {
-                setEditingResourceId(null);
-                setDuplicatingResource(null);
-                setDrawerOpen(true);
-              }}
-              className="flex items-center gap-1.5 rounded-xl bg-[#3DAA5C] hover:bg-[#2D8246] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Nuevo Recurso</span>
+              <Box className="h-3.5 w-3.5 text-[#1C3177]" />
+              <span className="hidden sm:inline">Gestionar en Activos Fijos</span>
             </button>
           )}
         </div>
@@ -562,6 +557,12 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
             <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2 py-1 text-[11px] font-semibold text-[#1C3177]">
               Cat: {categorias.find((c) => c.id === categoriaId)?.nombre || 'Categoría'}
               <X className="h-3 w-3 cursor-pointer hover:text-rose-600" onClick={() => setCategoriaId('')} />
+            </span>
+          )}
+          {ubicacionId && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2 py-1 text-[11px] font-semibold text-[#1C3177]">
+              Ubicación: {ubicaciones.find((u) => u.id === ubicacionId)?.nombre || 'Ubicación'}
+              <X className="h-3 w-3 cursor-pointer hover:text-rose-600" onClick={() => setUbicacionId('')} />
             </span>
           )}
           {tipo && (
@@ -701,6 +702,26 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                 {categorias.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.codigo} - {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Ubicación Institucional */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700 block">Ubicación Institucional</label>
+              <select
+                value={ubicacionId}
+                onChange={(e) => {
+                  setUbicacionId(e.target.value);
+                  setPageIndex(1);
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:border-[#1C3177] focus:outline-none"
+              >
+                <option value="">-- Todas las ubicaciones ({ubicaciones.reduce((acc, u) => acc + (u.totalActivosFisicos || 0), 0)}) --</option>
+                {ubicaciones.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} ({u.totalActivosFisicos})
                   </option>
                 ))}
               </select>
@@ -1005,16 +1026,6 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                                 {recurso.stockActual}
                               </span>
                               <span className="text-[10px] text-slate-400">{recurso.unidadMedida}</span>
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenStockModal(recurso)}
-                                  title={`Ajustar umbrales RF-12 (Mín: ${recurso.stockMinimo}${recurso.puntoReorden ? `, Reorden: ${recurso.puntoReorden}` : ''}${recurso.stockMaximo ? `, Máx: ${recurso.stockMaximo}` : ''})`}
-                                  className="p-1 rounded text-slate-400 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
-                                >
-                                  <SlidersHorizontal className="w-3 h-3" />
-                                </button>
-                              )}
                             </div>
                             <div className="mt-0.5">
                               {recurso.stockActual === 0 ? (
@@ -1070,32 +1081,6 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                               >
                                 <QrCode className="h-3.5 w-3.5" />
                               </button>
-                              {canManage && (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setEditingResourceId(recurso.id);
-                                      setDuplicatingResource(null);
-                                      setDrawerOpen(true);
-                                    }}
-                                    title="Editar recurso"
-                                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#1C3177] transition-colors"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setEditingResourceId(null);
-                                      setDuplicatingResource(recurso);
-                                      setDrawerOpen(true);
-                                    }}
-                                    title="Duplicar como plantilla"
-                                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
-                                  >
-                                    <Copy className="h-3.5 w-3.5" />
-                                  </button>
-                                </>
-                              )}
                               <button
                                 onClick={() => handleOpenDetail(recurso.id)}
                                 className="rounded-lg bg-blue-50 text-[#1C3177] px-2.5 py-1 text-[11px] font-bold hover:bg-blue-100 transition-colors"
@@ -1269,35 +1254,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                       >
                         <QrCode className="h-4 w-4" />
                       </button>
-                      {canManage && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setEditingResourceId(recurso.id);
-                              setDuplicatingResource(null);
-                              setDrawerOpen(true);
-                            }}
-                            title="Editar recurso"
-                            className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 hover:text-[#1C3177] transition-colors"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingResourceId(null);
-                              setDuplicatingResource(recurso);
-                              setDrawerOpen(true);
-                            }}
-                            title="Duplicar recurso"
-                            className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
                       <button
                         onClick={() => handleOpenDetail(recurso.id)}
-                        className="flex-1 rounded-xl bg-[#1C3177] py-2 text-xs font-bold text-white hover:bg-[#2B4BA0] transition-colors text-center"
+                        className="flex-1 rounded-xl bg-[#1C3177] py-2 text-xs font-bold text-white hover:bg-[#2B4BA0] transition-colors text-center cursor-pointer"
                       >
                         Ver Detalle
                       </button>
@@ -1497,12 +1456,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
           setDetailModalOpen(false);
           setDetailResourceId(null);
         }}
-        onEditResource={(id) => {
+        onEditResource={onNavigateTab ? () => {
           setDetailModalOpen(false);
-          setEditingResourceId(id);
-          setDuplicatingResource(null);
-          setDrawerOpen(true);
-        }}
+          onNavigateTab('activos');
+        } : undefined}
       />
 
       {/* Modal Impresión en Lote de Etiquetas QR (Prompt 6.7) */}
@@ -1519,10 +1476,11 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
         onOpenResourceDetail={(id) => {
           handleOpenDetail(id);
         }}
-        onCreateResourceWithCode={(codigo) => {
-          setEditingResourceId(null);
-          setDuplicatingResource(null);
-          setDrawerOpen(true);
+        onCreateResourceWithCode={() => {
+          if (onNavigateTab) {
+            setScannerModalOpen(false);
+            onNavigateTab('activos');
+          }
         }}
       />
 
@@ -1600,7 +1558,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onOpenResourceDetail, 
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-900 focus:border-[#1C3177] focus:ring-1 focus:ring-[#1C3177]"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  Nivel de existencias que dispara la solicitud de reposición al departamento de compras.
+                  Nivel de existencias que dispara la alerta institucional de reposición.
                 </span>
               </div>
 

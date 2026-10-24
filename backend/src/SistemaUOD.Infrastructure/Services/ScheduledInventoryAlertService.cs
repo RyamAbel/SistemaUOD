@@ -66,7 +66,7 @@ public class ScheduledInventoryAlertService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var alertaService = scope.ServiceProvider.GetRequiredService<IAlertaService>();
 
-        _logger.LogInformation("Iniciando evaluación periódica automática de reglas de inventario (Stock, Lotes Clínicos, Mantenimientos)...");
+        _logger.LogInformation("Iniciando evaluación periódica automática de reglas de inventario (Stock, Lotes de Almacén, Mantenimientos)...");
         var resultado = await alertaService.EvaluarReglasAsync(ct);
 
         _logger.LogInformation(

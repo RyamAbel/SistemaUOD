@@ -566,21 +566,24 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
             </div>
 
             {/* Alternar todo */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 shadow-2xs">
               <button
                 type="button"
                 onClick={handleExpandAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-[#1C3177] rounded-lg hover:bg-white transition-all cursor-pointer"
+                title="Abrir todos los grupos"
               >
-                Expandir todo
+                <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                <span>Expandir todo</span>
               </button>
-              <span className="text-slate-300">|</span>
               <button
                 type="button"
                 onClick={handleCollapseAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 rounded-md hover:bg-white transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 rounded-lg hover:bg-white transition-all cursor-pointer"
+                title="Cerrar todos los grupos"
               >
-                Contraer todo
+                <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
+                <span>Contraer todo</span>
               </button>
             </div>
           </div>
@@ -645,6 +648,7 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
             const isExpanded = expandedGroups.has(grupo.config.key);
             const Icon = grupo.config.icono;
             const isUnclassified = grupo.config.key === 'SIN_CLASIFICAR';
+            const hasFiltrosActivos = search.trim() !== '' || selectedUbicacion !== 'todas' || selectedEstado !== 'todos' || selectedCustodio !== 'todos';
 
             return (
               <div
@@ -658,19 +662,12 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                     : 'border-slate-200/80 hover:border-slate-300'
                 }`}
               >
-                {/* Cabecera del Grupo (Accordion Trigger) */}
-                <div
-                  role="button"
-                  tabIndex={0}
+                {/* Cabecera del Grupo (Accordion Trigger accesible con teclado y móvil) */}
+                <button
+                  type="button"
                   aria-expanded={isExpanded}
                   onClick={() => toggleGroup(grupo.config.key)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleGroup(grupo.config.key);
-                    }
-                  }}
-                  className={`p-4 cursor-pointer select-none transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1C3177] ${
+                  className={`w-full text-left p-4 cursor-pointer select-none transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1C3177] ${
                     isExpanded ? 'bg-slate-50/70 border-b border-slate-200/70' : 'hover:bg-slate-50/40'
                   }`}
                 >
@@ -686,8 +683,8 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                         <h3 className="text-base font-bold text-slate-900">
                           {grupo.config.nombre}
                         </h3>
-                        <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
-                          {grupo.total} {grupo.total === 1 ? 'unidad' : 'unidades'}
+                        <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
+                          {grupo.total} {hasFiltrosActivos ? (grupo.total === 1 ? 'resultado' : 'resultados') : (grupo.total === 1 ? 'unidad' : 'unidades')}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
@@ -697,7 +694,7 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                   </div>
 
                   {/* Lado Derecho: Desglose por Estado y Chevron */}
-                  <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+                  <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
                     {/* Badge En Uso */}
                     {grupo.enUso > 0 && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
@@ -731,7 +728,7 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                       )}
                     </div>
                   </div>
-                </div>
+                </button>
 
                 {/* Contenido Expandido: Unidades Individuales */}
                 {isExpanded && (
@@ -746,8 +743,8 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                       </span>
                     </div>
 
-                    {/* Tabla de unidades del grupo */}
-                    <div className="overflow-x-auto rounded-xl border border-slate-200/80">
+                    {/* Tabla de unidades del grupo (Desktop / Tablet) */}
+                    <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-slate-50/80 text-slate-600 border-b border-slate-200/80 uppercase font-semibold text-[10px] tracking-wider">
                           <tr>
@@ -877,7 +874,7 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                                         type="button"
                                         onClick={() => onTransferAsset(activo)}
                                         className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                                        title="Trasladar de ubicación o custodio"
+                                        title="Trasladar en módulo Movimientos"
                                       >
                                         <ArrowRightLeft className="h-3.5 w-3.5" />
                                       </button>
@@ -901,6 +898,78 @@ export const GroupedAssetsView: React.FC<GroupedAssetsViewProps> = ({
                           })}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Vista Móvil (Tarjetas para teléfonos) */}
+                    <div className="block md:hidden space-y-3">
+                      {grupo.items.map(activo => {
+                        const isDanado = activo.estado === 'danado' || activo.estado === 'dado_de_baja';
+                        const isDisponible = activo.estado === 'disponible';
+                        return (
+                          <div key={activo.id} className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-mono font-bold text-xs text-[#1C3177] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                                  {activo.placa_institucional || 'S/P'}
+                                </span>
+                                <h4 className="text-xs font-bold text-slate-900 mt-1.5">{activo.recurso_nombre}</h4>
+                              </div>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                isDanado ? 'bg-rose-100 text-rose-800' : isDisponible ? 'bg-blue-100 text-[#1C3177]' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${
+                                  isDanado ? 'bg-rose-500' : isDisponible ? 'bg-[#1C3177]' : 'bg-emerald-500'
+                                }`}></span>
+                                {activo.estado === 'en_uso' ? 'En uso' : activo.estado === 'disponible' ? 'Disponible' : activo.estado === 'danado' ? 'Dañado' : 'De baja'}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200/60">
+                              <div className="truncate">
+                                <span className="text-slate-400 block text-[10px]">Ubicación:</span>
+                                <span className="font-medium text-slate-700 truncate">{activo.ubicacion_nombre}</span>
+                              </div>
+                              <div className="truncate">
+                                <span className="text-slate-400 block text-[10px]">Custodio:</span>
+                                <span className="font-medium text-slate-700 truncate">{activo.responsable || 'Por asignar'}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px]">
+                              <span className="font-mono text-slate-500 text-[10px]">Serie: {activo.numero_serie || 'N/A'}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => onEditAsset?.(activo)}
+                                  className="px-2.5 py-1 text-[11px] font-bold text-[#1C3177] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Editar
+                                </button>
+                                {onSelectAsset && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onSelectAsset(activo)}
+                                    className="p-1 text-slate-500 hover:text-slate-900 bg-white border border-slate-200 rounded-lg"
+                                    title="Ver ficha"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {onTransferAsset && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onTransferAsset(activo)}
+                                    className="p-1 text-emerald-700 hover:text-emerald-900 bg-white border border-slate-200 rounded-lg"
+                                    title="Trasladar"
+                                  >
+                                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

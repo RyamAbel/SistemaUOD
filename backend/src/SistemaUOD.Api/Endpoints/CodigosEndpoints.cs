@@ -17,6 +17,7 @@ public static class CodigosEndpoints
         resolutorGroup.MapGet("/resolver", async (
             [FromQuery] string codigo,
             HttpContext httpContext,
+            IConfiguration configuration,
             ICodigoService codigoService,
             CancellationToken ct) =>
         {
@@ -28,7 +29,9 @@ public static class CodigosEndpoints
                     detail: "Debe proveer un valor en el parámetro 'codigo' para resolver.");
             }
 
-            var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+            var baseUrl = configuration["Qr:BaseUrl"]
+                ?? configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?.FirstOrDefault()
+                ?? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
             var resolucion = await codigoService.ResolverCodigoAsync(codigo, baseUrl, ct);
 
             if (!resolucion.Encontrado)
@@ -106,12 +109,15 @@ public static class CodigosEndpoints
         recursosCodigosGroup.MapGet("/qr/enlace", async (
             Guid recursoId,
             HttpContext httpContext,
+            IConfiguration configuration,
             ICodigoService codigoService,
             CancellationToken ct) =>
         {
             try
             {
-                var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                var baseUrl = configuration["Qr:BaseUrl"]
+                    ?? configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?.FirstOrDefault()
+                    ?? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                 var enlace = await codigoService.ObtenerOAsignarQrPropioAsync(recursoId, baseUrl, ct);
                 return Results.Ok(enlace);
             }
@@ -129,12 +135,15 @@ public static class CodigosEndpoints
         recursosCodigosGroup.MapGet("/qr/imagen", async (
             Guid recursoId,
             HttpContext httpContext,
+            IConfiguration configuration,
             ICodigoService codigoService,
             CancellationToken ct) =>
         {
             try
             {
-                var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                var baseUrl = configuration["Qr:BaseUrl"]
+                    ?? configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?.FirstOrDefault()
+                    ?? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                 var enlace = await codigoService.ObtenerOAsignarQrPropioAsync(recursoId, baseUrl, ct);
                 var pngBytes = await codigoService.GenerarQrPngAsync(enlace.EnlaceSeguro, 10, ct);
 

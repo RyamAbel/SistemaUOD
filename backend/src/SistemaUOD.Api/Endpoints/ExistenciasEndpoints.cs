@@ -76,7 +76,7 @@ public static class ExistenciasEndpoints
             return Results.Ok(items);
         })
         .WithName("ObtenerExistenciasDetalladas")
-        .WithSummary("Lista detallada de existencias físicas cruzando recurso, ubicación y lote clínico");
+        .WithSummary("Lista detallada de existencias físicas cruzando recurso, ubicación y lote");
 
         // 4. Alertas de stock bajo el mínimo o en reorden (RF-12)
         group.MapGet("/alertas/stock-bajo", async (
@@ -89,7 +89,7 @@ public static class ExistenciasEndpoints
         .WithName("ObtenerAlertasStockBajo")
         .WithSummary("Lista de insumos y recursos en quiebre de stock o por debajo del mínimo institucional");
 
-        // 5. Alertas de vencimiento de lotes clínicos y biomateriales
+        // 5. Alertas de vencimiento de lotes de insumos
         group.MapGet("/alertas/vencimientos", async (
             [FromQuery] int? diasAnticipacion,
             IExistenciaService existenciaService,
@@ -99,7 +99,7 @@ public static class ExistenciasEndpoints
             return Results.Ok(vencimientos);
         })
         .WithName("ObtenerAlertasVencimientos")
-        .WithSummary("Lista de lotes clínicos con fecha de vencimiento próxima o caducada");
+        .WithSummary("Lista de lotes con fecha de vencimiento próxima o caducada");
 
         return app;
     }

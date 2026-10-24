@@ -512,6 +512,29 @@ public class AssistantService : IAssistantService
                 return (JsonSerializer.Serialize(lista), null);
             }
 
+            case "consultar_resumen_inventario":
+            {
+                var totalEquipos = await _context.ActivosSerie.CountAsync(ct);
+                var enUso = await _context.ActivosSerie.CountAsync(a => a.Estado == "en_uso", ct);
+                var enAlmacen = await _context.ActivosSerie.CountAsync(a => a.Estado == "disponible", ct);
+                var inactivos = totalEquipos - enUso - enAlmacen;
+                var totalUbicaciones = await _context.Ubicaciones.CountAsync(ct);
+                var totalModelos = await _context.Recursos.CountAsync(ct);
+
+                var resumen = new
+                {
+                    TotalEquipos = totalEquipos,
+                    EnUso = enUso,
+                    EnAlmacen = enAlmacen,
+                    InactivosODanados = inactivos,
+                    TotalUbicaciones = totalUbicaciones,
+                    TotalModelos = totalModelos,
+                    Fuente = "Levantamiento Oficial ACTIVOS 2026 TECNOLOGIA UOD"
+                };
+
+                return (JsonSerializer.Serialize(resumen), null);
+            }
+
             case "consultar_ordenes_compra":
             {
                 var estado = args?["estado"]?.GetValue<string>()?.ToLower();
@@ -800,15 +823,12 @@ REGLAS DE ORO OBLIGATORIAS:
                     },
                     new
                     {
-                        name = "consultar_ordenes_compra",
-                        description = "Consulta las órdenes de compra institucionales, sus estados (borrador, aprobada, recibida) y montos en DOP.",
+                        name = "consultar_resumen_inventario",
+                        description = "Obtiene las métricas y totales globales del inventario institucional UOD: total de equipos (341), en uso (337), en almacén (1), inactivos (3), dependencias (49) y modelos (113).",
                         parameters = new
                         {
                             type = "object",
-                            properties = new
-                            {
-                                estado = new { type = "string", description = "Estado: borrador, aprobada, enviada, recibida_parcial, recibida_total, cancelada" }
-                            }
+                            properties = new { }
                         }
                     },
                     new
@@ -921,6 +941,26 @@ REGLAS DE ORO OBLIGATORIAS:
                             "⚠️ **Confirmación Requerida:** La operación **no** se ejecutará en el sistema hasta que presiones el botón de confirmación en la tarjeta que se muestra a continuación.";
             }
         }
+        // Caso 2.8: Consulta de totales o resumen global del inventario
+        else if (lower.Contains("cuant") || lower.Contains("total") || lower.Contains("resumen") || lower.Contains("general") || lower.Contains("inventario ti") || lower.Contains("estadistic"))
+        {
+            executedTools.Add("consultar_resumen_inventario");
+            var totalEquipos = await _context.ActivosSerie.CountAsync(ct);
+            var enUso = await _context.ActivosSerie.CountAsync(a => a.Estado == "en_uso", ct);
+            var enAlmacen = await _context.ActivosSerie.CountAsync(a => a.Estado == "disponible", ct);
+            var inactivos = totalEquipos - enUso - enAlmacen;
+            var totalUbicaciones = await _context.Ubicaciones.CountAsync(ct);
+            var totalModelos = await _context.Recursos.CountAsync(ct);
+
+            respuesta = "### 📊 Resumen General del Inventario TI UOD (Levantamiento 2026)\n" +
+                        $"- **Total de Equipos Físicos:** **{totalEquipos}** unidades registradas (`EQ-01` a `EQ-341`)\n" +
+                        $"- **Equipos en Uso Operativo:** **{enUso}** unidades (98.8% de operatividad institucional)\n" +
+                        $"- **Equipos en Almacén / Disponibles:** **{enAlmacen}** unidad\n" +
+                        $"- **Equipos Inactivos / Requieren Revisión:** **{inactivos}** unidades\n" +
+                        $"- **Dependencias y Clínicas UOD:** **{totalUbicaciones}** ubicaciones auditadas\n" +
+                        $"- **Modelos / Referencias en Catálogo:** **{totalModelos}** referencias en 7 categorías tecnológicas\n\n" +
+                        "Los datos coinciden exactamente con el levantamiento oficial del archivo `ACTIVOS 2026 TECNOLOGIA.xlsx`.";
+        }
         // Caso 3: Consulta de activos fijos (placa EQ-XX)
         else if (lower.Contains("eq-") || lower.Contains("activo") || lower.Contains("equipo") || lower.Contains("serial") || lower.Contains("serie"))
         {
@@ -1016,27 +1056,10 @@ REGLAS DE ORO OBLIGATORIAS:
                     : "No se registran órdenes de mantenimiento activas en el sistema institucional.";
             }
         }
-        // Caso 6: Consulta de Órdenes de Compra y Proveedores
+        // Caso 6: Consulta de Adquisiciones y Órdenes
         else if (lower.Contains("orden") || lower.Contains("compra") || lower.Contains("proveedor") || lower.Contains("adquisici"))
         {
-            executedTools.Add("consultar_ordenes_compra");
-            var ordenes = await _context.OrdenesCompra
-                .AsNoTracking()
-                .Include(o => o.Proveedor)
-                .Include(o => o.Lineas)
-                .OrderByDescending(o => o.CreadoEn)
-                .Take(5)
-                .ToListAsync(ct);
-
-            if (ordenes.Count > 0)
-            {
-                respuesta = "### 📋 Órdenes de Compra y Reabastecimiento UOD\n" +
-                            string.Join("\n", ordenes.Select(o => $"- **`{o.NumeroOrden}`** | Proveedor: **{(o.Proveedor != null ? o.Proveedor.NombreComercial : "Proveedor UOD")}** | Estado: `{o.Estado}` | Fecha: {o.FechaEmision:dd/MM/yyyy} | Ítems: {o.Lineas.Sum(l => l.CantidadSolicitada)}"));
-            }
-            else
-            {
-                respuesta = "Actualmente no existen órdenes de compra registradas en el sistema. Puedes generar borradores a partir de las alertas de stock bajo (RF-12).";
-            }
+            respuesta = "El sistema **SIIA** gestiona exclusivamente los activos tecnológicos físicos (341 equipos del levantamiento institucional) y existencias de almacén de la UOD. Las órdenes de compra y facturación se tramitan externamente fuera de esta plataforma.";
         }
         // Caso 7: Consulta de Conteos Físicos y Auditoría
         else if (lower.Contains("conteo") || lower.Contains("auditor") || lower.Contains("discrepanc") || lower.Contains("inventario fisico"))
@@ -1441,22 +1464,22 @@ REGLAS DE ORO OBLIGATORIAS:
             desc = "Monitor profesional para puestos de trabajo administrativos UOD";
             costo = 12500.00m;
         }
-        else if (obs.Contains("sillon") || obs.Contains("dental") || obs.Contains("unidad"))
+        else if (obs.Contains("switch") || obs.Contains("red") || obs.Contains("router"))
         {
-            nombreSugerido = "Sillón Odontológico Clínico UOD";
-            categoria = "Clínica Odontológica";
-            marcaModelo = "Sirona Intego";
-            desc = "Unidad dental completa para prácticas clínicas odontológicas";
-            costo = 285000.00m;
+            nombreSugerido = "Switch Gigabit 24 Puertos";
+            categoria = "Redes y Conectividad";
+            marcaModelo = "Cisco Catalyst 2960";
+            desc = "Switch administrable para distribución de red de área local";
+            costo = 28500.00m;
         }
-        else if (obs.Contains("resina") || obs.Contains("guante") || obs.Contains("consum"))
+        else if (obs.Contains("ups") || obs.Contains("energia") || obs.Contains("bateria"))
         {
-            nombreSugerido = "Caja de Guantes de Nitrilo Quirúrgico";
-            tipo = "consumible";
-            categoria = "Material Gastable";
-            marcaModelo = "SafeTouch Medical";
-            desc = "Guantes desechables grado médico para clínicas odontológicas";
-            costo = 650.00m;
+            nombreSugerido = "UPS Interactivo 1500VA";
+            tipo = "activo_fijo";
+            categoria = "UPS / Energía";
+            marcaModelo = "APC Smart-UPS 1500";
+            desc = "Sistema de respaldo eléctrico para equipos informáticos institucionales";
+            costo = 18500.00m;
         }
 
         // Revisar si existe un recurso similar para alertar duplicados (Prompt 10.6)

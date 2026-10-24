@@ -478,6 +478,7 @@ export const LocationsView: React.FC<LocationsViewProps> = () => {
                     <th className="py-2.5 px-3">Código</th>
                     <th className="py-2.5 px-3">Nombre</th>
                     <th className="py-2.5 px-3">Tipo</th>
+                    <th className="py-2.5 px-3 text-center">Equipos TI</th>
                     <th className="py-2.5 px-3">Estado</th>
                     {canManage && <th className="py-2.5 px-3 text-right">Acciones</th>}
                   </tr>
@@ -485,7 +486,7 @@ export const LocationsView: React.FC<LocationsViewProps> = () => {
                 <tbody className="divide-y divide-slate-100">
                   {ubicacionesFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
                         No se encontraron ubicaciones con los filtros aplicados.
                       </td>
                     </tr>
@@ -507,6 +508,11 @@ export const LocationsView: React.FC<LocationsViewProps> = () => {
                           <td className="py-2.5 px-3">
                             <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-medium">
                               {u.tipo}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-lg bg-blue-50 text-[#1C3177] font-bold font-mono text-[10px]">
+                              {u.totalActivosFisicos}
                             </span>
                           </td>
                           <td className="py-2.5 px-3">

@@ -61,6 +61,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...(options.headers as Record<string, string> || {})
   };
 
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -279,6 +283,9 @@ export interface RecursoDetalleDto extends RecursoDto {
     proveedorId?: string | null;
     proveedorNombre?: string | null;
     fechaAdquisicion?: string | null;
+    facturaUrl?: string | null;
+    facturaNombre?: string | null;
+    costoAdquisicion?: number | null;
     notas?: string | null;
   }>;
 }
@@ -970,21 +977,10 @@ export const apiClient = {
   subirAvatarPerfil: async (file: File): Promise<PerfilUsuario> => {
     const formData = new FormData();
     formData.append('file', file);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || (process.env.NODE_ENV === 'development' ? 'dev-token-uod' : undefined);
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const res = await fetch(`${API_BASE_URL}/me/avatar`, {
+    return request<PerfilUsuario>('me/avatar', {
       method: 'POST',
-      headers,
       body: formData
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      throw new Error(errJson?.detail || 'Error al subir la fotografía de perfil');
-    }
-    return res.json();
   },
 
   eliminarAvatarPerfil: async (): Promise<{ mensaje: string }> => {
@@ -1518,6 +1514,12 @@ export const apiClient = {
     });
   },
 
+  eliminarFacturaActivo: async (id: string): Promise<ActivoSerieDto> => {
+    return request<ActivoSerieDto>(`activos/${id}/factura`, {
+      method: 'DELETE'
+    });
+  },
+
   obtenerHistorialActivo: async (id: string): Promise<ActivoHistorialCambioDto[]> => {
     return request<ActivoHistorialCambioDto[]>(`activos/${id}/historial`);
   },
@@ -1869,6 +1871,12 @@ export const apiClient = {
     const qs = motivo ? `?motivo=${encodeURIComponent(motivo)}` : '';
     return request<ConteoFisicoDto>(`conteos-fisicos/${id}/cancelar${qs}`, {
       method: 'POST'
+    });
+  },
+
+  eliminarConteoFisico: async (id: string): Promise<void> => {
+    return request<void>(`conteos-fisicos/${id}`, {
+      method: 'DELETE'
     });
   },
 

@@ -438,19 +438,23 @@ SistemaUOD/
     - **Corrección de Estado EQ-01:** La Laptop DELL INSPIRON 15 (`EQ-01`, custodio RYAM) se encontraba temporalmente como `disponible` tras pruebas técnicas de mantenimiento; fue restablecida a `en_uso` tal como dicta el Excel original.
     - **Desbloqueo de Paginación (`PagedModels.cs`):** Se incrementó `MaxPageSize` de 100 a 1000 en el backend, resolviendo el truncamiento que mostraba solo 100 equipos en pantalla en lugar de los 341 reales.
     - **Métricas y Filtros Dinámicos (`AssetsView.tsx`):** El selector de estados ahora computa dinámicamente: *Todos los Estados (341)*, *En Uso (337)*, *Disponible (1)* (`EQ-05`), *Dañado / Inactivo (3)* (`EQ-153`, `EQ-154`, `EQ-155`). Verificado 100% en vivo en navegador.
-- **Plan de Mejoras SIIA (guia/Mejoras de SIIA – ideas reforzadas y prompts.md):** 🔄 En curso:
-  - **Fase 1 – Limpieza y Base:** ✅ Completada al 100%:
-    - ✅ **Idea 4 (Eliminación de datos de prueba y foco exclusivo en almacén):** Eliminados datos semilla de prueba clínicos ficticios, garantizado el inventario estricto de 341 equipos físicos del levantamiento TI 2026 y 49 dependencias UOD auténticas. (Commit `d50414e`).
-    - ✅ **Idea 8 (Editar perfil institucional):** Modal interactivo `EditProfileModal.tsx`, endpoint seguro `PUT /api/v1/me`, subida de avatar con validación de magic bytes (JPG/PNG/WebP hasta 5 MB), correo protegido de solo lectura, auditoría de cambios y actualización inmediata del avatar en encabezado y menú. (Commit `43441d0`).
-    - ✅ **Idea 12 (Configuración y Cierre de Sesión Seguro):** `ThemeContext.tsx` con soporte para temas claro, oscuro y automático persistido en `localStorage` y en perfil de usuario, selector de densidad visual de tablas (cómoda vs compacta), preferencias de notificación e invalidación de sesión real con redirección a login y borrado de tokens. (Commit `507e893`).
-  - **Fase 2 – Núcleo de Inventario:** 🔄 En curso:
-    - ✅ **Idea 2 (Editar cualquier dato de un activo, incluida la factura):** Migración SQL `007_activos_factura_costo.sql` con `costo_adquisicion`, `factura_url`, `factura_nombre`. Endpoints `POST /api/v1/activos/{id}/factura` (validación de magic bytes PDF/JPG/PNG hasta 10 MB) y `GET /api/v1/activos/{id}/historial`. Componente `EditAssetModal.tsx` con 5 pestañas: Datos Principales, Factura Digital, Fotografías, Código QR e Historial de Cambios. Integrado en tabla, tarjetas y detalle de `AssetsView.tsx`. (Commit `a6d8632`).
-    - ✅ **Idea 1 (Ver los activos agrupados por tipo):** Componente interactivo `GroupedAssetsView.tsx` con acordeones inteligentes por tipo de equipo (Laptops, Bocinas, Monitores, CPU, UPS, Impresoras, Teléfonos, etc.), conteo total y desglose por estados (en uso, disponibles, dañados), vista expandida de unidades físicas (`EQ-XX`, serial, ubicación, custodio, estado, botón «Editar»), ordenamiento de grupos (mayor/menor cantidad, A-Z, Z-A), botones «Expandir todos» y «Colapsar todos», filtros integrados y banner de advertencia para activos «Sin clasificar». Selector de vista integrado tanto en «Catálogo de Activos» (`CatalogView.tsx`) como en «Activos Fijos TI» (`AssetsView.tsx`). (Commit `170ec12`).
-    - ✅ **Idea 3 (Rediseñar Movimientos, empezando por Entrada):** Rediseño integral de la pantalla de Movimientos (`MovementsView.tsx`) con enfoque primordial en entradas. Dos flujos claros y diferenciados:
-      - *Camino A («Nuevo producto o activo»):* Carga de bienes que no están en el catálogo, definiendo atributos técnicos, categoría, costo unitario en DOP, foto con vista previa, factura/conduce digital y ubicación destino de las 49 sedes UOD. Para activos fijos, acepta múltiples números de serie (separados por coma o salto de línea) y genera unidades físicas consecutivas (`EQ-342`, `EQ-343`...) con sus placas institucionales UOD y códigos QR.
-      - *Camino B («Agregar más unidades de un recurso existente»):* Búsqueda en catálogo con indicador visual de stock actual; para activos fijos genera secuencialmente placas `EQ-XXX` para cada serie ingresada, y para consumibles suma la cantidad.
-      - *Previsualización y Auditoría Transaccional:* En el Paso 3, simulación previa de balance (*Stock Actual*, *Entrada*, *Stock Resultante*) y desglose de unidades físicas que se registrarán con placa UOD y código QR listo. Trazabilidad completa en `bitacora_auditorias`. Verificación exitosa en vivo mediante navegador.
-  - **Fase 2 – Núcleo de Inventario:** ✅ Completada al 100%.
+- **Guía de Cierre Final del Proyecto (`guia/prompts para Antigravity – SIIA paso a paso.md`):** ✅ **100% COMPLETADA Y CERRADA**:
+  - **Fase 1 – Datos reales:** ✅ Completada al 100%:
+    - Validación contra `ACTIVOS 2026 TECNOLOGIA.xlsx`: exactamente 341 equipos físicos (`EQ-01` a `EQ-341`), 49 ubicaciones auditadas y 113 referencias en catálogo.
+    - Eliminación de datos semilla de prueba clínicos ficticios y de compras/proveedores no existentes en el levantamiento original.
+  - **Fase 2 – Activos:** ✅ Completada al 100%:
+    - **Arreglo 1 (Edición integral y facturas):** Subida y previsualización de facturas PDF/JPG/PNG con validación binaria, costo de adquisición, historial de cambios y sincronización en tiempo real.
+    - **Arreglo 8 (Mapa de secciones sin duplicidades):** Consolidación de funciones en las 10 secciones oficiales.
+    - **Arreglo 7 (Agrupación por tipo colapsada):** Grupos de equipos plegados por defecto, botones «Expandir todo» y «Contraer todo», navegación accesible con teclado y adaptabilidad móvil.
+  - **Fase 3 – Módulos:** ✅ Completada al 100%:
+    - **Arreglo 4 (Inventario físico y auditoría):** Creación de sesiones de conteo con precarga de los activos reales de la ubicación, escaneo óptico continuo con cámara PWA, balance de discrepancias y emisión de acta en PDF con firmas institucionales.
+    - **Arreglo 5 (Centro de alertas reales):** Eliminación de falsos positivos y de alertas duplicadas. Regla de oro: activos sin mínimo no generan alertas de stock. Contador en 0 persistente en Supabase.
+    - **Arreglo 2 (Configuración conectada):** Perfil institucional, alternancia de tema (claro/oscuro UOD) y densidad visual (cómoda/compacta) persistidos en `perfiles.preferencias` y bitácora de auditoría.
+  - **Fase 4 – Cierre del proyecto:** ✅ Completada al 100%:
+    - **Prompt F1 (Auditoría final):** Purga de movimientos residuales de prueba, conexión de movimientos recientes en Dashboard a `apiClient.listarMovimientos`, reemplazo de terminología clínica por términos de almacén de TI, y retiro del modal duplicado de perfil.
+    - **Prompt F2 (Recorrido completo):** Verificación exhaustiva función por función en los 10 módulos, en móvil y escritorio, en modo claro y oscuro. Resultado: **100% operativo sin fallos**.
+    - **Prompt F3 (Cuadre con el Excel):** Conciliación matemática fila por fila con `ACTIVOS 2026 TECNOLOGIA.xlsx`. Resultado: **341 activos (Dif: 0)**, **7 categorías (Dif: 0)**, **3 estados (Dif: 0)**, **49 ubicaciones (Dif: 0)**. Verificado en vivo en Dashboard, Reportes y Asistente IA.
+    - **Prompt F4 (Entrega final):** Generación de copia de seguridad integral en `database/backup/backup_cierre_final_siia_2026.sql` (1.2 MB), redacción del Manual de Usuario oficial en `docs/MANUAL_DE_USUARIO_SIIA.md` y actualización formal de `AGENTS.md`.
 
 ---
 

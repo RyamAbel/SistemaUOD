@@ -97,16 +97,16 @@ public class EmailTemplateService : IEmailTemplateService
     {
         var esVencido = diasRestantes <= 0;
         var badgeClass = esVencido ? "badge-danger" : "badge-warning";
-        var estadoTexto = esVencido ? "LOTE CLÍNICO VENCIDO" : $"PRÓXIMO A VENCER EN {diasRestantes} DÍAS";
+        var estadoTexto = esVencido ? "LOTE VENCIDO" : $"PRÓXIMO A VENCER EN {diasRestantes} DÍAS";
 
         return $@"{BaseHtmlHeader}
             <span class=""badge {badgeClass}"">{estadoTexto}</span>
-            <h2>Alerta de Control de Caducidad de Lote Clínico</h2>
-            <p>El sistema de trazabilidad clínica ha emitido una advertencia preventiva sobre la fecha de vencimiento del siguiente insumo:</p>
+            <h2>Alerta de Control de Caducidad de Lote de Almacén</h2>
+            <p>El sistema de inventario ha emitido una advertencia preventiva sobre la fecha de vencimiento del siguiente insumo:</p>
             
             <table class=""details-table"">
                 <tr>
-                    <td class=""label"">Insumo Odontológico:</td>
+                    <td class=""label"">Recurso / Insumo:</td>
                     <td class=""val"">{recursoNombre}</td>
                 </tr>
                 <tr>
@@ -124,7 +124,7 @@ public class EmailTemplateService : IEmailTemplateService
             </table>
             
             <p style=""font-size: 13px; color: #475569;"">
-                De acuerdo con las normativas sanitarias y estándares de las clínicas odontológicas UOD, los lotes vencidos deben ser aislados y descargados formalmente.
+                De acuerdo con las normativas y procedimientos de la UOD, los lotes vencidos deben ser aislados y descargados formalmente.
             </p>
 {BaseHtmlFooter}";
     }

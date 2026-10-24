@@ -253,7 +253,7 @@ public class AlertaService : IAlertaService
                     resultado.AlertasOmitidasExistentes++;
                 }
             }
-            else if (recurso.PuntoReorden.HasValue && stockTotal <= recurso.PuntoReorden.Value)
+            else if (recurso.PuntoReorden.HasValue && recurso.PuntoReorden.Value > 0 && stockTotal <= recurso.PuntoReorden.Value)
             {
                 if (!yaTieneAlerta)
                 {
@@ -279,7 +279,7 @@ public class AlertaService : IAlertaService
         }
 
         // -------------------------------------------------------------
-        // REGLA 2: Lotes clínicos por vencer (30 días) o vencidos
+        // REGLA 2: Lotes de insumos por vencer (30 días) o vencidos
         // -------------------------------------------------------------
         var hoyDateOnly = DateOnly.FromDateTime(DateTime.UtcNow);
         var limite30Dias = hoyDateOnly.AddDays(30);
@@ -307,7 +307,7 @@ public class AlertaService : IAlertaService
                         Tipo = "proximo_vencimiento",
                         Severidad = "urgente",
                         RecursoId = lote.RecursoId,
-                        Titulo = $"Lote clínico vencido: {lote.NumeroLote}",
+                        Titulo = $"Lote vencido: {lote.NumeroLote}",
                         Mensaje = $"El lote '{lote.NumeroLote}' del insumo '{lote.Recurso?.Nombre}' venció el {fechaVenc:dd/MM/yyyy}. Debe retirarse de circulación inmediata.",
                         Leida = false,
                         CreadoEn = DateTime.UtcNow

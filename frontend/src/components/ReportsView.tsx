@@ -21,7 +21,6 @@ import {
   Package,
   ShieldCheck,
   Search,
-  Truck,
   FileCheck,
   Percent,
   Layers,
@@ -32,7 +31,7 @@ import {
   ResumenEjecutivoDto,
   RotacionConsumibleItemDto,
   DistribucionParqueTiDto,
-  ReporteOrdenesProveedorDto
+  UbicacionDto
 } from '@/lib/apiClient';
 import { RESUMEN_INVENTARIO } from '@/lib/inventoryData';
 
@@ -41,13 +40,14 @@ interface ReportsViewProps {
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'distribucion' | 'consumo' | 'proveedores' | 'auditoria'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'distribucion' | 'consumo' | 'auditoria'>('general');
 
   // Live Data States
   const [resumen, setResumen] = useState<ResumenEjecutivoDto | null>(null);
   const [distribucion, setDistribucion] = useState<DistribucionParqueTiDto[]>([]);
   const [rotacion, setRotacion] = useState<RotacionConsumibleItemDto[]>([]);
-  const [proveedores, setProveedores] = useState<ReporteOrdenesProveedorDto[]>([]);
+  const [ubicaciones, setUbicaciones] = useState<UbicacionDto[]>([]);
+  const [filtroUbicacion, setFiltroUbicacion] = useState<string>('todas');
 
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -69,7 +69,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
     setError(null);
 
     try {
-      const [resumenData, distribucionData, rotacionData, proveedoresData] = await Promise.all([
+      const [resumenData, distribucionData, rotacionData, ubicacionesData] = await Promise.all([
         apiClient.obtenerResumenEjecutivo().catch((err) => {
           console.warn('Fallo al obtener resumen ejecutivo, usando respaldo:', err);
           return null;
@@ -82,11 +82,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
           console.warn('Fallo al obtener rotación consumibles, usando respaldo:', err);
           return [];
         }),
-        apiClient.obtenerReporteProveedores().catch((err) => {
-          console.warn('Fallo al obtener reporte proveedores, usando respaldo:', err);
-          return [];
-        })
+        apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true }).catch(() => null)
       ]);
+
+      if (ubicacionesData?.items) {
+        setUbicaciones(ubicacionesData.items);
+      }
 
       if (resumenData) {
         setResumen(resumenData);
@@ -97,45 +98,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
           totalActivosFisicos: RESUMEN_INVENTARIO.totalEquipos,
           equiposEnUso: RESUMEN_INVENTARIO.enUso,
           equiposEnAlmacen: RESUMEN_INVENTARIO.totalEquipos - RESUMEN_INVENTARIO.enUso - RESUMEN_INVENTARIO.danadosOInactivos,
-          equiposEnMantenimiento: 4,
-          equiposDeBaja: 3,
-          totalStockConsumibles: 840,
-          alertasStockBajo: 2,
-          ordenesCompraActivas: 3,
-          valorPatrimonialHistoricoDop: 12450000,
-          depreciacionAcumuladaDop: 6225000,
-          valorNetoEnLibrosDop: 6225000,
-          exactitudInventarioPorcentaje: 98.5,
+          equiposEnMantenimiento: 0,
+          equiposDeBaja: 0,
+          totalStockConsumibles: 0,
+          alertasStockBajo: 0,
+          ordenesCompraActivas: 0,
+          valorPatrimonialHistoricoDop: 0,
+          depreciacionAcumuladaDop: 0,
+          valorNetoEnLibrosDop: 0,
+          exactitudInventarioPorcentaje: 100,
           fechaGeneracion: new Date().toISOString()
         });
       }
 
-      setDistribucion(distribucionData.length > 0 ? distribucionData : [
-        { categoria: 'Computación y Equipos', cantidadEquipos: 84, enUso: 80, enAlmacen: 2, enMantenimiento: 1, deBaja: 1, porcentajeDelTotal: 24.6 },
-        { categoria: 'Pantallas y Monitores', cantidadEquipos: 76, enUso: 74, enAlmacen: 2, enMantenimiento: 0, deBaja: 0, porcentajeDelTotal: 22.3 },
-        { categoria: 'Periféricos y Accesorios', cantidadEquipos: 92, enUso: 90, enAlmacen: 1, enMantenimiento: 0, deBaja: 1, porcentajeDelTotal: 27.0 },
-        { categoria: 'Energía y Respaldo (UPS)', cantidadEquipos: 45, enUso: 43, enAlmacen: 1, enMantenimiento: 1, deBaja: 0, porcentajeDelTotal: 13.2 },
-        { categoria: 'Impresión y Digitalización', cantidadEquipos: 24, enUso: 21, enAlmacen: 1, enMantenimiento: 1, deBaja: 1, porcentajeDelTotal: 7.0 },
-        { categoria: 'Redes y Telecomunicaciones', cantidadEquipos: 12, enUso: 11, enAlmacen: 1, enMantenimiento: 0, deBaja: 0, porcentajeDelTotal: 3.5 },
-        { categoria: 'Audiovisual y Proyección', cantidadEquipos: 8, enUso: 6, enAlmacen: 1, enMantenimiento: 1, deBaja: 0, porcentajeDelTotal: 2.3 }
-      ]);
-
-      setRotacion(rotacionData.length > 0 ? rotacionData : [
-        { recursoId: '1', sku: 'SKU-TON-001', nombre: 'Tóner HP LaserJet Pro M404 / CF258A', categoria: 'Consumibles de Impresión', stockActual: 12, stockMinimo: 5, totalEntradas: 25, totalSalidas: 13, tasaRotacion: 1.08, costoEstimadoUnitario: 3850, costoTotalConsumidoDop: 50050 },
-        { recursoId: '2', sku: 'SKU-TON-002', nombre: 'Tóner RICOH MP 301 / 841710 Original', categoria: 'Consumibles de Impresión', stockActual: 4, stockMinimo: 6, totalEntradas: 18, totalSalidas: 14, tasaRotacion: 2.33, costoEstimadoUnitario: 4200, costoTotalConsumidoDop: 58800 },
-        { recursoId: '3', sku: 'SKU-CAB-001', nombre: 'Cable de Red UTP Cat6 Bobina 305m Nexxt', categoria: 'Redes y Telecomunicaciones', stockActual: 2, stockMinimo: 3, totalEntradas: 6, totalSalidas: 4, tasaRotacion: 1.33, costoEstimadoUnitario: 6800, costoTotalConsumidoDop: 27200 },
-        { recursoId: '4', sku: 'SKU-ALC-001', nombre: 'Alcohol Isopropílico 99% Galón Limpieza TI', categoria: 'Mantenimiento y Limpieza', stockActual: 8, stockMinimo: 4, totalEntradas: 15, totalSalidas: 7, tasaRotacion: 0.88, costoEstimadoUnitario: 950, costoTotalConsumidoDop: 6650 },
-        { recursoId: '5', sku: 'SKU-CON-001', nombre: 'Conectores RJ-45 Cat6 Blindados Caja x100', categoria: 'Redes y Telecomunicaciones', stockActual: 15, stockMinimo: 10, totalEntradas: 30, totalSalidas: 15, tasaRotacion: 1.00, costoEstimadoUnitario: 850, costoTotalConsumidoDop: 12750 }
-      ]);
-
-      setProveedores(proveedoresData.length > 0 ? proveedoresData : [
-        { proveedorId: '1', proveedorNombre: 'Cecomsa S.A.S.', rnc: '101567892', totalOrdenes: 8, ordenesCompletadas: 7, montoTotalDop: 345000, tasaCumplimiento: 87.5 },
-        { proveedorId: '2', proveedorNombre: 'Omega Tech Dominicana', rnc: '130456781', totalOrdenes: 5, ordenesCompletadas: 5, montoTotalDop: 215000, tasaCumplimiento: 100 },
-        { proveedorId: '3', proveedorNombre: 'Soluciones Tecnológicas del Caribe', rnc: '131987654', totalOrdenes: 3, ordenesCompletadas: 2, montoTotalDop: 98000, tasaCumplimiento: 66.7 }
-      ]);
+      setDistribucion(distribucionData);
+      setRotacion(rotacionData);
     } catch (err: unknown) {
       console.error('Error cargando reportes ejecutivos:', err);
-      setError('No fue posible sincronizar los reportes con la API. Mostrando datos locales de referencia.');
+      setError('No fue posible sincronizar los reportes con la API.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -289,7 +269,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
               Consumibles y Stock
             </span>
             <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] text-[#0891B2] font-bold">
-              {resumen?.ordenesCompraActivas ?? 0} OC activas
+              Almacén
             </span>
           </div>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">
@@ -362,18 +342,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
         >
           <TrendingUp className="h-3.5 w-3.5" />
           <span>Rotación de Consumibles</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('proveedores')}
-          className={`pb-2.5 px-3 capitalize transition-colors flex items-center gap-1.5 ${
-            activeTab === 'proveedores'
-              ? 'border-b-2 border-[#1C3177] text-[#1C3177] font-bold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Truck className="h-3.5 w-3.5" />
-          <span>Proveedores y Órdenes</span>
         </button>
 
         <button
@@ -577,6 +545,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
       {/* Tab 2: Distribución Parque TI */}
       {activeTab === 'distribucion' && (
         <div className="space-y-6">
+          {/* Barra de Filtro por Ubicación */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-[#1C3177]" />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">Filtrar por Ubicación Institucional</span>
+                <span className="text-[11px] text-slate-500">Muestra los equipos asignados a cada dependencia física</span>
+              </div>
+            </div>
+            <div className="w-full sm:w-80">
+              <select
+                value={filtroUbicacion}
+                onChange={(e) => setFiltroUbicacion(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1C3177] focus:bg-white"
+              >
+                <option value="todas">Todas las dependencias ({ubicaciones.reduce((acc, u) => acc + (u.totalActivosFisicos || 0), 0)} equipos)</option>
+                {ubicaciones.map((u) => (
+                  <option key={u.id} value={u.nombre}>
+                    {u.nombre} ({u.totalActivosFisicos})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Tabla 1: Distribución por Categoría */}
           <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div>
@@ -648,6 +642,82 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Tabla 2: Distribución por Ubicación Física (49 Dependencias) */}
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#1C3177]" />
+                  Distribución por Ubicación Física (49 Dependencias)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Conteo oficial de equipos tecnológicos por clínica, aula y departamento administrativo.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                {filtroUbicacion !== 'todas' && (
+                  <button
+                    onClick={() => setFiltroUbicacion('todas')}
+                    className="text-[#1C3177] hover:underline font-bold"
+                  >
+                    Ver todas (49)
+                  </button>
+                )}
+                <span>
+                  Dependencias listadas:{' '}
+                  <strong>
+                    {filtroUbicacion === 'todas' ? ubicaciones.length : 1}
+                  </strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                  <tr>
+                    <th className="py-3 px-4">Código</th>
+                    <th className="py-3 px-4">Nombre de la Ubicación</th>
+                    <th className="py-3 px-4">Tipo</th>
+                    <th className="py-3 px-4 text-center">Total Equipos</th>
+                    <th className="py-3 px-4 text-right">% del Total (341)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-[11px] font-medium">
+                  {ubicaciones
+                    .filter(u => filtroUbicacion === 'todas' || u.nombre === filtroUbicacion)
+                    .map((ub) => {
+                      const totalGlobal = 341;
+                      const pct = ((ub.totalActivosFisicos / totalGlobal) * 100).toFixed(1);
+                      return (
+                        <tr key={ub.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 font-mono font-bold text-[#1C3177]">
+                            {ub.codigo}
+                          </td>
+                          <td className="py-2.5 px-4 font-bold text-slate-900">
+                            {ub.nombre}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span className="capitalize px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold text-[10px]">
+                              {ub.tipo}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-center">
+                            <span className="inline-block px-2.5 py-0.5 rounded-lg bg-blue-50 text-[#1C3177] font-bold font-mono text-[11px]">
+                              {ub.totalActivosFisicos}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-600">
+                            {pct}%
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -760,76 +830,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onOpenAi }) => {
         </div>
       )}
 
-      {/* Tab 4: Proveedores y Órdenes */}
-      {activeTab === 'proveedores' && (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Rendimiento y Cumplimiento de Proveedores
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Histórico de órdenes de compra, efectividad de entrega y volumen contratado.
-                </p>
-              </div>
-              <span className="text-xs text-slate-500">
-                Proveedores evaluados: <strong>{proveedores.length}</strong>
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
-                  <tr>
-                    <th className="py-3 px-4">Proveedor</th>
-                    <th className="py-3 px-4">RNC Dominicano</th>
-                    <th className="py-3 px-4 text-center">Total Órdenes</th>
-                    <th className="py-3 px-4 text-center">Órdenes Completadas</th>
-                    <th className="py-3 px-4 text-center">Tasa de Cumplimiento</th>
-                    <th className="py-3 px-4 text-right">Monto Total Adquirido</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-[11px] font-medium">
-                  {proveedores.map((p, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900 flex items-center gap-2">
-                        <Truck className="h-3.5 w-3.5 text-[#1C3177]" />
-                        <span>{p.proveedorNombre}</span>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-600">
-                        {p.rnc || 'N/A'}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
-                        {p.totalOrdenes}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono font-bold text-[#2D8246]">
-                        {p.ordenesCompletadas}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 font-mono font-bold text-[10px] px-2 py-0.5 rounded ${
-                          p.tasaCumplimiento >= 90
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : p.tasaCumplimiento >= 75
-                            ? 'bg-blue-50 text-[#1C3177] border border-blue-200'
-                            : 'bg-amber-100 text-amber-800 border border-amber-200'
-                        }`}>
-                          {p.tasaCumplimiento.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
-                        {formatearDop(p.montoTotalDop)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 5: Auditoría y Exactitud */}
+      {/* Tab 4: Auditoría y Exactitud */}
       {activeTab === 'auditoria' && (
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-4">

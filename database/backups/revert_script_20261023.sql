@@ -7,3 +7,7 @@ INSERT INTO public.activos_serie (id, recurso_id, numero_serie, placa_institucio
 INSERT INTO public.recursos (id, sku, nombre, categoria_id, tipo, activo) VALUES ('db4586ad-74e3-4de1-bb37-dbca16605784', 'SKU-EQ-7059', 'klklklk', 'a1000000-0000-0000-0000-000000000001', 'activo_fijo', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.recursos (id, sku, nombre, categoria_id, tipo, activo) VALUES ('26d057d5-0826-4e25-a61a-70ab0e20040c', 'SKU-EQ-1225', 'klklklk', 'a1000000-0000-0000-0000-000000000001', 'activo_fijo', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.mantenimientos (id, activo_serie_id, tipo, fecha_programada, estado, observaciones) VALUES ('69ab686e-ff21-4563-8427-700ded0dcdf1', 'd1000000-0000-0000-0000-000000000001', 'preventivo', '2026-10-22', 'cancelado', 'Mantenimiento preventivo general y limpieza de filtros | Cancelado: no') ON CONFLICT (id) DO NOTHING;
+
+-- Proveedores restaurables si fuera necesario:
+INSERT INTO public.proveedores (id, rnc, nombre_comercial, razon_social, activo) VALUES ('90f95f01-a684-4f88-8682-fabfda22cf65', '131884212', 'Dental Corp. Dominicana S.R.L.', 'Dental Corp. Dominicana S.R.L.', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.proveedores (id, rnc, nombre_comercial, razon_social, activo) VALUES ('526cab2b-4c63-42bf-9219-6df949afc94f', '101992345', 'Biomateriales del Caribe S.A.', 'Biomateriales del Caribe S.A.', true) ON CONFLICT (id) DO NOTHING;

@@ -257,6 +257,39 @@ public static class ConteosFisicosEndpoints
         .WithName("CancelarConteoFisico")
         .WithSummary("Cancela una sesión de inventario físico sin alterar las existencias");
 
+        // 8. Eliminar conteo físico (limpieza de pruebas sin datos residuales)
+        group.MapDelete("/{id:guid}", async (
+            Guid id,
+            IConteoFisicoService conteoService,
+            ICurrentUserService currentUserService,
+            CancellationToken ct) =>
+        {
+            var usuarioId = currentUserService.UserId;
+            if (!usuarioId.HasValue)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuario no autenticado",
+                    detail: "No se pudo identificar al usuario.");
+            }
+
+            try
+            {
+                await conteoService.EliminarConteoAsync(id, ct);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Conteo no encontrado",
+                    detail: ex.Message);
+            }
+        })
+        .RequireAuthorization(Policies.ExigirGestionInventario)
+        .WithName("EliminarConteoFisico")
+        .WithSummary("Elimina un conteo físico y sus líneas de prueba de la base de datos");
+
         return app;
     }
 }

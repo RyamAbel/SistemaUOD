@@ -230,8 +230,8 @@ public class ActivoService : IActivoService
             throw new InvalidOperationException("La ubicación física inicial especificada no existe.");
         }
 
-        // 3. Validar unicidad de placa institucional si fue provista
-        string? placaLimpia = null;
+        // 3. Validar unicidad de placa institucional o generar automáticamente el siguiente correlativo EQ-XX
+        string placaLimpia;
         if (!string.IsNullOrWhiteSpace(dto.PlacaInstitucional))
         {
             placaLimpia = dto.PlacaInstitucional.Trim().ToUpper();
@@ -242,6 +242,21 @@ public class ActivoService : IActivoService
             {
                 throw new InvalidOperationException($"Ya existe un activo registrado con la placa institucional '{placaLimpia}'.");
             }
+        }
+        else
+        {
+            var todasPlacas = await _context.ActivosSerie
+                .Where(a => a.PlacaInstitucional != null && a.PlacaInstitucional.StartsWith("EQ-"))
+                .Select(a => a.PlacaInstitucional!)
+                .ToListAsync(ct);
+            int maxNum = 0;
+            foreach (var p in todasPlacas)
+            {
+                var numStr = p.Replace("EQ-", "").Trim();
+                if (int.TryParse(numStr, out int n) && n > maxNum)
+                    maxNum = n;
+            }
+            placaLimpia = $"EQ-{maxNum + 1:D2}";
         }
 
         // 4. Validar custodio si fue provisto
@@ -285,6 +300,21 @@ public class ActivoService : IActivoService
         };
 
         _context.ActivosSerie.Add(nuevoActivo);
+
+        // Generar alerta por evento real de alta de activo (Arreglo 5)
+        _context.Alertas.Add(new Alerta
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "sistema",
+            Severidad = "info",
+            Titulo = $"Nuevo Activo: {nuevoActivo.PlacaInstitucional ?? nuevoActivo.NumeroSerie}",
+            Mensaje = $"Se registró el activo institucional {nuevoActivo.PlacaInstitucional ?? nuevoActivo.NumeroSerie} ({recurso.Nombre}) en {ubicacion.Nombre}.",
+            RecursoId = recurso.Id,
+            UbicacionId = ubicacion.Id,
+            Leida = false,
+            CreadoEn = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync(ct);
 
         return new ActivoSerieDto
@@ -418,6 +448,20 @@ public class ActivoService : IActivoService
         }
         activo.Recurso.ActualizadoEn = DateTime.UtcNow;
 
+        // Generar alerta por evento real de edición de activo (Arreglo 5)
+        _context.Alertas.Add(new Alerta
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "sistema",
+            Severidad = "info",
+            Titulo = $"Activo Actualizado: {activo.PlacaInstitucional ?? activo.NumeroSerie}",
+            Mensaje = $"Se actualizaron los datos del activo institucional {activo.PlacaInstitucional ?? activo.NumeroSerie} ({activo.Recurso.Nombre}).",
+            RecursoId = activo.RecursoId,
+            UbicacionId = activo.UbicacionId,
+            Leida = false,
+            CreadoEn = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync(ct);
 
         return new ActivoSerieDto
@@ -534,6 +578,20 @@ public class ActivoService : IActivoService
             ? $"[BAJA {DateTime.UtcNow:yyyy-MM-dd}] {motivo}"
             : $"{activo.Notas} | [BAJA {DateTime.UtcNow:yyyy-MM-dd}] {motivo}";
         activo.ActualizadoEn = DateTime.UtcNow;
+
+        // Generar alerta por evento real de baja de activo (Arreglo 5)
+        _context.Alertas.Add(new Alerta
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "sistema",
+            Severidad = "advertencia",
+            Titulo = $"Baja de Activo: {activo.PlacaInstitucional ?? activo.NumeroSerie}",
+            Mensaje = $"Se dio de baja el activo institucional {activo.PlacaInstitucional ?? activo.NumeroSerie} ({activo.Recurso.Nombre}). Motivo: {motivo}",
+            RecursoId = activo.RecursoId,
+            UbicacionId = activo.UbicacionId,
+            Leida = false,
+            CreadoEn = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync(ct);
 
@@ -747,6 +805,20 @@ public class ActivoService : IActivoService
             ? $"[{DateTime.UtcNow:yyyy-MM-dd}] Traslado a {nuevaUbicacion.Nombre}: {dto.Motivo}"
             : $"{activo.Notas} | [{DateTime.UtcNow:yyyy-MM-dd}] Traslado a {nuevaUbicacion.Nombre}: {dto.Motivo}";
         activo.ActualizadoEn = DateTime.UtcNow;
+
+        // Generar alerta por evento real de traslado de activo (Arreglo 5)
+        _context.Alertas.Add(new Alerta
+        {
+            Id = Guid.NewGuid(),
+            Tipo = "sistema",
+            Severidad = "info",
+            Titulo = $"Traslado de Activo: {activo.PlacaInstitucional ?? activo.NumeroSerie}",
+            Mensaje = $"El activo institucional {activo.PlacaInstitucional ?? activo.NumeroSerie} fue trasladado de '{ubicacionAnterior}' a '{nuevaUbicacion.Nombre}'. Motivo: {dto.Motivo}",
+            RecursoId = activo.RecursoId,
+            UbicacionId = nuevaUbicacion.Id,
+            Leida = false,
+            CreadoEn = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync(ct);
 
@@ -1188,6 +1260,32 @@ public class ActivoService : IActivoService
 
         activo.FacturaUrl = facturaUrl;
         activo.FacturaNombre = Path.GetFileName(nombreArchivo);
+        activo.ActualizadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+
+        return MapearActivoDto(activo, activo.Ubicacion);
+    }
+
+    public async Task<ActivoSerieDto> EliminarFacturaAsync(Guid id, CancellationToken ct = default)
+    {
+        var activo = await _context.ActivosSerie
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Categoria)
+            .Include(a => a.Recurso)
+                .ThenInclude(r => r.Fotos)
+            .Include(a => a.Ubicacion)
+            .Include(a => a.Responsable)
+            .Include(a => a.Proveedor)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (activo == null)
+        {
+            throw new KeyNotFoundException($"El activo con ID '{id}' no fue encontrado.");
+        }
+
+        activo.FacturaUrl = null;
+        activo.FacturaNombre = null;
         activo.ActualizadoEn = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(ct);

@@ -42,9 +42,7 @@ public class ReporteService : IReporteService
 
         var alertasBajas = recursosConStock.Count(r => r.Existencias.Sum(e => e.Cantidad) <= r.StockMinimo);
 
-        var ordenesActivas = await _db.OrdenesCompra
-            .AsNoTracking()
-            .CountAsync(o => o.Estado == "borrador" || o.Estado == "aprobada" || o.Estado == "enviada" || o.Estado == "recibida_parcial", ct);
+        var ordenesActivas = 0;
 
         // Depreciación patrimonial DGII Cat. 2 (25% anual, vida útil 48 meses, 5% valor residual)
         decimal valorHistorico = 0m;
@@ -174,42 +172,9 @@ public class ReporteService : IReporteService
         return agrupados;
     }
 
-    public async Task<List<ReporteOrdenesProveedorDto>> ObtenerReporteProveedoresAsync(CancellationToken ct = default)
+    public Task<List<ReporteOrdenesProveedorDto>> ObtenerReporteProveedoresAsync(CancellationToken ct = default)
     {
-        var ordenes = await _db.OrdenesCompra
-            .AsNoTracking()
-            .Include(o => o.Proveedor)
-            .Include(o => o.Lineas)
-            .ToListAsync(ct);
-
-        var agrupadas = ordenes
-            .Where(o => o.Proveedor != null)
-            .GroupBy(o => o.Proveedor)
-            .Select(g =>
-            {
-                var proveedor = g.Key;
-                var totalOrdenes = g.Count();
-                var completadas = g.Count(o => o.Estado == "recibida_total");
-                decimal monto = g.Sum(o => o.Lineas.Sum(l => l.CantidadSolicitada * l.PrecioUnitarioEstimado));
-                decimal tasa = totalOrdenes > 0
-                    ? Math.Round(((decimal)completadas / totalOrdenes) * 100m, 1)
-                    : 0m;
-
-                return new ReporteOrdenesProveedorDto
-                {
-                    ProveedorId = proveedor.Id,
-                    ProveedorNombre = proveedor.NombreComercial,
-                    Rnc = proveedor.Rnc,
-                    TotalOrdenes = totalOrdenes,
-                    OrdenesCompletadas = completadas,
-                    MontoTotalDop = Math.Round(monto, 2),
-                    TasaCumplimiento = tasa
-                };
-            })
-            .OrderByDescending(r => r.MontoTotalDop)
-            .ToList();
-
-        return agrupadas;
+        return Task.FromResult(new List<ReporteOrdenesProveedorDto>());
     }
 
     public async Task<byte[]> GenerarReportePatrimonialCsvAsync(CancellationToken ct = default)

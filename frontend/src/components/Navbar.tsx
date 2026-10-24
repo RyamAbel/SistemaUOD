@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { apiClient, AlertaDto } from '@/lib/apiClient';
+import { getSafeAvatarUrl } from '@/lib/avatarHelper';
 
 interface NavbarProps {
   onOpenAi: () => void;
@@ -49,10 +50,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   const displayName = perfil?.nombreCompleto || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Personal UOD';
   const displayRol = (perfil?.rol || rol || 'consulta').replace('_', ' ').toUpperCase();
-  const avatarUrl = perfil?.avatarUrl || user?.user_metadata?.avatar_url;
+  const rawAvatarUrl = perfil?.avatarUrl === 'none'
+    ? null
+    : (perfil?.avatarUrl || user?.user_metadata?.avatar_url || user?.user_metadata?.picture);
+  const avatarUrl = getSafeAvatarUrl(rawAvatarUrl);
   const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
 
   // Carga de alertas reales desde la API
@@ -274,8 +279,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Menú de usuario"
           >
             <div className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-[#1C3177]/20 bg-[#1C3177]/10 flex items-center justify-center">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              {avatarUrl && !avatarError ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <span className="text-[11px] font-bold text-[#1C3177]">{initials}</span>
               )}
@@ -302,23 +313,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => {
                     setProfileOpen(false);
-                    onOpenProfile?.();
-                  }}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-                >
-                  <User className="h-3.5 w-3.5 text-[#1C3177]" />
-                  <span>Mi perfil</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileOpen(false);
                     onNavigateToSettings?.();
                   }}
                   className="flex w-full items-center gap-3 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
                 >
-                  <Settings className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Configuración</span>
+                  <User className="h-3.5 w-3.5 text-[#1C3177]" />
+                  <span>Mi perfil / Configuración</span>
                 </button>
               </div>
               <div className="border-t border-slate-100 py-1.5">

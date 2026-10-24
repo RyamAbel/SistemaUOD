@@ -44,18 +44,7 @@ public static class ReportesEndpoints
         .WithName("ObtenerDistribucionParqueTi")
         .WithSummary("Obtiene el desglose de los 341 equipos TI por categoría tecnológica y estado operativo");
 
-        // 4. Reporte de órdenes y compras por proveedor
-        group.MapGet("/proveedores", async (
-            IReporteService reporteService,
-            CancellationToken ct) =>
-        {
-            var proveedores = await reporteService.ObtenerReporteProveedoresAsync(ct);
-            return Results.Ok(proveedores);
-        })
-        .WithName("ObtenerReporteProveedores")
-        .WithSummary("Obtiene el balance de adquisiciones, montos comprometidos y tasa de cumplimiento por proveedor");
-
-        // 5. Exportar reporte patrimonial en CSV compatible con Excel
+        // 4. Exportar reporte patrimonial en CSV compatible con Excel
         group.MapGet("/exportar-patrimonial-csv", async (
             IReporteService reporteService,
             CancellationToken ct) =>

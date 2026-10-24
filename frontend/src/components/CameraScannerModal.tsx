@@ -28,6 +28,7 @@ interface CameraScannerModalProps {
   onOpenResourceDetail?: (id: string) => void;
   onCreateResourceWithCode?: (codigo: string) => void;
   onSelectResource?: (recurso: RecursoDto) => void;
+  onScanAuditCode?: (codigo: string) => void;
 }
 
 export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
@@ -35,7 +36,8 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   onClose,
   onOpenResourceDetail,
   onCreateResourceWithCode,
-  onSelectResource
+  onSelectResource,
+  onScanAuditCode
 }) => {
   const { rol } = useAuth();
   const canManage = rol === 'super_admin' || rol === 'admin_inventario' || rol === 'gestor_inventario';
@@ -189,6 +191,11 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   // Resolver código mediante la API universal
   const handleCodeDetected = async (rawCode: string) => {
     if (!rawCode) return;
+    if (onScanAuditCode) {
+      onScanAuditCode(rawCode.trim());
+      onClose();
+      return;
+    }
     setResolving(true);
     try {
       const res = await apiClient.resolverCodigo(rawCode.trim());

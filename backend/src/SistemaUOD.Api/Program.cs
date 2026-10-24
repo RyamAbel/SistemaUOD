@@ -78,16 +78,39 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser());
 });
 
-// 4. Configuración de CORS limitado al Frontend
+// 4. Configuración de CORS adaptado a producción (Vercel) y desarrollo local
 const string PoliticaCorsFrontend = "PoliticaCorsFrontend";
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:3000"];
+var rawCors = builder.Configuration["Cors:AllowedOrigins"];
+var allowedOriginsList = new List<string> { "http://localhost:3000" };
+
+if (!string.IsNullOrWhiteSpace(rawCors))
+{
+    allowedOriginsList.AddRange(rawCors.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+}
+var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (configuredOrigins != null)
+{
+    allowedOriginsList.AddRange(configuredOrigins);
+}
+
+var allowedOrigins = allowedOriginsList.Distinct().ToArray();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(PoliticaCorsFrontend, policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host == "localhost"
+                        || uri.Host == "127.0.0.1";
+                }
+                return false;
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -186,7 +209,6 @@ app.UseAuthorization();
 // 8. Endpoints de la API (/api/v1)
 app.MapMeEndpoints();
 app.MapCategoriasEndpoints();
-app.MapProveedoresEndpoints();
 app.MapRecursosEndpoints();
 app.MapRecursosFotosEndpoints();
 app.MapCodigosEndpoints();
@@ -199,7 +221,6 @@ app.MapMantenimientosEndpoints();
 app.MapAssistantEndpoints();
 app.MapAlertasEndpoints();
 app.MapCorreosEndpoints();
-app.MapComprasEndpoints();
 app.MapConteosFisicosEndpoints();
 app.MapImportacionEndpoints();
 app.MapReportesEndpoints();

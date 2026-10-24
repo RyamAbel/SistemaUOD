@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Box,
   Search,
@@ -25,20 +25,28 @@ import {
   Pencil,
   Layers,
   Trash2,
-  Loader2
+  Loader2,
+  Plus,
+  ExternalLink,
+  RefreshCw,
+  FileCheck,
+  Upload
 } from 'lucide-react';
-import { ACTIVOS_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
-import { apiClient, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto } from '@/lib/apiClient';
-import { TransferAssetModal } from './TransferAssetModal';
+import { ACTIVOS_ORIGINALES, UBICACIONES_ORIGINALES, ActivoTI } from '@/lib/inventoryData';
+import { apiClient, UbicacionDto, ActaEntregaRecepcionDto, ActaDescargoPatrimonialDto, ActivoSerieDto } from '@/lib/apiClient';
 import { ActaEntregaModal } from './ActaEntregaModal';
 import { DepreciationModal } from './DepreciationModal';
 import { MaintenanceModal } from './MaintenanceModal';
-import { DecommissionAssetModal } from './DecommissionAssetModal';
 import { ActaDescargoModal } from './ActaDescargoModal';
 import { EditAssetModal } from './EditAssetModal';
 import { GroupedAssetsView } from './GroupedAssetsView';
+import { CreateAssetModal } from './CreateAssetModal';
 
-export const AssetsView: React.FC = () => {
+interface AssetsViewProps {
+  onNavigateToMovements?: () => void;
+}
+
+export const AssetsView: React.FC<AssetsViewProps> = ({ onNavigateToMovements }) => {
   const [activos, setActivos] = useState<ActivoTI[]>(ACTIVOS_ORIGINALES);
   const [cargandoApi, setCargandoApi] = useState(false);
   const [search, setSearch] = useState('');
@@ -47,16 +55,17 @@ export const AssetsView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'tabla' | 'tarjetas' | 'agrupado'>('tabla');
   const [selectedActivo, setSelectedActivo] = useState<ActivoTI | null>(null);
   const [activoParaEditar, setActivoParaEditar] = useState<ActivoTI | null>(null);
-  const [activoParaTrasladar, setActivoParaTrasladar] = useState<ActivoTI | null>(null);
   const [actaVisualizada, setActaVisualizada] = useState<ActaEntregaRecepcionDto | null>(null);
   const [activoParaDepreciacion, setActivoParaDepreciacion] = useState<ActivoTI | null>(null);
   const [activoParaMantenimiento, setActivoParaMantenimiento] = useState<ActivoTI | null>(null);
-  const [activoParaBaja, setActivoParaBaja] = useState<ActivoTI | null>(null);
   const [actaDescargoVisualizada, setActaDescargoVisualizada] = useState<ActaDescargoPatrimonialDto | null>(null);
   const [activoParaEliminar, setActivoParaEliminar] = useState<ActivoTI | null>(null);
   const [eliminandoActivo, setEliminandoActivo] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [exportandoCsv, setExportandoCsv] = useState(false);
+  const [creandoActivo, setCreandoActivo] = useState(false);
+  const [subiendoFactura, setSubiendoFactura] = useState(false);
+  const fileInputFacturaRef = useRef<HTMLInputElement>(null);
 
   const resolverCustodioReal = (item: {
     responsableNombre?: string | null;
@@ -90,27 +99,41 @@ export const AssetsView: React.FC = () => {
     return 'Por Asignar';
   };
 
+  const [ubicacionesDb, setUbicacionesDb] = useState<UbicacionDto[]>([]);
+
   useEffect(() => {
     let montado = true;
     const cargarDesdeApi = async () => {
       try {
         setCargandoApi(true);
-        const res = await apiClient.listarActivos({ pageSize: 500 });
-        if (montado && res.items && res.items.length > 0) {
-          const mapeados: ActivoTI[] = res.items.map(item => ({
-            id: item.id,
-            recurso_id: item.recursoId,
-            placa_institucional: item.placaInstitucional || '',
-            numero_serie: item.numeroSerie,
-            recurso_nombre: item.recursoNombre,
-            categoria_nombre: item.categoriaNombre,
-            ubicacion_id: item.ubicacionId,
-            ubicacion_nombre: item.ubicacionNombre,
-            responsable: resolverCustodioReal(item),
-            estado: (item.estado === 'dado_de_baja' ? 'dado_de_baja' : item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado' | 'dado_de_baja',
-            notas: item.notas || ''
-          }));
-          setActivos(mapeados);
+        const [res, ubiRes] = await Promise.all([
+          apiClient.listarActivos({ pageSize: 500 }),
+          apiClient.listarUbicaciones({ pageSize: 100, soloActivas: true }).catch(() => null)
+        ]);
+        if (montado) {
+          if (res.items && res.items.length > 0) {
+            const mapeados: ActivoTI[] = res.items.map(item => ({
+              id: item.id,
+              recurso_id: item.recursoId,
+              placa_institucional: item.placaInstitucional || '',
+              numero_serie: item.numeroSerie,
+              recurso_nombre: item.recursoNombre,
+              categoria_nombre: item.categoriaNombre,
+              ubicacion_id: item.ubicacionId,
+              ubicacion_nombre: item.ubicacionNombre,
+              responsable: resolverCustodioReal(item),
+              estado: (item.estado === 'dado_de_baja' ? 'dado_de_baja' : item.estado === 'danado' ? 'danado' : item.estado === 'disponible' ? 'disponible' : 'en_uso') as 'en_uso' | 'disponible' | 'danado' | 'dado_de_baja',
+              notas: item.notas || '',
+              costo_adquisicion: item.costoAdquisicion,
+              factura_url: item.facturaUrl,
+              factura_nombre: item.facturaNombre,
+              foto_url: item.fotoPrincipalUrl
+            }));
+            setActivos(mapeados);
+          }
+          if (ubiRes && ubiRes.items) {
+            setUbicacionesDb(ubiRes.items);
+          }
         }
       } catch (err) {
         console.warn('Usando dataset institucional local como fallback:', err);
@@ -122,12 +145,39 @@ export const AssetsView: React.FC = () => {
     return () => { montado = false; };
   }, []);
 
-  // Lista única de ubicaciones para el filtro
-  const ubicacionesUnicas = useMemo(() => {
+  // Conteo exacto por ubicación
+  const conteoPorUbicacion = useMemo(() => {
+    const map: Record<string, number> = {};
+    activos.forEach(a => {
+      map[a.ubicacion_nombre] = (map[a.ubicacion_nombre] || 0) + 1;
+    });
+    return map;
+  }, [activos]);
+
+  // Lista de ubicaciones para el filtro leída desde BD
+  const listaUbicacionesFiltro = useMemo(() => {
+    if (ubicacionesDb.length > 0) {
+      return ubicacionesDb.map(u => ({
+        id: u.id,
+        nombre: u.nombre,
+        codigo: u.codigo,
+        conteo: conteoPorUbicacion[u.nombre] ?? u.totalActivosFisicos ?? 0
+      })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
     const set = new Set<string>();
     activos.forEach(a => set.add(a.ubicacion_nombre));
-    return Array.from(set).sort();
-  }, [activos]);
+    return Array.from(set).sort().map(u => ({
+      id: u,
+      nombre: u,
+      codigo: '',
+      conteo: conteoPorUbicacion[u] || 0
+    }));
+  }, [ubicacionesDb, activos, conteoPorUbicacion]);
+
+  // Lista de nombres únicos para modales
+  const ubicacionesUnicas = useMemo(() => {
+    return listaUbicacionesFiltro.map(u => u.nombre);
+  }, [listaUbicacionesFiltro]);
 
   // Filtrado reactivo en tiempo real
   const activosFiltrados = useMemo(() => {
@@ -235,40 +285,7 @@ export const AssetsView: React.FC = () => {
     }
   };
 
-  const handleTrasladoExitoso = (res: any) => {
-    setActivos(prev => prev.map(a => {
-      if (a.id === res.activo.id || a.placa_institucional === res.activo.placaInstitucional) {
-        return {
-          ...a,
-          ubicacion_nombre: res.activo.ubicacionNombre,
-          responsable: res.activo.responsableNombre || a.responsable,
-          estado: 'en_uso'
-        };
-      }
-      return a;
-    }));
-    setActivoParaTrasladar(null);
-    if (res.acta) {
-      setActaVisualizada(res.acta);
-    }
-  };
 
-  const handleBajaExitosa = (res: any) => {
-    setActivos(prev => prev.map(a => {
-      if (a.id === res.activo.id || a.placa_institucional === res.activo.placaInstitucional) {
-        return {
-          ...a,
-          estado: 'dado_de_baja',
-          responsable: 'Sin custodio'
-        };
-      }
-      return a;
-    }));
-    setActivoParaBaja(null);
-    if (res.actaDescargo) {
-      setActaDescargoVisualizada(res.actaDescargo);
-    }
-  };
 
   const handleConfirmarEliminar = async () => {
     if (!activoParaEliminar) return;
@@ -352,6 +369,92 @@ export const AssetsView: React.FC = () => {
     }
   };
 
+  const siguientePlacaSugerida = useMemo(() => {
+    let maxNum = 0;
+    activos.forEach(a => {
+      const m = (a.placa_institucional || '').match(/EQ-(\d+)/i);
+      if (m && m[1]) {
+        const n = parseInt(m[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    });
+    return `EQ-${maxNum + 1 || 342}`;
+  }, [activos]);
+
+  const handleNuevoActivoCreado = (nuevo: ActivoSerieDto) => {
+    const mapeado: ActivoTI = {
+      id: nuevo.id,
+      recurso_id: nuevo.recursoId,
+      placa_institucional: nuevo.placaInstitucional || siguientePlacaSugerida,
+      numero_serie: nuevo.numeroSerie,
+      recurso_nombre: nuevo.recursoNombre,
+      categoria_nombre: nuevo.categoriaNombre || 'Tecnología',
+      ubicacion_id: nuevo.ubicacionId,
+      ubicacion_nombre: nuevo.ubicacionNombre,
+      responsable: nuevo.responsableNombre || 'Por Asignar',
+      estado: (nuevo.estado === 'dado_de_baja' ? 'dado_de_baja' : nuevo.estado === 'danado' ? 'danado' : nuevo.estado === 'disponible' ? 'disponible' : 'en_uso') as any,
+      notas: nuevo.notas || '',
+      costo_adquisicion: nuevo.costoAdquisicion,
+      factura_url: nuevo.facturaUrl,
+      factura_nombre: nuevo.facturaNombre,
+      foto_url: nuevo.fotoPrincipalUrl
+    };
+    setActivos(prev => [mapeado, ...prev]);
+    setToastMsg(`Activo ${mapeado.placa_institucional} incorporado con éxito al inventario institucional.`);
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const handleSubirFacturaSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedActivo) return;
+    try {
+      setSubiendoFactura(true);
+      const actActualizado = await apiClient.subirFacturaActivo(selectedActivo.id, file);
+      setSelectedActivo(prev => prev ? {
+        ...prev,
+        factura_url: actActualizado.facturaUrl,
+        factura_nombre: actActualizado.facturaNombre
+      } : null);
+      setActivos(prev => prev.map(a => a.id === selectedActivo.id ? {
+        ...a,
+        factura_url: actActualizado.facturaUrl,
+        factura_nombre: actActualizado.facturaNombre
+      } : a));
+      setToastMsg('Factura digital adjuntada y almacenada con éxito.');
+      setTimeout(() => setToastMsg(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Error al subir la factura digital');
+    } finally {
+      setSubiendoFactura(false);
+      if (fileInputFacturaRef.current) fileInputFacturaRef.current.value = '';
+    }
+  };
+
+  const handleEliminarFacturaSelected = async () => {
+    if (!selectedActivo) return;
+    if (!confirm('¿Seguro que deseas eliminar la factura adjunta de este activo?')) return;
+    try {
+      setSubiendoFactura(true);
+      await apiClient.eliminarFacturaActivo(selectedActivo.id);
+      setSelectedActivo(prev => prev ? {
+        ...prev,
+        factura_url: null,
+        factura_nombre: null
+      } : null);
+      setActivos(prev => prev.map(a => a.id === selectedActivo.id ? {
+        ...a,
+        factura_url: null,
+        factura_nombre: null
+      } : a));
+      setToastMsg('Factura digital eliminada del activo.');
+      setTimeout(() => setToastMsg(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Error al eliminar la factura digital');
+    } finally {
+      setSubiendoFactura(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Encabezado y Métricas Rápidas */}
@@ -366,8 +469,17 @@ export const AssetsView: React.FC = () => {
           </p>
         </div>
 
-        {/* Acciones del encabezado: Exportación Contable DGII y Alternador de vista */}
-        <div className="flex items-center gap-3 self-start">
+        {/* Acciones del encabezado: Nuevo Activo, Exportación Contable DGII y Alternador de vista */}
+        <div className="flex items-center gap-3 self-start flex-wrap">
+          <button
+            onClick={() => setCreandoActivo(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-[#1C3177] text-white hover:bg-[#2B4BA0] transition-colors shadow-xs cursor-pointer"
+            title="Registrar nuevo equipo físico con placa institucional y factura"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo Activo Fijo
+          </button>
+
           <button
             onClick={handleExportarDepreciacionCsv}
             disabled={exportandoCsv}
@@ -486,10 +598,10 @@ export const AssetsView: React.FC = () => {
                 onChange={e => setSelectedUbicacion(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1C3177]/20 focus:border-[#1C3177] bg-white text-slate-700 font-medium"
               >
-                <option value="todas">Todas las Ubicaciones ({ubicacionesUnicas.length})</option>
-                {ubicacionesUnicas.map(u => (
-                  <option key={u} value={u}>
-                    {u}
+                <option value="todas">Todas las Ubicaciones ({metricas.total})</option>
+                {listaUbicacionesFiltro.map(u => (
+                  <option key={u.id} value={u.nombre}>
+                    {u.nombre} ({u.conteo})
                   </option>
                 ))}
               </select>
@@ -585,10 +697,13 @@ export const AssetsView: React.FC = () => {
                           <button
                             onClick={e => {
                               e.stopPropagation();
-                              setActivoParaTrasladar(activo);
+                              if (onNavigateToMovements) {
+                                setToastMsg(`Redirigiendo a Movimientos para registrar el traslado de ${activo.placa_institucional}...`);
+                                setTimeout(() => onNavigateToMovements(), 350);
+                              }
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            title="Trasladar activo y emitir acta"
+                            title="Ir a Movimientos para registrar traslado"
                           >
                             <ArrowRightLeft className="h-4 w-4" />
                           </button>
@@ -617,15 +732,16 @@ export const AssetsView: React.FC = () => {
                               e.stopPropagation();
                               if (activo.estado === 'danado' || activo.estado === 'dado_de_baja') {
                                 handleAbrirActaDescargo(activo);
-                              } else {
-                                setActivoParaBaja(activo);
+                              } else if (onNavigateToMovements) {
+                                setToastMsg(`Redirigiendo a Movimientos para tramitar la baja de ${activo.placa_institucional}...`);
+                                setTimeout(() => onNavigateToMovements(), 350);
                               }
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title={
                               activo.estado === 'danado' || activo.estado === 'dado_de_baja'
                                 ? 'Ver Acta Oficial de Descargo Patrimonial'
-                                : 'Dar de baja patrimonial y emitir acta de descargo'
+                                : 'Ir a Movimientos para tramitar baja patrimonial'
                             }
                           >
                             <AlertOctagon className="h-4 w-4" />
@@ -712,15 +828,16 @@ export const AssetsView: React.FC = () => {
                       e.stopPropagation();
                       if (activo.estado === 'danado' || activo.estado === 'dado_de_baja') {
                         handleAbrirActaDescargo(activo);
-                      } else {
-                        setActivoParaBaja(activo);
+                      } else if (onNavigateToMovements) {
+                        setToastMsg(`Redirigiendo a Movimientos para tramitar la baja de ${activo.placa_institucional}...`);
+                        setTimeout(() => onNavigateToMovements(), 350);
                       }
                     }}
                     className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                     title={
                       activo.estado === 'danado' || activo.estado === 'dado_de_baja'
                         ? 'Ver Acta Oficial de Descargo Patrimonial'
-                        : 'Dar de baja patrimonial y emitir acta de descargo'
+                        : 'Ir a Movimientos para tramitar baja patrimonial'
                     }
                   >
                     <AlertOctagon className="h-3.5 w-3.5" />
@@ -771,7 +888,12 @@ export const AssetsView: React.FC = () => {
           activos={activos}
           onEditAsset={activo => setActivoParaEditar(activo)}
           onSelectAsset={activo => setSelectedActivo(activo)}
-          onTransferAsset={activo => setActivoParaTrasladar(activo)}
+          onTransferAsset={activo => {
+            if (onNavigateToMovements) {
+              setToastMsg(`Redirigiendo a Movimientos para trasladar ${activo.placa_institucional}...`);
+              setTimeout(() => onNavigateToMovements(), 350);
+            }
+          }}
           onDeleteAsset={activo => setActivoParaEliminar(activo)}
           ubicacionesDisponibles={ubicacionesUnicas}
           initialSearch={search}
@@ -828,6 +950,141 @@ export const AssetsView: React.FC = () => {
                   <p className="text-slate-600 mt-0.5 italic">{selectedActivo.notas}</p>
                 </div>
               )}
+              {/* Costo y Factura Status */}
+              <div className="col-span-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-medium uppercase">Costo de Adquisición</span>
+                  <span className="font-semibold text-emerald-700">
+                    {selectedActivo.costo_adquisicion ? `RD$ ${Number(selectedActivo.costo_adquisicion).toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : 'No especificado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-medium uppercase">Factura Digital</span>
+                  {selectedActivo.factura_url ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Adjunta
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                      Sin adjuntar
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Sección de Factura y Documentos Digitales */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#1C3177]" />
+                  <span className="text-xs font-bold text-slate-800">Factura y Documentos de Compra</span>
+                </div>
+                {subiendoFactura && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#1C3177] font-semibold">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Procesando...</span>
+                  </div>
+                )}
+              </div>
+
+              {selectedActivo.factura_url ? (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold shrink-0">
+                        <FileCheck className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">
+                          {selectedActivo.factura_nombre || 'factura_adquisicion.pdf'}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          ✓ Factura digital registrada y verificada
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={selectedActivo.factura_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-[#1C3177] hover:bg-slate-100 transition-colors"
+                        title="Ver en pestaña externa"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <a
+                        href={selectedActivo.factura_url}
+                        download={selectedActivo.factura_nombre || 'factura.pdf'}
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                        title="Descargar factura"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => fileInputFacturaRef.current?.click()}
+                        disabled={subiendoFactura}
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                        title="Reemplazar factura"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEliminarFacturaSelected}
+                        disabled={subiendoFactura}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Eliminar factura"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Vista previa embebida si es imagen */}
+                  {(selectedActivo.factura_url.startsWith('data:image') || selectedActivo.factura_url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) ? (
+                    <div className="border rounded-xl overflow-hidden max-h-48 flex items-center justify-center bg-white p-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedActivo.factura_url}
+                        alt="Factura"
+                        className="object-contain max-h-44 w-auto rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-blue-50/50 rounded-xl text-center text-xs text-slate-600 border border-blue-100 flex items-center justify-center gap-2">
+                      <FileText className="w-4 h-4 text-[#1C3177]" />
+                      <span>Documento PDF disponible para previsualización y descarga.</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-700">Sin factura digital adjunta</p>
+                    <p className="text-[11px] text-slate-400">Sube la factura en formato PDF o imagen (máx 10 MB)</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputFacturaRef.current?.click()}
+                    disabled={subiendoFactura}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-50 text-[#1C3177] hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Adjuntar Factura
+                  </button>
+                </div>
+              )}
+              <input
+                type="file"
+                ref={fileInputFacturaRef}
+                className="hidden"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={handleSubirFacturaSelected}
+              />
             </div>
 
             <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100 flex-wrap">
@@ -847,12 +1104,16 @@ export const AssetsView: React.FC = () => {
                   onClick={() => {
                     const act = selectedActivo;
                     setSelectedActivo(null);
-                    setActivoParaTrasladar(act);
+                    if (onNavigateToMovements) {
+                      setToastMsg(`Redirigiendo a Movimientos para registrar el traslado de ${act.placa_institucional}...`);
+                      setTimeout(() => onNavigateToMovements(), 350);
+                    }
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-blue-50 text-[#1C3177] hover:bg-blue-100 transition-colors cursor-pointer"
+                  title="Ir al módulo de Movimientos para registrar traslado formal"
                 >
                   <ArrowRightLeft className="h-3.5 w-3.5" />
-                  Trasladar
+                  Ir a Movimientos (Traslado)
                 </button>
                 <button
                   onClick={() => {
@@ -860,6 +1121,7 @@ export const AssetsView: React.FC = () => {
                     handleAbrirActa(act);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  title="Ver Acta Oficial de Entrega"
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Ver Acta Oficial
@@ -871,6 +1133,7 @@ export const AssetsView: React.FC = () => {
                     setActivoParaDepreciacion(act);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
+                  title="Depreciación DGII"
                 >
                   <Calculator className="h-3.5 w-3.5" />
                   Depreciación DGII
@@ -882,6 +1145,7 @@ export const AssetsView: React.FC = () => {
                     setActivoParaMantenimiento(act);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                  title="Mantenimiento"
                 >
                   <Wrench className="h-3.5 w-3.5" />
                   Mantenimiento
@@ -915,12 +1179,16 @@ export const AssetsView: React.FC = () => {
                     onClick={() => {
                       const act = selectedActivo;
                       setSelectedActivo(null);
-                      setActivoParaBaja(act);
+                      if (onNavigateToMovements) {
+                        setToastMsg(`Redirigiendo a Movimientos para tramitar la baja de ${act.placa_institucional}...`);
+                        setTimeout(() => onNavigateToMovements(), 350);
+                      }
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
+                    title="Ir al módulo de Movimientos para tramitar desincorporación patrimonial"
                   >
                     <AlertOctagon className="h-3.5 w-3.5" />
-                    Dar de Baja / Descargo
+                    Ir a Movimientos (Baja)
                   </button>
                 )}
               </div>
@@ -934,16 +1202,6 @@ export const AssetsView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal de Traslado de Activo */}
-      {activoParaTrasladar && (
-        <TransferAssetModal
-          activo={activoParaTrasladar}
-          ubicaciones={ubicacionesUnicas}
-          onClose={() => setActivoParaTrasladar(null)}
-          onSuccess={handleTrasladoExitoso}
-        />
       )}
 
       {/* Modal de Acta Oficial de Entrega / Recepción */}
@@ -961,15 +1219,6 @@ export const AssetsView: React.FC = () => {
           onClose={() => setActivoParaMantenimiento(null)}
           activoId={activoParaMantenimiento.id}
           placaInstitucional={activoParaMantenimiento.placa_institucional}
-        />
-      )}
-
-      {/* Modal de Baja Patrimonial / Desincorporación */}
-      {activoParaBaja && (
-        <DecommissionAssetModal
-          activo={activoParaBaja}
-          onClose={() => setActivoParaBaja(null)}
-          onSuccess={handleBajaExitosa}
         />
       )}
 
@@ -1076,6 +1325,15 @@ export const AssetsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Registro de Nuevo Activo Fijo */}
+      <CreateAssetModal
+        isOpen={creandoActivo}
+        onClose={() => setCreandoActivo(false)}
+        onCreated={handleNuevoActivoCreado}
+        ubicaciones={ubicacionesDb.length > 0 ? ubicacionesDb : (UBICACIONES_ORIGINALES as any)}
+        siguientePlacaSugerida={siguientePlacaSugerida}
+      />
 
       {/* Floating Toast Feedback */}
       {toastMsg && (

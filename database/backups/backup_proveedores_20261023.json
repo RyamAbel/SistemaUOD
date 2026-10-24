@@ -1,0 +1,30 @@
+[
+  {
+    "id": "90f95f01-a684-4f88-8682-fabfda22cf65",
+    "rnc": "131884212",
+    "nombre_comercial": "Dental Corp. Dominicana S.R.L.",
+    "razon_social": "Dental Corp Dominicana S.R.L.",
+    "contacto_nombre": "Carlos Mendoza",
+    "telefono": "809-555-1234",
+    "correo": "ventas@dentalcorp.do",
+    "direccion": null,
+    "plazo_credito_dias": 30,
+    "activo": true,
+    "creado_en": "2026-10-18T19:23:17.609189+00:00",
+    "actualizado_en": "2026-10-18T19:23:17.609189+00:00"
+  },
+  {
+    "id": "526cab2b-4c63-42bf-9219-6df949afc94f",
+    "rnc": "101992345",
+    "nombre_comercial": "Biomateriales del Caribe S.A.",
+    "razon_social": "Biomateriales del Caribe Sociedad Anónima",
+    "contacto_nombre": "Laura Silva",
+    "telefono": "809-555-5678",
+    "correo": "ordenes@biomatcaribe.com",
+    "direccion": null,
+    "plazo_credito_dias": 45,
+    "activo": true,
+    "creado_en": "2026-10-18T19:23:17.609189+00:00",
+    "actualizado_en": "2026-10-18T19:23:17.609189+00:00"
+  }
+]

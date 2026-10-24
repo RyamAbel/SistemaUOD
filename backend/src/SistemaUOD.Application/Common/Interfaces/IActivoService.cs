@@ -18,6 +18,7 @@ public interface IActivoService
     Task<ResultadoBajaActivoDto> ProcesarBajaPatrimonialAsync(Guid id, DarDeBajaActivoDto dto, CancellationToken ct = default);
     Task<ActaDescargoPatrimonialDto> GenerarActaDescargoAsync(Guid id, CancellationToken ct = default);
     Task<ActivoSerieDto> SubirFacturaAsync(Guid id, Stream archivoStream, string nombreArchivo, string contentType, long tamanoBytes, CancellationToken ct = default);
+    Task<ActivoSerieDto> EliminarFacturaAsync(Guid id, CancellationToken ct = default);
     Task<List<ActivoHistorialCambioDto>> ObtenerHistorialCambiosAsync(Guid id, CancellationToken ct = default);
     Task<bool> EliminarActivoDefinitivoAsync(Guid id, CancellationToken ct = default);
 }
