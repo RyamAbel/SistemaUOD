@@ -36,10 +36,25 @@ export interface PagedResult<T> {
   hasNextPage: boolean;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
-    ? 'https://sistemauod.onrender.com/api/v1'
-    : 'http://localhost:5000/api/v1');
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Si estamos en Vercel, móvil o cualquier dominio que no sea localhost, llamar siempre a la API de Render
+    if (host && !host.includes('localhost') && host !== '127.0.0.1') {
+      return 'https://sistemauod.onrender.com/api/v1';
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+}
+
+const API_BASE_URL = {
+  replace(pattern: RegExp | string, replacement: string): string {
+    return getApiBaseUrl().replace(pattern as any, replacement);
+  },
+  toString(): string {
+    return getApiBaseUrl();
+  }
+};
 
 class ApiError extends Error {
   public status: number;
