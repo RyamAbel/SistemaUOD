@@ -36,7 +36,10 @@ export interface PagedResult<T> {
   hasNextPage: boolean;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+    ? 'https://sistemauod.onrender.com/api/v1'
+    : 'http://localhost:5000/api/v1');
 
 class ApiError extends Error {
   public status: number;
